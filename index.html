@@ -1,0 +1,1132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>VIVIVIC 서류관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2337352f'/%3E%3Ctext x='16' y='22' font-size='16' font-family='Inter,sans-serif' font-weight='700' fill='%23fff' text-anchor='middle'%3EV%3C/text%3E%3C/svg%3E" />
+<style>*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:Inter,system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width:640px){.container{max-width:640px}}@media (min-width:768px){.container{max-width:768px}}@media (min-width:1024px){.container{max-width:1024px}}@media (min-width:1280px){.container{max-width:1280px}}@media (min-width:1536px){.container{max-width:1536px}}.pointer-events-none{pointer-events:none}.visible{visibility:visible}.fixed{position:fixed}.sticky{position:sticky}.inset-0{inset:0}.bottom-6{bottom:1.5rem}.left-1\/2{left:50%}.right-0{right:0}.top-0{top:0}.z-10{z-index:10}.z-\[100\]{z-index:100}.z-\[190\]{z-index:190}.z-\[200\]{z-index:200}.z-\[300\]{z-index:300}.mx-1{margin-left:.25rem;margin-right:.25rem}.mx-auto{margin-left:auto;margin-right:auto}.mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-5{margin-bottom:1.25rem}.mb-6{margin-bottom:1.5rem}.ml-auto{margin-left:auto}.mt-1{margin-top:.25rem}.mt-10{margin-top:2.5rem}.mt-3{margin-top:.75rem}.mt-5{margin-top:1.25rem}.mt-8{margin-top:2rem}.block{display:block}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-5{height:1.25rem}.h-\[65px\]{height:65px}.h-\[6px\]{height:6px}.h-full{height:100%}.max-h-\[220px\]{max-height:220px}.min-h-screen{min-height:100vh}.w-5{width:1.25rem}.w-\[240px\]{width:240px}.w-full{width:100%}.w-px{width:1px}.max-w-\[1400px\]{max-width:1400px}.max-w-\[340px\]{max-width:340px}.max-w-\[560px\]{max-width:560px}.max-w-\[680px\]{max-width:680px}.shrink-0{flex-shrink:0}.-translate-x-1\/2{--tw-translate-x:-50%}.-translate-x-1\/2,.translate-x-full{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.translate-x-full{--tw-translate-x:100%}.transform{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.resize-y{resize:vertical}.grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr))}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-7{grid-template-columns:repeat(7,minmax(0,1fr))}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-1{gap:.25rem}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-2\.5{gap:.625rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.space-y-1>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.25rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.25rem*var(--tw-space-y-reverse))}.space-y-1\.5>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.375rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.375rem*var(--tw-space-y-reverse))}.space-y-2>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.5rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.5rem*var(--tw-space-y-reverse))}.space-y-7>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.75rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.75rem*var(--tw-space-y-reverse))}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rounded{border-radius:.25rem}.rounded-2xl{border-radius:1rem}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:.5rem}.rounded-md{border-radius:.375rem}.border{border-width:1px}.border-b{border-bottom-width:1px}.border-l{border-left-width:1px}.border-line{--tw-border-opacity:1;border-color:rgb(237 237 235/var(--tw-border-opacity,1))}.bg-\[\#fdf3e3\]{--tw-bg-opacity:1;background-color:rgb(253 243 227/var(--tw-bg-opacity,1))}.bg-black\/25{background-color:rgba(0,0,0,.25)}.bg-chip{--tw-bg-opacity:1;background-color:rgb(241 241 239/var(--tw-bg-opacity,1))}.bg-ink{--tw-bg-opacity:1;background-color:rgb(55 53 47/var(--tw-bg-opacity,1))}.bg-line{--tw-bg-opacity:1;background-color:rgb(237 237 235/var(--tw-bg-opacity,1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.p-10{padding:2.5rem}.p-12{padding:3rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-1\.5{padding-left:.375rem;padding-right:.375rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-2\.5{padding-top:.625rem;padding-bottom:.625rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-8{padding-top:2rem;padding-bottom:2rem}.pb-2{padding-bottom:.5rem}.pl-\[42px\]{padding-left:42px}.pr-1{padding-right:.25rem}.pr-3{padding-right:.75rem}.text-left{text-align:left}.text-center{text-align:center}.text-right{text-align:right}.font-sans{font-family:Inter,system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif}.text-\[10px\]{font-size:10px}.text-\[11px\]{font-size:11px}.text-\[12px\]{font-size:12px}.text-\[13px\]{font-size:13px}.text-\[14px\]{font-size:14px}.text-\[15px\]{font-size:15px}.text-\[16px\]{font-size:16px}.text-\[17px\]{font-size:17px}.text-\[19px\]{font-size:19px}.text-\[22px\]{font-size:22px}.text-\[26px\]{font-size:26px}.font-bold{font-weight:700}.font-semibold{font-weight:600}.leading-none{line-height:1}.leading-relaxed{line-height:1.625}.leading-tight{line-height:1.25}.tracking-\[\.18em\]{letter-spacing:.18em}.tracking-wide{letter-spacing:.025em}.tracking-wider{letter-spacing:.05em}.text-\[\#8a5a00\]{--tw-text-opacity:1;color:rgb(138 90 0/var(--tw-text-opacity,1))}.text-danger{--tw-text-opacity:1;color:rgb(224 62 62/var(--tw-text-opacity,1))}.text-faint{--tw-text-opacity:1;color:rgb(155 154 151/var(--tw-text-opacity,1))}.text-info{--tw-text-opacity:1;color:rgb(51 126 169/var(--tw-text-opacity,1))}.text-ink{--tw-text-opacity:1;color:rgb(55 53 47/var(--tw-text-opacity,1))}.text-muted{--tw-text-opacity:1;color:rgb(120 119 116/var(--tw-text-opacity,1))}.text-warn{--tw-text-opacity:1;color:rgb(203 145 47/var(--tw-text-opacity,1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.underline{text-decoration-line:underline}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.opacity-0{opacity:0}.opacity-60{opacity:.6}.shadow-lg{--tw-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color),0 4px 6px -4px var(--tw-shadow-color)}.shadow-lg,.shadow-sm{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-sm{--tw-shadow:0 1px 2px 0 rgba(0,0,0,.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-opacity{transition-property:opacity;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.hover\:border-ink\/25:hover{border-color:rgba(55,53,47,.25)}.hover\:bg-hover:hover{--tw-bg-opacity:1;background-color:rgb(247 247 245/var(--tw-bg-opacity,1))}.hover\:text-ink:hover{--tw-text-opacity:1;color:rgb(55 53 47/var(--tw-text-opacity,1))}.hover\:underline:hover{text-decoration-line:underline}.hover\:shadow:hover{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}@media (min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.md\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}}@media (min-width:1280px){.xl\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}}</style>
+<style>
+  html, body { background: #fbfbfa; }
+  body { color: #37352f; -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #e3e2e0; border-radius: 6px; border: 3px solid #fbfbfa; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .card { background:#fff; border:1px solid #ededeb; border-radius:16px; box-shadow:0 1px 2px 0 rgb(0 0 0 / .05); }
+  .btn { border-radius:8px; font-weight:700; font-size:13px; padding:8px 18px; transition:all .12s; }
+  .btn-primary { background:#37352f; color:#fff; }
+  .btn-primary:hover { background:#2b2a25; }
+  .btn-primary:disabled { opacity:.45; cursor:default; }
+  .btn-ghost { background:#f1f1ef; color:#37352f; }
+  .btn-ghost:hover { background:#ededeb; }
+  .chip { border-radius:999px; font-size:12px; font-weight:600; padding:5px 12px; transition:all .12s; }
+  .chip-off { background:#fff; border:1px solid #ededeb; color:#787774; }
+  .chip-off:hover { background:#f7f7f5; }
+  .chip-on { background:#37352f; border:1px solid #37352f; color:#fff; }
+  .field { width:100%; font-size:13px; padding:9px 12px; border-radius:8px; border:1px solid #ededeb;
+           background:#fff; transition:border-color .12s; }
+  .field::placeholder { color:#9b9a97; }
+  .field:focus { outline:none; border-color:#37352f; }
+  .drawer { transition: transform .22s cubic-bezier(.4,0,.2,1); }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+
+<!-- ── 로그인 ───────────────────────────────────────────── -->
+<section id="login" class="min-h-screen flex items-center justify-center px-6" hidden>
+  <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
+    <div class="flex items-center gap-2 mb-1">
+      <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.2.0</span>
+    </div>
+    <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
+    <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
+
+    <label class="block mb-3">
+      <span class="text-[11px] font-bold text-faint tracking-wide">이메일</span>
+      <input id="email" type="email" autocomplete="username" required class="field mt-1" placeholder="name@example.com" />
+    </label>
+    <label class="block mb-5">
+      <span class="text-[11px] font-bold text-faint tracking-wide">비밀번호</span>
+      <input id="password" type="password" autocomplete="current-password" required class="field mt-1" />
+    </label>
+
+    <button id="loginBtn" type="submit" class="btn btn-primary w-full">로그인</button>
+    <p id="loginError" class="mt-3 text-[12px] text-danger" hidden></p>
+    <button id="demoLink" type="button" class="mt-5 text-[12px] text-faint hover:text-ink underline">
+      로그인 없이 데모 보기
+    </button>
+  </form>
+</section>
+
+<!-- ── 앱 ───────────────────────────────────────────────── -->
+<div id="app" hidden>
+<header class="w-full bg-white border-b border-line sticky top-0 z-[100]">
+  <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
+    <div class="flex items-center gap-2 shrink-0">
+      <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.2.0</span>
+    </div>
+
+    <nav class="flex items-center gap-1 text-[13px] font-bold">
+      <a class="px-3 py-1.5 rounded-md text-faint hover:bg-hover hover:text-ink transition-all"
+         href="https://vivivic-cloud.github.io/vivivic-apps/에이엠티/에이엠티.html">발주서</a>
+      <a class="px-3 py-1.5 rounded-md text-faint hover:bg-hover hover:text-ink transition-all"
+         href="https://vivivic-cloud.github.io/vivivic-apps/에이엠티/에이엠티.html">재단발주</a>
+      <a class="px-3 py-1.5 rounded-md text-faint hover:bg-hover hover:text-ink transition-all"
+         href="https://vivivic-cloud.github.io/vivivic-apps/에이엠티/에이엠티.html">공정관리</a>
+      <span class="px-3 py-1.5 rounded-md bg-chip text-ink">서류관리</span>
+    </nav>
+
+    <div class="ml-auto flex items-center gap-2">
+      <span id="cloudState" class="text-[11px] font-bold text-faint tracking-wide"></span>
+      <button id="btnSync" class="btn btn-ghost" hidden>드라이브 스캔</button>
+      <span id="userEmail" class="text-[12px] text-muted"></span>
+      <button id="btnSignOut" class="text-[12px] text-faint hover:text-ink font-bold underline" hidden>로그아웃</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-[1400px] mx-auto px-6 py-8">
+
+  <!-- 클라우드에 데이터가 없을 때 -->
+  <section id="empty" class="card p-10 max-w-[680px] mx-auto mt-10" hidden>
+    <h1 class="text-[22px] font-bold mb-2">아직 올라간 서류 목록이 없습니다</h1>
+    <p class="text-muted leading-relaxed mb-6">
+      맥에서 구글 드라이브 <span class="font-semibold text-ink">중국</span> 폴더를 한 번 스캔해 올리면,
+      그 뒤로는 폰이든 다른 PC든 로그인만 하면 바로 보입니다.
+      파일 본체는 올라가지 않고 <span class="font-semibold text-ink">목록만</span> 클라우드에 저장됩니다.
+    </p>
+    <button id="btnSync2" class="btn btn-primary">드라이브 폴더 스캔해서 올리기</button>
+    <p id="unsupported" class="mt-5 text-[12px] text-muted" hidden>
+      이 브라우저는 폴더 접근을 지원하지 않습니다. 스캔은 맥·PC의 Chrome에서 한 번만 해주면 됩니다.
+    </p>
+  </section>
+
+  <section id="dash" hidden>
+    <div id="kpis" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
+
+    <div class="card p-4 mb-6">
+      <div class="flex flex-wrap items-center gap-2">
+        <div id="vendorChips" class="flex flex-wrap items-center gap-1.5"></div>
+        <span class="w-px h-5 bg-line mx-1"></span>
+        <div id="statusChips" class="flex flex-wrap items-center gap-1.5"></div>
+        <input id="search" type="search" placeholder="차수 · 파일명 검색" class="field ml-auto w-[240px]" />
+      </div>
+    </div>
+
+    <div id="grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    <div id="emptyState" class="card p-12 text-center text-muted" hidden>조건에 맞는 차수가 없습니다.</div>
+    <div id="loose" class="mt-8"></div>
+  </section>
+</main>
+</div>
+
+<div id="scrim" class="fixed inset-0 bg-black/25 z-[190]" hidden></div>
+<aside id="drawer"
+       class="drawer fixed top-0 right-0 h-full w-full max-w-[560px] bg-white border-l border-line z-[200]
+              translate-x-full overflow-y-auto">
+  <div id="drawerBody"></div>
+</aside>
+
+<div id="toast"
+     class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-white text-[13px] font-semibold
+            px-4 py-2.5 rounded-lg shadow-lg z-[300] opacity-0 pointer-events-none transition-opacity"></div>
+
+
+<script type="module">
+
+const SINGLE_FILE = false;
+const DEMO = {"note": "데모용 샘플입니다. 파일명 형식만 실제와 같게 두고 거래처·제품명은 바꿨습니다.", "files": [{"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_20260730.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_20260730.pdf", "size": 99321, "vendor": "한신우드"}, {"name": "AMT2026-18A型加B型订单合同8.03.xlsx", "path": "한신우드/AMT2026-18A型加B型订单合同8.03.xlsx", "size": 301000, "vendor": "한신우드"}, {"name": "TalkFile__26-094-AMT-HW-18(한신우드 26-18차)_계약금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile__26-094-AMT-HW-18(한신우드 26-18차)_계약금 인보이스영수증.pdf.pdf", "size": 144388, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "size": 83762, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "size": 83762, "vendor": "한신우드"}, {"name": "AMT2026-19A型订单合同8.19.xlsx", "path": "한신우드/AMT2026-19A型订单合同8.19.xlsx", "size": 396259, "vendor": "한신우드"}, {"name": "TalkFile_26-083-AMT-HW-15(한신우드 26-15차)_잔금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile_26-083-AMT-HW-15(한신우드 26-15차)_잔금 인보이스영수증.pdf.pdf", "size": 141142, "vendor": "한신우드"}, {"name": "HSWD-ING26 -15   2026.08.06- CI&PL...xls", "path": "한신우드/HSWD-ING26 -15   2026.08.06- CI&PL...xls", "size": 250368, "vendor": "한신우드"}, {"name": "TalkFile_26-080-AMT-HW-14(한신우드 26-14차)_잔금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile_26-080-AMT-HW-14(한신우드 26-14차)_잔금 인보이스영수증.pdf.pdf", "size": 141219, "vendor": "한신우드"}, {"name": "HSWD-ING26 -14 2026.07.30- CI&PL...xls", "path": "한신우드/HSWD-ING26 -14 2026.07.30- CI&PL...xls", "size": 251904, "vendor": "한신우드"}, {"name": "FTA ING26-14.pdf", "path": "한신우드/FTA ING26-14.pdf", "size": 1572266, "vendor": "한신우드"}, {"name": "TalkFile_26-079-AMT-HW-13(한신우드 26-13차)_잔금인보이스영수증.pdf", "path": "한신우드/TalkFile_26-079-AMT-HW-13(한신우드 26-13차)_잔금인보이스영수증.pdf", "size": 144485, "vendor": "한신우드"}, {"name": "FTA-ING 26-13.pdf", "path": "한신우드/FTA-ING 26-13.pdf", "size": 1566833, "vendor": "한신우드"}, {"name": "SHBL-CARRIERXX0783101.pdf", "path": "한신우드/SHBL-CARRIERXX0783101.pdf", "size": 219636, "vendor": "한신우드"}, {"name": "SHBL-CARRIERXX0783102.pdf", "path": "한신우드/SHBL-CARRIERXX0783102.pdf", "size": 219627, "vendor": "한신우드"}, {"name": "26-16.17订单，报价，立方数26.08.03.xlsx", "path": "한신우드/26-16.17订单，报价，立方数26.08.03.xlsx", "size": 1022726, "vendor": "한신우드"}, {"name": "26-16.17订单，报价，立方数26.07.30.xlsx", "path": "한신우드/26-16.17订单，报价，立方数26.07.30.xlsx", "size": 965818, "vendor": "한신우드"}, {"name": "HSWD-ING26 -102026.06.18- CI&PL...xls", "path": "한신우드/HSWD-ING26 -102026.06.18- CI&PL...xls", "size": 262656, "vendor": "한신우드"}, {"name": "AMT2026-14床订单(18)合同6.25.xlsx", "path": "한신우드/AMT2026-14床订单(18)合同6.25.xlsx", "size": 221123, "vendor": "한신우드"}, {"name": "TalkFile_올리브 침대 확장패널_서랍협탁400 300_선반협탁_Re 260806.pdf", "path": "한신우드/TalkFile_올리브 침대 확장패널_서랍협탁400 300_선반협탁_Re 260806.pdf", "size": 839935, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 확장패널_서랍협탁_선반협탁.pdf", "path": "한신우드/TalkFile_비스타 침대 확장패널_서랍협탁_선반협탁.pdf", "size": 1048815, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 헤드.pdf", "path": "한신우드/TalkFile_비스타 침대 헤드.pdf", "size": 621456, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 SS.pdf", "path": "한신우드/TalkFile_비스타 침대 SS.pdf", "size": 652842, "vendor": "한신우드"}, {"name": "TalkFile_ING_HW_다이토 테이블_협탁 2차 견적서 및 샘플요청 _2026.08.14.xlsx", "path": "한신우드/TalkFile_ING_HW_다이토 테이블_협탁 2차 견적서 및 샘플요청 _2026.08.14.xlsx", "size": 735465, "vendor": "한신우드"}, {"name": "어린이 침대 견적서_2026.06.18.xlsx.xlsx", "path": "한신우드/어린이 침대 견적서_2026.06.18.xlsx.xlsx", "size": 1502641, "vendor": "한신우드"}, {"name": "어린이 슈벤치 변경 견적서_2026.06.18.xlsx.xlsx", "path": "한신우드/어린이 슈벤치 변경 견적서_2026.06.18.xlsx.xlsx", "size": 624670, "vendor": "한신우드"}, {"name": "올리브침대(신규)_2종_작업지지서 피드백_260707 (1).pdf", "path": "한신우드/올리브침대(신규)_2종_작업지지서 피드백_260707 (1).pdf", "size": 587750, "vendor": "한신우드"}, {"name": "TalkFile_올리브침대_신규깔판2종_도면_260708.dxf", "path": "한신우드/TalkFile_올리브침대_신규깔판2종_도면_260708.dxf", "size": 664196, "vendor": "한신우드"}, {"name": "HW31.pdf", "path": "한신우드/HW31.pdf", "size": 61535, "vendor": "한신우드"}, {"name": "HW32.pdf", "path": "한신우드/HW32.pdf", "size": 62937, "vendor": "한신우드"}, {"name": "HW33.pdf", "path": "한신우드/HW33.pdf", "size": 62910, "vendor": "한신우드"}, {"name": "ING- 선수금 2026031711 PI.xls", "path": "장쑤세라믹/ING- 선수금 2026031711 PI.xls", "size": 410112, "vendor": "장쑤세라믹"}, {"name": "TalkFile_26-1_PO for Ceramic table _ 2nd revised 260317.pdf", "path": "장쑤세라믹/TalkFile_26-1_PO for Ceramic table _ 2nd revised 260317.pdf", "size": 131170, "vendor": "장쑤세라믹"}], "overlay": {"한신우드::26-18": {"piAmount": "예시 · 실제 값 아님", "memo": "발주서가 8/13에 1차 수정됐습니다. 7/30 원본과 대조 필요."}}};
+const PARSE = (() => {
+/**
+ * VIVIVIC 서류관리 — 파일명 파서
+ * 순수 함수만 둡니다. 브라우저와 Node(테스트) 양쪽에서 그대로 씁니다.
+ */
+
+const STAGES = [
+  { id: 1, key: 'order', label: '발주서', short: '발주' },
+  { id: 2, key: 'pi', label: '계약금서류 (PI 30%)', short: 'PI' },
+  { id: 3, key: 'piReceipt', label: '계약금영수증', short: '계약금영수증' },
+  { id: 4, key: 'loading', label: '상차이미지', short: '상차' },
+  { id: 5, key: 'cipl', label: '잔액서류 (CI&PL 70%)', short: 'CI&PL' },
+  { id: 6, key: 'balReceipt', label: '잔액입금영수증', short: '잔금영수증' },
+  { id: 7, key: 'bl', label: '선하증권', short: 'B/L' },
+];
+
+/** 7단계에 속하지 않지만 따로 모아두면 유용한 분류 */
+const ASIDE = [
+  { key: 'dev', label: '제품개발' },
+  { key: 'fta', label: 'FTA · 원산지' },
+  { key: 'etc', label: '미분류' },
+];
+
+const STAGE_BY_KEY = Object.fromEntries(STAGES.map((s) => [s.key, s]));
+
+/** 카카오톡 다운로드 접두사, 중복 확장자 등을 걷어냅니다. */
+function normalizeName(name) {
+  let n = String(name);
+  n = n.replace(/^TalkFile_+/i, '');
+  // "....pdf.pdf" → "....pdf"
+  n = n.replace(/(\.[a-z0-9]{2,5})\1+$/i, '$1');
+  return n.trim();
+}
+
+function extOf(name) {
+  const m = /\.([a-z0-9]{1,6})$/i.exec(name);
+  return m ? m[1].toLowerCase() : '';
+}
+
+const IMAGE_EXT = new Set(['jpg', 'jpeg', 'png', 'heic', 'webp', 'gif']);
+
+/**
+ * 파일명에서 차수를 뽑습니다. → { year: 26, no: 18, label: '26-18' } | null
+ * 확신이 높은 패턴부터 시도합니다.
+ */
+function parseBatch(rawName) {
+  const n = normalizeName(rawName);
+
+  // 1) 한글 명시형이 가장 확실합니다: "제헤우드 26-18차", "26-14차"
+  let m = /(\d{2})\s*-\s*(\d{1,2})\s*차/.exec(n);
+  if (m) return mk(m[1], m[2]);
+
+  // 2) 거래처 코드가 붙은 형태: "AMT(ZH)26-18", "ING26-14", "ZEHE-ING26 -15"
+  m = /(?:ZH|ING|JW|BJ)\)?\s*-?\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
+  if (m) return mk(m[1], m[2]);
+
+  // 3) "AMT2026-18", "AMT2026-19书架"
+  m = /AMT\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
+  if (m) return mk(m[1], m[2]);
+
+  // 4) 앞뒤가 숫자가 아닌 "26-16.17" 같은 복수 차수 → 첫 번째만
+  m = /(?:^|[^\d])(2[4-9])\s*-\s*(\d{1,2})(?![\d.]*\d{3})/.exec(n);
+  if (m) return mk(m[1], m[2]);
+
+  return null;
+
+  function mk(y, no) {
+    const year = Number(y) % 100;
+    const num = Number(no);
+    if (!Number.isFinite(year) || !Number.isFinite(num) || num < 1 || num > 60) return null;
+    return { year, no: num, label: `${String(year).padStart(2, '0')}-${String(num).padStart(2, '0')}` };
+  }
+}
+
+/**
+ * 파일명을 7단계 중 하나(또는 부가 분류)로 판정합니다.
+ * → { key, stage|null, why }
+ */
+function classify(rawName) {
+  const n = normalizeName(rawName);
+  const ext = extOf(n);
+  const hit = (key, why) => ({ key, stage: STAGE_BY_KEY[key]?.id ?? null, why });
+
+  // 7. 선하증권 — SHBL / HBL / MBL / B/L / 선하증권
+  if (/선하증권|\b(?:SH|H|M)?BL[-_ ]?[A-Z0-9]{4,}|\bB\s*\/\s*L\b|提单/i.test(n)) return hit('bl', '선하증권 키워드');
+
+  // 6/3. 영수증 계열은 30% / 70% 로 갈립니다
+  const isReceipt = /영수증|수령증|receipt/i.test(n);
+  if (isReceipt) {
+    if (/잔금|잔액|70\s*%|balance/i.test(n)) return hit('balReceipt', '영수증 + 잔금/70%');
+    if (/계약금|30\s*%|선수금|deposit/i.test(n)) return hit('piReceipt', '영수증 + 계약금/30%');
+    return hit('piReceipt', '영수증 (기본 계약금으로 분류)');
+  }
+
+  // 5. 잔액서류 — CI&PL / 인보이스+패킹
+  if (/CI\s*[&＆和]\s*PL|CI\s*_?\s*PL\b|packing\s*list|装箱单/i.test(n)) return hit('cipl', 'CI&PL');
+  if (/70\s*%/.test(n)) return hit('cipl', '70% 표기');
+
+  // 2. 계약금서류 — PI 번호
+  if (/(?<![A-Za-z])PI(?![A-Za-z])|proforma|形式发票/i.test(n)) return hit('pi', 'PI 번호');
+  if (/30\s*%/.test(n)) return hit('pi', '30% 표기');
+
+  // 4. 상차이미지
+  if (/상차|装[车車]|裝車|loading/i.test(n)) return hit('loading', '상차 키워드');
+
+  // 1. 발주서 / 주문계약서
+  if (/ordersheet|order\s*sheet|(?<![A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서|주문계약|订单|訂單|合同|계약서/i.test(n))
+    return hit('order', '발주·계약 키워드');
+
+  // 부가: FTA·원산지
+  if (/\bFTA\b|원산지|C\/O\b|certificate\s*of\s*origin/i.test(n)) return hit('fta', 'FTA·원산지');
+
+  // 부가: 제품개발 (견적/도면/작업지시)
+  if (/견적|报价|報價|quotation|도면|작업지.{0,2}서|지시서|설명서|说明|사양|스펙|spec/i.test(n) || ext === 'dxf')
+    return hit('dev', '견적·도면·지시서');
+
+  // 이미지인데 상차 표기가 없는 경우
+  if (IMAGE_EXT.has(ext)) return hit('etc', '분류 근거 없는 이미지');
+
+  return hit('etc', '규칙에 걸리지 않음');
+}
+
+/** 파일명에서 날짜(YYYY-MM-DD)를 추정합니다. */
+function parseDate(rawName) {
+  const n = normalizeName(rawName);
+  let m = /(20\d{2})[.\-_ ]?(\d{2})[.\-_ ]?(\d{2})(?!\d)/.exec(n);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = /(?:^|[^\d])(2[4-9])(\d{2})(\d{2})(?!\d)/.exec(n); // 260813
+  if (m) return `20${m[1]}-${m[2]}-${m[3]}`;
+  return null;
+}
+
+/** PI 문서번호 (예: 26-094-AMT-ZH-18 → 26-094) */
+function parseDocNo(rawName) {
+  const m = /(\d{2}-\d{3})-AMT/i.exec(normalizeName(rawName));
+  return m ? m[1] : null;
+}
+
+/**
+ * 파일 목록 → 차수별로 묶인 구조.
+ * files: [{ name, path, size, mtime, vendor }]
+ */
+function buildBatches(files) {
+  const batches = new Map();
+  const unassigned = [];
+
+  for (const f of files) {
+    const batch = parseBatch(f.name);
+    const cls = classify(f.name);
+    const doc = {
+      ...f,
+      display: normalizeName(f.name),
+      stageKey: cls.key,
+      stageId: cls.stage,
+      why: cls.why,
+      date: parseDate(f.name),
+      docNo: parseDocNo(f.name),
+    };
+    if (!batch) {
+      unassigned.push(doc);
+      continue;
+    }
+    const id = `${f.vendor}::${batch.label}`;
+    if (!batches.has(id)) {
+      batches.set(id, { id, vendor: f.vendor, batch: batch.label, year: batch.year, no: batch.no, docs: [] });
+    }
+    batches.get(id).docs.push(doc);
+  }
+
+  const list = [...batches.values()].map(summarize);
+  list.sort((a, b) => (b.year - a.year) || (b.no - a.no) || a.vendor.localeCompare(b.vendor));
+  return { batches: list, unassigned: unassigned.map((d) => ({ ...d })) };
+}
+
+/** 차수 하나에 대해 단계별 채움 여부·진행률·이상 징후를 계산합니다. */
+function summarize(b) {
+  const stages = STAGES.map((s) => ({
+    ...s,
+    docs: b.docs.filter((d) => d.stageKey === s.key),
+  }));
+  const aside = ASIDE.map((a) => ({ ...a, docs: b.docs.filter((d) => d.stageKey === a.key) }));
+
+  const done = stages.filter((s) => s.docs.length > 0).length;
+  const issues = findIssues(b, stages);
+
+  // 마지막으로 움직인 날짜
+  const dates = b.docs.map((d) => d.date).filter(Boolean).sort();
+  const lastDate = dates.length ? dates[dates.length - 1] : null;
+
+  return {
+    ...b,
+    stages,
+    aside,
+    done,
+    total: STAGES.length,
+    percent: Math.round((done / STAGES.length) * 100),
+    issues,
+    lastDate,
+    status: done === STAGES.length ? 'done' : done === 0 ? 'empty' : 'active',
+  };
+}
+
+/** 서류 흐름상 앞뒤가 안 맞는 지점을 찾아냅니다. */
+function findIssues(b, stages) {
+  const out = [];
+  const has = (key) => stages.find((s) => s.key === key).docs.length > 0;
+
+  // 영수증은 있는데 원본 서류가 없는 경우
+  if (has('piReceipt') && !has('pi'))
+    out.push({ level: 'warn', text: '계약금 영수증은 있는데 PI 원본이 없습니다.' });
+  if (has('balReceipt') && !has('cipl'))
+    out.push({ level: 'warn', text: '잔금 영수증은 있는데 CI&PL이 없습니다.' });
+
+  // 뒷단계가 앞단계를 앞질러 간 경우
+  const filled = stages.filter((s) => s.docs.length > 0).map((s) => s.id);
+  if (filled.length) {
+    const max = Math.max(...filled);
+    const gaps = [];
+    for (let i = 1; i < max; i++) if (!filled.includes(i)) gaps.push(i);
+    if (gaps.length)
+      out.push({
+        level: 'warn',
+        text: `${max}단계까지 진행됐는데 ${gaps.map((g) => `${g}단계`).join(', ')}가 비어 있습니다.`,
+      });
+  }
+
+  // 같은 파일이 여러 벌
+  for (const dup of findDuplicates(b.docs)) {
+    out.push({
+      level: 'info',
+      text: `"${dup.display}" 가 ${dup.count}벌 중복 저장돼 있습니다.`,
+      files: dup.files,
+    });
+  }
+
+  return out;
+}
+
+/** 이름·크기가 같은 파일 묶음 */
+function findDuplicates(docs) {
+  const map = new Map();
+  for (const d of docs) {
+    const key = `${d.display}|${d.size ?? ''}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(d);
+  }
+  return [...map.values()]
+    .filter((g) => g.length > 1)
+    .map((g) => ({ display: g[0].display, count: g.length, files: g.map((x) => x.path) }));
+}
+
+return { ASIDE, STAGES, STAGE_BY_KEY, buildBatches, classify, extOf, findDuplicates, findIssues, normalizeName, parseBatch, parseDate, parseDocNo, summarize };
+})();
+const FS = (() => {
+/**
+ * File System Access API 래퍼.
+ * 폴더 핸들을 IndexedDB에 넣어두고 다음 방문 때 다시 씁니다.
+ */
+
+const DB = 'vivivic-docs';
+const STORE = 'handles';
+const KEY = 'root';
+
+const supported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+
+async function idb(mode, fn) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, mode);
+    const req = fn(tx.objectStore(STORE));
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+
+const saveHandle = (h) => idb('readwrite', (s) => s.put(h, KEY));
+const loadHandle = () => idb('readonly', (s) => s.get(KEY));
+const clearHandle = () => idb('readwrite', (s) => s.delete(KEY));
+
+async function pickFolder() {
+  const handle = await window.showDirectoryPicker({ id: 'vivivic-china', mode: 'readwrite' });
+  await saveHandle(handle);
+  return handle;
+}
+
+/** 저장된 핸들의 권한을 확인합니다. 사용자 제스처 안에서 불러야 프롬프트가 뜹니다. */
+async function ensurePermission(handle, { prompt = false } = {}) {
+  const opts = { mode: 'readwrite' };
+  if ((await handle.queryPermission(opts)) === 'granted') return true;
+  if (!prompt) return false;
+  return (await handle.requestPermission(opts)) === 'granted';
+}
+
+const SKIP_DIR = /^(\.|_옵시디언$|node_modules$)/;
+const SKIP_FILE = /^(\.|~\$)/;
+
+/**
+ * 루트(=중국 폴더) 아래를 훑습니다.
+ * 최상위 폴더 이름을 거래처로 봅니다.
+ * → [{ name, path, size, mtime, vendor, handle }]
+ */
+async function scan(root, { maxDepth = 4, onProgress } = {}) {
+  const files = [];
+  const vendors = [];
+
+  for await (const [name, entry] of root.entries()) {
+    if (entry.kind !== 'directory') continue;
+    if (SKIP_DIR.test(name)) continue;
+    vendors.push(name);
+    await walk(entry, name, name, 1);
+  }
+
+  // 루트에 바로 놓인 파일도 담습니다 (HTML 도구 등)
+  for await (const [name, entry] of root.entries()) {
+    if (entry.kind !== 'file' || SKIP_FILE.test(name)) continue;
+    files.push(await toRecord(entry, name, name, '(루트)'));
+  }
+
+  return { files, vendors };
+
+  async function walk(dir, vendor, prefix, depth) {
+    if (depth > maxDepth) return;
+    for await (const [name, entry] of dir.entries()) {
+      const path = `${prefix}/${name}`;
+      if (entry.kind === 'directory') {
+        if (SKIP_DIR.test(name)) continue;
+        await walk(entry, vendor, path, depth + 1);
+      } else {
+        if (SKIP_FILE.test(name)) continue;
+        files.push(await toRecord(entry, name, path, vendor));
+        if (onProgress && files.length % 50 === 0) onProgress(files.length);
+      }
+    }
+  }
+
+  async function toRecord(entry, name, path, vendor) {
+    let size = null;
+    let mtime = null;
+    try {
+      const f = await entry.getFile();
+      size = f.size;
+      mtime = f.lastModified;
+    } catch {
+      /* 동기화 중인 파일은 건너뜁니다 */
+    }
+    return { name, path, size, mtime, vendor, handle: entry };
+  }
+}
+
+/** 파일을 새 탭에서 엽니다. */
+async function openFile(handle) {
+  const file = await handle.getFile();
+  const url = URL.createObjectURL(file);
+  window.open(url, '_blank', 'noopener');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** 루트 폴더에 JSON을 씁니다 (입력값 저장용). */
+async function writeJSON(root, filename, data) {
+  const fh = await root.getFileHandle(filename, { create: true });
+  const w = await fh.createWritable();
+  await w.write(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  await w.close();
+}
+
+async function readJSON(root, filename) {
+  try {
+    const fh = await root.getFileHandle(filename);
+    const f = await fh.getFile();
+    return JSON.parse(await f.text());
+  } catch {
+    return null;
+  }
+}
+
+/** 저장된 루트 핸들에서 상대 경로를 따라가 파일을 엽니다. */
+async function openByPath(root, path) {
+  const parts = path.split('/').filter(Boolean);
+  let dir = root;
+  for (const seg of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(seg);
+  const fh = await dir.getFileHandle(parts[parts.length - 1]);
+  return openFile(fh);
+}
+
+return { clearHandle, ensurePermission, loadHandle, openByPath, openFile, pickFolder, readJSON, saveHandle, scan, supported, writeJSON };
+})();
+const DB = (() => {
+/**
+ * Firebase — 에이엠티 앱과 같은 프로젝트(vivivic-4b7ef)를 씁니다.
+ * 컬렉션 경로도 기존 앱과 같은 artifacts/{appId}/public/data/{name} 규칙을 따릅니다.
+ *
+ * SDK는 필요한 순간에만 내려받습니다(동적 import).
+ * 데모 모드나 오프라인에서는 네트워크를 전혀 건드리지 않습니다.
+ */
+
+const APP_ID = 'vivivic-4b7ef';
+const SDK = 'https://www.gstatic.com/firebasejs/11.2.0';
+
+const firebaseConfig = {
+  apiKey: 'AIzaSyB9X_hzd2D3goQ7oenK53Pz805P1c7oSqs',
+  authDomain: 'vivivic-4b7ef.firebaseapp.com',
+  projectId: 'vivivic-4b7ef',
+  storageBucket: 'vivivic-4b7ef.firebasestorage.app',
+  messagingSenderId: '830175660542',
+  appId: '1:830175660542:web:9054030480c8280af8d8af',
+};
+
+const FILES = 'docs_files';
+const OVERLAY = 'docs_overlay';
+
+let ctx = null;
+
+/** SDK를 내려받고 app/auth/db를 준비합니다. 여러 번 불러도 한 번만 돕니다. */
+async function init() {
+  if (ctx) return ctx;
+  const [appMod, authMod, fsMod] = await Promise.all([
+    import(`${SDK}/firebase-app.js`),
+    import(`${SDK}/firebase-auth.js`),
+    import(`${SDK}/firebase-firestore.js`),
+  ]);
+  const app = appMod.initializeApp(firebaseConfig);
+  ctx = { auth: authMod.getAuth(app), db: fsMod.getFirestore(app), a: authMod, f: fsMod };
+  return ctx;
+}
+
+const col = (name) => ctx.f.collection(ctx.db, 'artifacts', APP_ID, 'public', 'data', name);
+
+/* ── 인증 ─────────────────────────────────────────────── */
+
+async function watchAuth(cb) {
+  const c = await init();
+  return c.a.onAuthStateChanged(c.auth, cb);
+}
+
+async function signIn(email, password) {
+  const c = await init();
+  return c.a.signInWithEmailAndPassword(c.auth, email, password);
+}
+
+async function signOut() {
+  const c = await init();
+  return c.a.signOut(c.auth);
+}
+
+/** Firebase 오류 코드를 사람이 읽을 문장으로 바꿉니다. */
+function authMessage(code) {
+  return (
+    {
+      'auth/invalid-email': '이메일 형식이 올바르지 않습니다.',
+      'auth/user-not-found': '등록되지 않은 계정입니다.',
+      'auth/wrong-password': '비밀번호가 맞지 않습니다.',
+      'auth/invalid-credential': '이메일 또는 비밀번호가 맞지 않습니다.',
+      'auth/too-many-requests': '시도가 너무 많았습니다. 잠시 뒤에 다시 해주세요.',
+      'auth/network-request-failed': '네트워크에 연결하지 못했습니다.',
+    }[code] ?? '로그인하지 못했습니다.'
+  );
+}
+
+/* ── 파일 목록 ────────────────────────────────────────── */
+
+/** 문서 ID로 쓸 수 있게 경로를 다듬습니다 (슬래시 금지). */
+const fileKey = (path) => path.replace(/\//g, '~').slice(0, 400);
+
+function watchFiles(cb) {
+  return ctx.f.onSnapshot(col(FILES), (s) => cb(s.docs.map((d) => d.data())));
+}
+
+/** 스캔 결과로 목록을 통째로 갱신합니다. 사라진 파일은 지웁니다. */
+async function replaceFiles(files, onProgress) {
+  const existing = await ctx.f.getDocs(col(FILES));
+  const keep = new Set(files.map((f) => fileKey(f.path)));
+  const ops = [];
+
+  for (const d of existing.docs) if (!keep.has(d.id)) ops.push({ del: true, id: d.id });
+  for (const f of files)
+    ops.push({
+      id: fileKey(f.path),
+      data: { name: f.name, path: f.path, vendor: f.vendor, size: f.size ?? null, mtime: f.mtime ?? null },
+    });
+
+  // Firestore 배치는 한 번에 500건까지입니다.
+  for (let i = 0; i < ops.length; i += 450) {
+    const chunk = ops.slice(i, i + 450);
+    const batch = ctx.f.writeBatch(ctx.db);
+    for (const op of chunk) {
+      const ref = ctx.f.doc(col(FILES), op.id);
+      if (op.del) batch.delete(ref);
+      else batch.set(ref, op.data);
+    }
+    await batch.commit();
+    onProgress?.(Math.min(i + chunk.length, ops.length), ops.length);
+  }
+  return ops.length;
+}
+
+/* ── 입력값(금액·일정·메모) ───────────────────────────── */
+
+const overlayKey = (batchId) => batchId.replace(/\//g, '~');
+
+function watchOverlay(cb) {
+  return ctx.f.onSnapshot(col(OVERLAY), (s) =>
+    cb(Object.fromEntries(s.docs.map((d) => [d.data().batchId ?? d.id, d.data()])))
+  );
+}
+
+async function saveOverlay(batchId, data, email) {
+  await ctx.f.setDoc(ctx.f.doc(col(OVERLAY), overlayKey(batchId)), {
+    ...data,
+    batchId,
+    updatedBy: email ?? null,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+return { APP_ID, FILES, OVERLAY, authMessage, fileKey, init, overlayKey, replaceFiles, saveOverlay, signIn, signOut, watchAuth, watchFiles, watchOverlay };
+})();
+const { STAGES, buildBatches } = PARSE;
+
+
+
+const state = {
+  user: null,
+  demo: false,
+  root: null,        // 저장된 폴더 핸들 (있으면 파일을 바로 열 수 있습니다)
+  files: [],
+  batches: [],
+  unassigned: [],
+  overlay: {},
+  filter: { vendor: null, status: null, q: '' },
+  openId: null,
+  unsub: [],
+};
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtSize = (b) => (b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(1)} MB`);
+
+/* ── 부팅 ─────────────────────────────────────────────── */
+
+async function boot() {
+  $('#loginForm').onsubmit = doSignIn;
+  $('#demoLink').onclick = loadDemo;
+  $('#btnSignOut').onclick = () => DB.signOut();
+  $('#btnSync').onclick = $('#btnSync2').onclick = syncFromFolder;
+  $('#scrim').onclick = closeDrawer;
+  $('#search').oninput = (e) => { state.filter.q = e.target.value.trim(); render(); };
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && closeDrawer());
+
+  if (!FS.supported) {
+    $('#unsupported').hidden = false;
+    $('#btnSync2').disabled = true;
+  }
+
+  const forced = typeof SINGLE_FILE !== 'undefined' && SINGLE_FILE;
+  if (forced || new URLSearchParams(location.search).has('demo')) return loadDemo();
+
+  showLogin();
+  try {
+    await DB.watchAuth(async (user) => {
+      state.user = user;
+      if (!user) return showLogin();
+      await enterApp(user);
+    });
+  } catch {
+    const err = $('#loginError');
+    err.textContent = '클라우드에 연결하지 못했습니다. 네트워크를 확인한 뒤 새로고침해 주세요.';
+    err.hidden = false;
+    $('#loginBtn').disabled = true;
+  }
+}
+
+function showLogin() {
+  for (const u of state.unsub) u();
+  state.unsub = [];
+  $('#login').hidden = false;
+  $('#app').hidden = true;
+}
+
+async function enterApp(user) {
+  $('#login').hidden = true;
+  $('#app').hidden = false;
+  $('#userEmail').textContent = user.email ?? '';
+  $('#btnSignOut').hidden = false;
+  $('#btnSync').hidden = !FS.supported;
+  cloud('연결됨');
+
+  // 이 기기에 폴더 권한이 남아 있으면 파일을 바로 열 수 있습니다
+  if (FS.supported) {
+    const h = await FS.loadHandle().catch(() => null);
+    if (h && (await FS.ensurePermission(h))) state.root = h;
+  }
+
+  state.unsub.push(
+    DB.watchFiles((files) => { state.files = files; applyParse(); }),
+    DB.watchOverlay((ov) => { state.overlay = ov; render(); })
+  );
+}
+
+async function doSignIn(e) {
+  e.preventDefault();
+  const btn = $('#loginBtn');
+  const err = $('#loginError');
+  err.hidden = true;
+  btn.disabled = true;
+  btn.textContent = '들어가는 중…';
+  try {
+    await DB.signIn($('#email').value.trim(), $('#password').value);
+  } catch (ex) {
+    err.textContent = DB.authMessage(ex.code);
+    err.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '로그인';
+  }
+}
+
+async function loadDemo() {
+  const data = typeof DEMO !== 'undefined' ? DEMO : await fetch('./data/demo.json').then((r) => r.json());
+  state.demo = true;
+  state.files = data.files;
+  state.overlay = data.overlay ?? {};
+  $('#login').hidden = true;
+  $('#app').hidden = false;
+  $('#userEmail').textContent = '데모';
+  cloud('데모 데이터');
+  applyParse();
+}
+
+function cloud(text) {
+  $('#cloudState').textContent = text;
+}
+
+function applyParse() {
+  const { batches, unassigned } = buildBatches(state.files);
+  state.batches = batches;
+  state.unassigned = unassigned;
+  const has = state.files.length > 0;
+  $('#empty').hidden = has;
+  $('#dash').hidden = !has;
+  render();
+}
+
+/* ── 드라이브 스캔 → 클라우드 업로드 ──────────────────── */
+
+async function syncFromFolder() {
+  if (state.demo) return toast('데모 모드에서는 올릴 수 없습니다.');
+  try {
+    const root = state.root ?? (await FS.pickFolder());
+    if (!(await FS.ensurePermission(root, { prompt: true }))) return toast('폴더 권한이 필요합니다.');
+    state.root = root;
+
+    cloud('폴더 읽는 중…');
+    const { files } = await FS.scan(root, { onProgress: (n) => cloud(`${n}개 읽는 중…`) });
+
+    cloud('올리는 중…');
+    await DB.replaceFiles(files, (done, total) => cloud(`올리는 중 ${done}/${total}`));
+    cloud('연결됨');
+    toast(`${files.length}개 파일을 올렸습니다.`);
+  } catch (e) {
+    cloud('연결됨');
+    if (e?.name !== 'AbortError') toast(`실패: ${e.message}`);
+  }
+}
+
+/* ── 렌더 ─────────────────────────────────────────────── */
+
+function visible() {
+  const { vendor, status, q } = state.filter;
+  const needle = q.toLowerCase();
+  return state.batches.filter((b) => {
+    if (vendor && b.vendor !== vendor) return false;
+    if (status === 'issue' && !b.issues.length) return false;
+    if (status && status !== 'issue' && b.status !== status) return false;
+    if (needle) {
+      const hay = `${b.vendor} ${b.batch} ${b.docs.map((d) => d.display).join(' ')}`.toLowerCase();
+      if (!hay.includes(needle)) return false;
+    }
+    return true;
+  });
+}
+
+function render() {
+  if ($('#dash').hidden) return;
+  renderKpis();
+  renderChips();
+  renderGrid();
+  renderLoose();
+  if (state.openId) renderDrawer(state.openId);
+}
+
+function renderKpis() {
+  const all = state.batches;
+  const cards = [
+    ['총 차수', all.length, ''],
+    ['진행 중', all.filter((b) => b.status === 'active').length, 'text-info'],
+    ['이상 감지', all.reduce((n, b) => n + b.issues.filter((i) => i.level === 'warn').length, 0), 'text-warn'],
+    ['차수 미상 파일', state.unassigned.length, 'text-faint'],
+  ];
+  $('#kpis').innerHTML = cards
+    .map(([label, value, cls]) => `
+      <div class="card px-5 py-4">
+        <div class="text-[11px] font-bold text-faint tracking-wide mb-1">${label}</div>
+        <div class="text-[26px] font-bold leading-none ${cls}">${value}</div>
+      </div>`)
+    .join('');
+}
+
+function renderChips() {
+  const vendors = [...new Set(state.batches.map((b) => b.vendor))].sort();
+  const chip = (label, on, act) =>
+    `<button class="chip ${on ? 'chip-on' : 'chip-off'}" data-act="${act}">${esc(label)}</button>`;
+
+  $('#vendorChips').innerHTML =
+    chip('전체 거래처', !state.filter.vendor, 'v:') + vendors.map((v) => chip(v, state.filter.vendor === v, `v:${v}`)).join('');
+
+  $('#statusChips').innerHTML = [
+    chip('전체', !state.filter.status, 's:'),
+    chip('진행 중', state.filter.status === 'active', 's:active'),
+    chip('완료', state.filter.status === 'done', 's:done'),
+    chip('문제 있음', state.filter.status === 'issue', 's:issue'),
+  ].join('');
+
+  for (const el of document.querySelectorAll('[data-act]')) {
+    el.onclick = () => {
+      const [kind, val] = el.dataset.act.split(':');
+      if (kind === 'v') state.filter.vendor = val || null;
+      else state.filter.status = val || null;
+      render();
+    };
+  }
+}
+
+function stageDots(b) {
+  return STAGES.map((s) => {
+    const filled = b.stages.find((x) => x.key === s.key).docs.length > 0;
+    return `<span title="${s.id}. ${esc(s.label)}" class="w-full h-[6px] rounded-full ${filled ? 'bg-ink' : 'bg-line'}"></span>`;
+  }).join('');
+}
+
+function renderGrid() {
+  const list = visible();
+  $('#emptyState').hidden = list.length > 0;
+  $('#grid').innerHTML = list
+    .map((b) => {
+      const warn = b.issues.filter((i) => i.level === 'warn').length;
+      const info = b.issues.filter((i) => i.level === 'info').length;
+      return `
+      <button class="card p-5 text-left hover:border-ink/25 hover:shadow transition-all" data-open="${esc(b.id)}">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
+            <div class="text-[19px] font-bold leading-tight">${esc(b.batch)}차</div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="text-[19px] font-bold leading-tight">${b.done}<span class="text-faint text-[13px]">/7</span></div>
+            <div class="text-[11px] text-faint font-semibold">${b.percent}%</div>
+          </div>
+        </div>
+        <div class="grid grid-cols-7 gap-1 mb-3">${stageDots(b)}</div>
+        <div class="flex items-center gap-2 flex-wrap text-[11px] font-semibold">
+          ${b.lastDate ? `<span class="text-faint">최근 ${esc(b.lastDate)}</span>` : ''}
+          <span class="text-faint">서류 ${b.docs.length}건</span>
+          ${warn ? `<span class="text-warn">이상 ${warn}</span>` : ''}
+          ${info ? `<span class="text-faint">중복 ${info}</span>` : ''}
+        </div>
+      </button>`;
+    })
+    .join('');
+
+  for (const el of document.querySelectorAll('[data-open]')) el.onclick = () => openDrawer(el.dataset.open);
+}
+
+function renderLoose() {
+  const groups = new Map();
+  for (const d of state.unassigned) {
+    if (!groups.has(d.stageKey)) groups.set(d.stageKey, []);
+    groups.get(d.stageKey).push(d);
+  }
+  if (!groups.size) return ($('#loose').innerHTML = '');
+
+  const label = {
+    ...Object.fromEntries(STAGES.map((s) => [s.key, `${s.label} (차수 미상)`])),
+    dev: '제품개발 자료',
+    fta: 'FTA · 원산지',
+    etc: '분류하지 못한 파일',
+  };
+
+  $('#loose').innerHTML = `
+    <h2 class="text-[13px] font-bold text-faint tracking-wide mb-3">차수가 붙지 않은 파일</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      ${[...groups.entries()].map(([k, docs]) => `
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <span class="font-bold text-[14px]">${esc(label[k] ?? k)}</span>
+            <span class="text-[12px] text-faint font-semibold">${docs.length}건</span>
+          </div>
+          <ul class="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+            ${docs.slice(0, 60).map((d, i) => `
+              <li class="text-[12px] text-muted truncate" title="${esc(d.path)}">
+                <button class="hover:text-ink hover:underline text-left truncate w-full" data-file="${esc(k)}:${i}">${esc(d.display)}</button>
+              </li>`).join('')}
+          </ul>
+        </div>`).join('')}
+    </div>`;
+
+  for (const el of document.querySelectorAll('[data-file]')) {
+    el.onclick = () => {
+      const [k, i] = el.dataset.file.split(':');
+      openDoc(groups.get(k)[Number(i)]);
+    };
+  }
+}
+
+/* ── 상세 서랍 ────────────────────────────────────────── */
+
+function openDrawer(id) {
+  state.openId = id;
+  renderDrawer(id);
+  $('#scrim').hidden = false;
+  requestAnimationFrame(() => $('#drawer').classList.remove('translate-x-full'));
+}
+
+function closeDrawer() {
+  state.openId = null;
+  $('#drawer').classList.add('translate-x-full');
+  $('#scrim').hidden = true;
+}
+
+function renderDrawer(id) {
+  const b = state.batches.find((x) => x.id === id);
+  if (!b) return closeDrawer();
+  const ov = state.overlay[id] ?? {};
+
+  const field = (key, label, opts = {}) => `
+    <label class="block">
+      <span class="text-[11px] font-bold text-faint tracking-wide">${label}</span>
+      <input data-ov="${key}" type="${opts.type ?? 'text'}" value="${esc(ov[key] ?? '')}"
+             ${opts.placeholder ? `placeholder="${esc(opts.placeholder)}"` : ''} class="field mt-1" />
+    </label>`;
+
+  const docLink = (d) => `
+    <li>
+      <button data-doc="${esc(d.path)}" class="text-left text-[12px] text-info hover:underline truncate w-full" title="${esc(d.path)}">
+        ${esc(d.display)}
+      </button>
+      <span class="text-[11px] text-faint">${[d.date, fmtSize(d.size)].filter(Boolean).join(' · ')}</span>
+    </li>`;
+
+  $('#drawerBody').innerHTML = `
+    <div class="sticky top-0 bg-white border-b border-line px-6 h-[65px] flex items-center gap-3 z-10">
+      <div>
+        <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
+        <div class="text-[17px] font-bold leading-tight">${esc(b.batch)}차</div>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <span class="text-[13px] font-bold">${b.done}<span class="text-faint">/7</span></span>
+        <button id="drawerClose" class="btn btn-ghost">닫기</button>
+      </div>
+    </div>
+
+    <div class="p-6 space-y-7">
+      ${b.issues.length ? `<div class="space-y-2">
+        ${b.issues.map((i) => `
+          <div class="flex gap-2 text-[12px] leading-relaxed px-3 py-2.5 rounded-lg
+                      ${i.level === 'warn' ? 'bg-[#fdf3e3] text-[#8a5a00]' : 'bg-chip text-muted'}">
+            <span class="font-bold shrink-0">${i.level === 'warn' ? '확인' : '참고'}</span>
+            <span>${esc(i.text)}</span>
+          </div>`).join('')}
+      </div>` : ''}
+
+      <section>
+        <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">7단계 진행</h3>
+        <ol class="space-y-1">
+          ${b.stages.map((s) => {
+            const on = s.docs.length > 0;
+            return `
+            <li class="rounded-lg ${on ? '' : 'opacity-60'}">
+              <div class="flex items-center gap-2.5 px-3 py-2">
+                <span class="w-5 h-5 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0
+                      ${on ? 'bg-ink text-white' : 'bg-chip text-faint'}">${s.id}</span>
+                <span class="text-[13px] font-semibold">${esc(s.label)}</span>
+                <span class="ml-auto text-[11px] text-faint font-semibold">${on ? `${s.docs.length}건` : '없음'}</span>
+              </div>
+              ${on ? `<ul class="pl-[42px] pr-3 pb-2 space-y-1">${s.docs.map(docLink).join('')}</ul>` : ''}
+            </li>`;
+          }).join('')}
+        </ol>
+      </section>
+
+      ${b.aside.some((a) => a.docs.length) ? `
+        <section>
+          <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">그 밖의 자료</h3>
+          ${b.aside.filter((a) => a.docs.length).map((a) => `
+            <div class="mb-3">
+              <div class="text-[12px] font-semibold mb-1">${esc(a.label)}</div>
+              <ul class="space-y-1">${a.docs.map(docLink).join('')}</ul>
+            </div>`).join('')}
+        </section>` : ''}
+
+      <section>
+        <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">직접 입력</h3>
+        <div class="grid grid-cols-2 gap-3">
+          ${field('piAmount', '계약 총액 (PI)', { placeholder: 'USD' })}
+          ${field('ciAmount', '실출하 총액 (CI&PL)', { placeholder: 'USD' })}
+          ${field('container', '컨테이너 번호')}
+          ${field('due', '마감 예정일', { type: 'date' })}
+          ${field('etd', '출항일', { type: 'date' })}
+          ${field('eta', '도착 예정일', { type: 'date' })}
+        </div>
+        <label class="block mt-3">
+          <span class="text-[11px] font-bold text-faint tracking-wide">메모</span>
+          <textarea data-ov="memo" rows="4" class="field mt-1 resize-y">${esc(ov.memo ?? '')}</textarea>
+        </label>
+        <div class="flex items-center gap-2 mt-3">
+          <button id="ovSave" class="btn btn-primary">저장</button>
+          <span class="text-[11px] text-faint">
+            ${state.demo ? '데모 모드에서는 저장되지 않습니다.'
+              : ov.updatedBy ? `마지막 수정 ${esc(ov.updatedBy)} · ${esc((ov.updatedAt ?? '').slice(0, 10))}`
+              : '팀 전체에 실시간으로 반영됩니다.'}
+          </span>
+        </div>
+      </section>
+    </div>`;
+
+  $('#drawerClose').onclick = closeDrawer;
+  $('#ovSave').onclick = () => saveOverlay(id);
+  for (const el of $('#drawerBody').querySelectorAll('[data-doc]')) {
+    el.onclick = () => openDoc(b.docs.find((d) => d.path === el.dataset.doc));
+  }
+}
+
+async function openDoc(doc) {
+  if (!doc) return;
+  if (state.demo) return toast('데모 모드라 파일을 열 수 없습니다.');
+  if (!state.root) return toast('이 기기에서는 폴더가 연결돼 있지 않아 원본을 열 수 없습니다.');
+  try {
+    await FS.openByPath(state.root, doc.path);
+  } catch (e) {
+    toast(`열지 못했습니다: ${e.message}`);
+  }
+}
+
+async function saveOverlay(id) {
+  const data = {};
+  for (const el of $('#drawerBody').querySelectorAll('[data-ov]')) {
+    const v = el.value.trim();
+    if (v) data[el.dataset.ov] = v;
+  }
+  if (state.demo) {
+    state.overlay[id] = data;
+    return toast('데모 모드라 저장하지 않습니다.');
+  }
+  try {
+    await DB.saveOverlay(id, data, state.user?.email);
+    toast('저장했습니다.');
+  } catch (e) {
+    toast(`저장 실패: ${e.message}`);
+  }
+}
+
+/* ── 토스트 ───────────────────────────────────────────── */
+
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.style.opacity = '0'), 2600);
+}
+
+boot();
+
+</script>
+
+</html>
