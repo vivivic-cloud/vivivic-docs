@@ -44,7 +44,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.2</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -72,7 +72,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.2</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1212,15 +1212,20 @@ function renderKpis() {
     ['총 차수', all.length, ''],
     ['진행 중', all.filter((b) => b.status === 'active').length, 'text-info'],
     ['이상 감지', all.reduce((n, b) => n + b.issues.filter((i) => i.level === 'warn').length, 0), 'text-warn'],
-    ['차수 미상 파일', state.unassigned.length, 'text-faint'],
+    ['미확인 파일', state.unassigned.length, 'text-faint', 'review'],
   ];
   $('#kpis').innerHTML = cards
-    .map(([label, value, cls]) => `
-      <div class="card px-5 py-4">
+    .map(([label, value, cls, act]) => `
+      <${act ? 'button' : 'div'} class="card px-5 py-4 text-left w-full ${act ? 'hover:border-ink/25 hover:shadow transition-all' : ''}"
+           ${act ? `data-kpi="${act}"` : ''}>
         <div class="text-[11px] font-bold text-faint tracking-wide mb-1">${label}</div>
         <div class="text-[26px] font-bold leading-none ${cls}">${value}</div>
-      </div>`)
+        ${act ? '<div class="text-[11px] font-bold text-info mt-1">하나씩 보고 분리하기 →</div>' : ''}
+      </${act ? 'button' : 'div'}>`)
     .join('');
+
+  const go = $('#kpis [data-kpi="review"]');
+  if (go) go.onclick = openReview;
 }
 
 function renderChips() {
