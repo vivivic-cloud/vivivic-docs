@@ -44,7 +44,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -72,7 +72,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -87,6 +87,7 @@
 
     <div class="ml-auto flex items-center gap-2">
       <span id="cloudState" class="text-[11px] font-bold text-faint tracking-wide"></span>
+      <button id="btnUpdate" class="btn btn-primary" hidden>새 버전 · 새로고침</button>
       <button id="btnConnect" class="btn btn-ghost" hidden>폴더 연결</button>
       <button id="btnSync" class="btn btn-ghost" hidden>드라이브 스캔</button>
       <span id="userEmail" class="text-[12px] text-muted"></span>
@@ -1101,6 +1102,7 @@ async function enterApp(user) {
     if (h && (await FS.ensurePermission(h))) state.root = h;
   }
   renderConnectState();
+  checkForUpdate();
 
   state.unsub.push(
     DB.watchFiles((files) => { state.files = files; applyParse(); }),
@@ -1962,6 +1964,30 @@ function renderDrawer(id) {
   $('#ovSave').onclick = () => saveOverlay(id);
   for (const el of $('#drawerBody').querySelectorAll('[data-doc]')) {
     el.onclick = () => openDoc(b.docs.find((d) => d.path === el.dataset.doc));
+  }
+}
+
+/* ── 새 버전 확인 ─────────────────────────────────────── */
+
+/**
+ * 브라우저가 옛 화면을 캐시에 붙들고 있으면 고쳐도 안 바뀐 것처럼 보입니다.
+ * 서버 쪽 판번호를 직접 읽어 다르면 새로고침 버튼을 띄웁니다.
+ */
+async function checkForUpdate() {
+  if (typeof SINGLE_FILE !== 'undefined' && SINGLE_FILE) return;
+  const here = $('#app .tracking-wider')?.textContent?.trim();
+  if (!here) return;
+  try {
+    const html = await fetch(location.pathname, { cache: 'no-store' }).then((r) => r.text());
+    const m = /tracking-wider">\s*(v[\d.]+)\s*</.exec(html);
+    if (!m || m[1] === here) return;
+    const btn = $('#btnUpdate');
+    btn.textContent = `새 버전 ${m[1]} · 새로고침`;
+    btn.hidden = false;
+    btn.onclick = () => location.replace(`${location.pathname}?r=${m[1]}`);
+    toast(`새 버전 ${m[1]} 이 나와 있습니다. 오른쪽 위에서 새로고침해 주세요.`);
+  } catch {
+    /* 오프라인이면 그냥 넘어갑니다 */
   }
 }
 
