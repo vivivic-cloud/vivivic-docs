@@ -44,7 +44,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.3</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -72,7 +72,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.3</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1475,7 +1475,9 @@ const driveSearch = (name) => `https://drive.google.com/drive/search?q=${encodeU
 const INLINE_KIND = {
   pdf: 'pdf',
   jpg: 'img', jpeg: 'img', png: 'img', gif: 'img', webp: 'img', bmp: 'img', svg: 'img',
-  txt: 'txt', csv: 'txt', json: 'txt', html: 'txt', md: 'txt',
+  txt: 'txt', csv: 'txt', json: 'txt', md: 'txt',
+  // html은 살아있는 도구인 경우가 많습니다 — 눈으로만 보게 따로 다룹니다.
+  html: 'tool',
 };
 
 /** 미리보기용 blob URL을 칸별로 하나씩만 들고 있다가 반납합니다. */
@@ -1533,6 +1535,16 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
       box.className = 'flex-1 min-h-[420px] rounded-lg border border-line bg-hover overflow-auto';
       if (kind === 'pdf' || kind === 'txt') {
         box.innerHTML = `<iframe src="${url}" title="${esc(doc.display)}" class="w-full h-full min-h-[420px]"></iframe>`;
+      } else if (kind === 'tool') {
+        // html은 그 자체로 동작하는 도구인 경우가 많습니다.
+        // 화면은 그대로 그리되 클릭은 막아서, 실수로 버튼(초기화 등)을 누르는 사고를 막습니다.
+        box.innerHTML = `<iframe src="${url}" title="${esc(doc.display)}" sandbox="allow-scripts"
+                                 class="w-full h-full min-h-[420px] pointer-events-none"></iframe>`;
+        const ifr = box.querySelector('iframe');
+        box.onwheel = (e) => {
+          e.preventDefault();
+          ifr.contentWindow?.scrollBy(0, e.deltaY);
+        };
       } else if (kind === 'img') {
         box.innerHTML = `<img src="${url}" alt="${esc(doc.display)}" class="w-full h-auto" />`;
       } else {
@@ -1544,7 +1556,11 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
                class="btn btn-ghost inline-block">내려받아서 열기</a>
           </div>`;
       }
-      if (note) note.textContent = `이 기기의 폴더에서 직접 읽었습니다 · ${fmtSize(file.size)}`;
+      if (note)
+        note.textContent =
+          kind === 'tool'
+            ? `이 기기의 폴더에서 직접 읽었습니다 · ${fmtSize(file.size)} · 보기 전용입니다 (안의 버튼은 눌리지 않습니다)`
+            : `이 기기의 폴더에서 직접 읽었습니다 · ${fmtSize(file.size)}`;
       return;
     } catch (e) {
       if (note) note.textContent = `폴더에서 찾지 못했습니다: ${e.message}`;
