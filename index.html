@@ -44,7 +44,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.4</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.5</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -72,7 +72,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.4</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.5</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1333,7 +1333,10 @@ function renderDefine() {
   for (const el of $('#looseGroups').querySelectorAll('[data-sel]')) {
     el.onclick = (e) => {
       if (e.target.tagName === 'A') return;
-      toggleSelect(el.dataset.sel);
+      // 체크박스를 누르면 선택, 파일명을 누르면 실제 내용을 봅니다.
+      if (e.target.closest('[data-check]')) return toggleSelect(el.dataset.sel);
+      const doc = state.unassigned.find((d) => d.path === el.dataset.sel);
+      if (doc) openDoc(doc);
     };
   }
   for (const el of $('#looseGroups').querySelectorAll('[data-pick]')) {
@@ -1355,7 +1358,7 @@ function renderDefine() {
       <li data-sel="${esc(d.path)}"
           class="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-all
                  ${on ? 'bg-chip' : 'hover:bg-hover'}">
-        <span class="w-3.5 h-3.5 rounded border shrink-0 flex items-center justify-center text-[10px] font-bold
+        <span data-check="${esc(d.path)}" class="w-3.5 h-3.5 rounded border shrink-0 flex items-center justify-center text-[10px] font-bold
               ${on ? 'bg-ink border-ink text-white' : 'border-line bg-white'}">${on ? '✓' : ''}</span>
         <span class="text-[12px] truncate" title="${esc(d.path)}">${esc(d.display)}</span>
       </li>`;
