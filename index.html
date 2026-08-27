@@ -44,7 +44,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.4</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -72,7 +72,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.4</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1489,6 +1489,13 @@ function keepBlob(ns, url) {
   else blobUrls.delete(ns);
 }
 
+/**
+ * 파일을 빠르게 몇 개씩 넘기면 이전 파일 읽기가 끝나기 전에 다음 파일 읽기가 시작됩니다.
+ * 늦게 끝난 이전 요청이 지금 화면에 떠 있는 blob을 지워버리면 방금 전 파일이 갑자기
+ * 안 보이게 됩니다 — 이 토큰으로 "지금 보여줘야 할 요청"이 맞는지 확인하고, 아니면 조용히 버립니다.
+ */
+const previewToken = new Map();
+
 /** 파일 안을 직접 볼 수 있는 칸. 날짜·금액을 눈으로 확인하는 용도입니다. */
 function previewPane(doc, ns = 'pv') {
   const link = doc.driveId ? driveOpen(doc.driveId) : driveSearch(doc.display);
@@ -1523,49 +1530,65 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
   if (!force && shownPath.get(ns) === doc.path && box.dataset.filled === '1') return;
   shownPath.set(ns, doc.path);
   box.dataset.filled = '1';
-  keepBlob(ns, null);
+
+  // 여러 파일을 빠르게 넘기면 이 호출들이 겹칩니다. 내 차례가 아직 유효한지 표시해 둡니다.
+  const myToken = (previewToken.get(ns) ?? 0) + 1;
+  previewToken.set(ns, myToken);
+  const stale = () => previewToken.get(ns) !== myToken;
 
   // 이 기기 폴더가 가장 확실합니다. 구글 로그인·쿠키 상태를 타지 않습니다.
+  let file = null;
+  let readError = null;
   if (state.root) {
     try {
-      const file = await FS.getFileByPath(state.root, doc.path);
-      const kind = INLINE_KIND[(doc.name.split('.').pop() ?? '').toLowerCase()];
-      const url = URL.createObjectURL(file);
-      keepBlob(ns, url);
-      box.className = 'flex-1 min-h-[420px] rounded-lg border border-line bg-hover overflow-auto';
-      if (kind === 'pdf' || kind === 'txt') {
-        box.innerHTML = `<iframe src="${url}" title="${esc(doc.display)}" class="w-full h-full min-h-[420px]"></iframe>`;
-      } else if (kind === 'tool') {
-        // html은 그 자체로 동작하는 도구인 경우가 많습니다.
-        // 화면은 그대로 그리되 클릭은 막아서, 실수로 버튼(초기화 등)을 누르는 사고를 막습니다.
-        box.innerHTML = `<iframe src="${url}" title="${esc(doc.display)}" sandbox="allow-scripts"
-                                 class="w-full h-full min-h-[420px] pointer-events-none"></iframe>`;
-        const ifr = box.querySelector('iframe');
-        box.onwheel = (e) => {
-          e.preventDefault();
-          ifr.contentWindow?.scrollBy(0, e.deltaY);
-        };
-      } else if (kind === 'img') {
-        box.innerHTML = `<img src="${url}" alt="${esc(doc.display)}" class="w-full h-auto" />`;
-      } else {
-        box.className += ' flex items-center justify-center p-6';
-        box.innerHTML = `
-          <div class="text-center">
-            <p class="text-[13px] text-muted mb-3">엑셀·도면처럼 브라우저가 못 그리는 형식입니다.</p>
-            <a href="${url}" download="${esc(doc.display)}"
-               class="btn btn-ghost inline-block">내려받아서 열기</a>
-          </div>`;
-      }
-      if (note)
-        note.textContent =
-          kind === 'tool'
-            ? `이 기기의 폴더에서 직접 읽었습니다 · ${fmtSize(file.size)} · 보기 전용입니다 (안의 버튼은 눌리지 않습니다)`
-            : `이 기기의 폴더에서 직접 읽었습니다 · ${fmtSize(file.size)}`;
-      return;
+      // 아이클라우드 미다운로드 파일 등으로 하염없이 걸리는 경우 10초면 포기합니다.
+      file = await Promise.race([
+        FS.getFileByPath(state.root, doc.path),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('10초 넘게 응답이 없습니다')), 10_000)),
+      ]);
     } catch (e) {
-      if (note) note.textContent = `폴더에서 찾지 못했습니다: ${e.message}`;
+      readError = e;
     }
+    // 기다리는 동안 다른 파일로 넘어갔으면, 지금 화면에 떠 있는 blob을 건드리지 않고 조용히 그만둡니다.
+    if (stale()) return;
   }
+
+  if (file) {
+    const kind = INLINE_KIND[(doc.name.split('.').pop() ?? '').toLowerCase()];
+    const url = URL.createObjectURL(file);
+    keepBlob(ns, url);
+    box.className = 'flex-1 min-h-[420px] rounded-lg border border-line bg-hover overflow-auto';
+    if (kind === 'pdf' || kind === 'txt') {
+      box.innerHTML = `<iframe src="${url}" title="${esc(doc.display)}" class="w-full h-full min-h-[420px]"></iframe>`;
+    } else if (kind === 'tool') {
+      // html은 그 자체로 동작하는 도구인 경우가 많습니다.
+      // 화면은 그대로 그리되 클릭은 막아서, 실수로 버튼(초기화 등)을 누르는 사고를 막습니다.
+      box.innerHTML = `<iframe src="${url}" title="${esc(doc.display)}" sandbox="allow-scripts"
+                               class="w-full h-full min-h-[420px] pointer-events-none"></iframe>`;
+      const ifr = box.querySelector('iframe');
+      box.onwheel = (e) => {
+        e.preventDefault();
+        ifr.contentWindow?.scrollBy(0, e.deltaY);
+      };
+    } else if (kind === 'img') {
+      box.innerHTML = `<img src="${url}" alt="${esc(doc.display)}" class="w-full h-auto" />`;
+    } else {
+      box.className += ' flex items-center justify-center p-6';
+      box.innerHTML = `
+        <div class="text-center">
+          <p class="text-[13px] text-muted mb-3">엑셀·도면처럼 브라우저가 못 그리는 형식입니다.</p>
+          <a href="${url}" download="${esc(doc.display)}"
+             class="btn btn-ghost inline-block">내려받아서 열기</a>
+        </div>`;
+    }
+    if (note)
+      note.textContent =
+        kind === 'tool'
+          ? `이 기기의 폴더에서 직접 읽었습니다 · ${fmtSize(file.size)} · 보기 전용입니다 (안의 버튼은 눌리지 않습니다)`
+          : `이 기기의 폴더에서 직접 읽었습니다 · ${fmtSize(file.size)}`;
+    return;
+  }
+  if (readError && note) note.textContent = `폴더에서 찾지 못했습니다: ${readError.message}`;
 
   if (doc.driveId) {
     box.className = 'flex-1 min-h-[420px] rounded-lg border border-line bg-hover overflow-hidden';
