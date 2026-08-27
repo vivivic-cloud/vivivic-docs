@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -345,16 +345,18 @@ function classify(rawName) {
   if (/CI\s*[&＆和]\s*PL|CI\s*_?\s*PL\b|packing\s*list|装箱单/i.test(n)) return hit('cipl', 'CI&PL');
   if (/70\s*%/.test(n)) return hit('cipl', '70% 표기');
 
-  // 2. 계약금서류 — PI 번호
+  // 2. 계약금서류 — PI 번호, 그리고 거래처가 보내오는 订单合同(주문계약서)
   if (/(?<![A-Za-z])PI(?![A-Za-z])|proforma|形式发票/i.test(n)) return hit('pi', 'PI 번호');
+  // 合同 은 계약서입니다. 이걸 받고 계약금 30%를 넣으므로 발주서가 아니라 계약금서류로 봅니다.
+  if (/合同|계약서|주문계약/.test(n)) return hit('pi', '계약서(合同)');
   if (/30\s*%/.test(n)) return hit('pi', '30% 표기');
 
   // 4. 상차이미지
   if (/상차|装[车車]|裝車|loading/i.test(n)) return hit('loading', '상차 키워드');
 
-  // 1. 발주서 / 주문계약서
-  if (/ordersheet|order\s*sheet|(?<![A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서|주문계약|订单|訂單|合同|계약서/i.test(n))
-    return hit('order', '발주·계약 키워드');
+  // 1. 발주서 — AMT이 내보내는 Ordersheet·PO 쪽입니다
+  if (/ordersheet|order\s*sheet|(?<![A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서|订单|訂單/i.test(n))
+    return hit('order', '발주 키워드');
 
   // 부가: FTA·원산지
   if (/\bFTA\b|원산지|C\/O\b|certificate\s*of\s*origin/i.test(n)) return hit('fta', 'FTA·원산지');
