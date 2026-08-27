@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -276,7 +276,9 @@ const STAGE_BY_KEY = Object.fromEntries(STAGES.map((s) => [s.key, s]));
 
 /** 카카오톡 다운로드 접두사, 중복 확장자 등을 걷어냅니다. */
 function normalizeName(name) {
-  let n = String(name);
+  // 맥은 파일명의 한글을 자모로 쪼개 저장합니다(NFD). 그대로 두면 "영수증" 이
+  // 규칙의 "영수증" 과 안 맞습니다. 먼저 합쳐 놓고 시작합니다.
+  let n = String(name).normalize('NFC');
   n = n.replace(/^TalkFile_+/i, '');
   // "....pdf.pdf" → "....pdf"
   n = n.replace(/(\.[a-z0-9]{2,5})\1+$/i, '$1');
@@ -387,7 +389,7 @@ function classify(rawName) {
  */
 
 function ruleMatches(rule, doc) {
-  const hay = `${doc.path} ${doc.name}`;
+  const hay = `${doc.path} ${doc.name}`.normalize('NFC');
   switch (rule.matchType) {
     case 'path':
       return doc.path === rule.match;
