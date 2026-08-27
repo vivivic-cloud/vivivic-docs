@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.8</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.9</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.8</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.9</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1645,8 +1645,12 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
                                class="w-full h-full min-h-[420px] pointer-events-none"></iframe>`;
       const ifr = box.querySelector('iframe');
       box.onwheel = (e) => {
-        e.preventDefault();
-        ifr.contentWindow?.scrollBy(0, e.deltaY);
+        // sandbox 때문에 안(cross-origin)으로 스크롤을 못 넘겨줄 때도 있습니다 —
+        // 그럴 때는 막지 말고 그대로 흘려보내서 바깥(모달) 스크롤이 되게 둡니다.
+        try {
+          ifr.contentWindow.scrollBy(0, e.deltaY);
+          e.preventDefault();
+        } catch {}
       };
     } else if (kind === 'img') {
       box.innerHTML = `<img src="${url}" alt="${esc(doc.display)}" class="w-full h-auto" />`;
