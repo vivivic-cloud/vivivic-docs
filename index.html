@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.2</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.2</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -123,9 +123,11 @@
         <div id="vendorChips" class="flex flex-wrap items-center gap-1.5"></div>
         <span class="w-px h-5 bg-line mx-1"></span>
         <div id="statusChips" class="flex flex-wrap items-center gap-1.5"></div>
-        <input id="search" type="search" placeholder="차수 · 파일명 검색" class="field ml-auto w-[240px]" />
+        <input id="search" type="search" placeholder="차수 · 파일명 검색 — 전체 파일에서 찾습니다" class="field ml-auto w-[240px]" />
       </div>
     </div>
+
+    <section id="fileHits" class="mb-6" hidden></section>
 
     <div id="grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
     <div id="emptyState" class="card p-12 text-center text-muted" hidden>조건에 맞는 차수가 없습니다.</div>
@@ -899,7 +901,7 @@ const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
 
 return { APP_ID, FILES, OVERLAY, RULES, authMessage, deleteRule, fileKey, init, overlayKey, replaceFiles, saveOverlay, saveRule, saveRules, signIn, signOut, watchAuth, watchFiles, watchOverlay, watchRules };
 })();
-const { STAGES, buildBatches, suggestKeyword } = PARSE;
+const { STAGES, ASIDE, buildBatches, suggestKeyword } = PARSE;
 
 
 
@@ -1090,10 +1092,67 @@ function visible() {
   });
 }
 
+/** 단계 키 → 짧은 이름. 검색 결과에 배지로 붙입니다. */
+const STAGE_LABEL = Object.fromEntries([...STAGES, ...ASIDE].map((s) => [s.key, s.short ?? s.label]));
+
+/**
+ * 검색어에 걸리는 파일을 전부 모읍니다.
+ * 차수에 붙은 것뿐 아니라 미분류·제외된 것까지 — 스캔한 파일이면 다 나옵니다.
+ */
+function fileHits() {
+  const { vendor, q } = state.filter;
+  const needle = q.toLowerCase();
+  if (!needle) return [];
+  const all = [
+    ...state.batches.flatMap((b) => b.docs.map((d) => ({ ...d, where: `${b.batch}차`, batchId: b.id }))),
+    ...state.unassigned.map((d) => ({ ...d, where: '차수 없음' })),
+    ...state.excluded.map((d) => ({ ...d, where: '제외됨', off: true })),
+  ];
+  return all.filter((d) => {
+    if (vendor && d.vendor !== vendor) return false;
+    return `${d.display} ${d.path}`.toLowerCase().includes(needle);
+  });
+}
+
+function renderFileHits() {
+  const box = $('#fileHits');
+  box.hidden = !state.filter.q;
+  if (box.hidden) return;
+
+  const hits = fileHits();
+  const shown = hits.slice(0, 200);
+  const row = (d) => `
+    <li class="py-2 flex items-center gap-3 ${d.off ? 'opacity-55' : ''}">
+      <button data-file="${esc(d.path)}" title="${esc(d.path)}"
+              class="text-left text-[13px] text-info hover:underline truncate min-w-0 flex-1">${esc(d.display)}</button>
+      <span class="text-[11px] font-semibold text-faint shrink-0">${esc(d.vendor)}</span>
+      <span class="text-[11px] font-bold shrink-0 w-[64px] text-right ${d.off ? 'text-faint' : ''}">${esc(d.where)}</span>
+      <span class="text-[11px] text-faint shrink-0 w-[80px] text-right">${esc(STAGE_LABEL[d.stageKey] ?? '')}</span>
+      <span class="text-[11px] text-faint shrink-0 w-[74px] text-right">${esc(d.date ?? '')}</span>
+    </li>`;
+
+  box.innerHTML = `
+    <div class="card p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <h2 class="text-[13px] font-bold text-faint tracking-wide">파일 검색</h2>
+        <span class="text-[12px] text-faint font-semibold">${hits.length}건</span>
+        ${hits.length > shown.length ? `<span class="text-[11px] text-faint">· 앞 ${shown.length}건만 보입니다</span>` : ''}
+      </div>
+      ${hits.length
+        ? `<ul class="divide-y divide-line">${shown.map(row).join('')}</ul>`
+        : '<p class="text-[13px] text-muted">이름에 걸리는 파일이 없습니다.</p>'}
+    </div>`;
+
+  for (const el of box.querySelectorAll('[data-file]')) {
+    el.onclick = () => openDoc(hits.find((d) => d.path === el.dataset.file));
+  }
+}
+
 function render() {
   if ($('#dash').hidden) return;
   renderKpis();
   renderChips();
+  renderFileHits();
   renderGrid();
   renderDefine();
   if (state.openId) renderDrawer(state.openId);
