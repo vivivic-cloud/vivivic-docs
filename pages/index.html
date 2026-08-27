@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.2</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.2</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -583,7 +583,8 @@ function findIssues(b, stages) {
  */
 function dupKey(d) {
   const who = d.vendor ?? '';
-  return d.md5 ? `${who}|h:${d.md5}` : `${who}|n:${d.display}|${d.size ?? ''}`;
+  if (d.md5) return `${who}|h:${d.md5}`;
+  return `${who}|n:${d.display}|${d.size ?? ''}`;
 }
 
 /**
@@ -707,7 +708,7 @@ async function scan(root, { maxDepth = 4, onProgress } = {}) {
       } else {
         if (SKIP_FILE.test(name)) continue;
         files.push(await toRecord(entry, name, path, vendor));
-        if (onProgress && files.length % 50 === 0) onProgress(files.length);
+        if (onProgress && files.length % 20 === 0) onProgress(files.length);
       }
     }
   }
@@ -720,9 +721,18 @@ async function scan(root, { maxDepth = 4, onProgress } = {}) {
       size = f.size;
       mtime = f.lastModified;
     } catch {
-      /* 동기화 중인 파일은 건너뜁니다 */
+      /* 동기화 중이거나 아직 안 내려온 파일은 건너뜁니다 */
     }
-    return { name, path, size, mtime, vendor, handle: entry };
+    // 맥은 한글을 자모로 쪼개 줍니다(NFD). 드라이브는 NFC 로 줍니다.
+    // 경로가 곧 문서 ID라, 맞춰두지 않으면 같은 파일이 두 벌로 올라갑니다.
+    return {
+      name: name.normalize('NFC'),
+      path: path.normalize('NFC'),
+      size,
+      mtime,
+      vendor: vendor.normalize('NFC'),
+      handle: entry,
+    };
   }
 }
 
@@ -853,7 +863,14 @@ function watchFiles(cb) {
   return ctx.f.onSnapshot(col(FILES), (s) => cb(s.docs.map((d) => d.data())));
 }
 
-/** 스캔 결과로 목록을 통째로 갱신합니다. 사라진 파일은 지웁니다. */
+/**
+ * 스캔 결과로 목록을 갱신합니다. 사라진 파일은 지웁니다.
+ *
+ * 브라우저 스캔은 driveId·md5 를 알 수 없습니다. 통째로 덮어쓰면
+ * 드라이브 동기화가 넣어둔 그 값들이 날아가, 폴더 권한 없는 기기에서
+ * 미리보기가 끊기고 내용 기준 중복 판정도 무너집니다. 그래서 덮어쓰지 않고
+ * 아는 값만 겹쳐 씁니다(merge).
+ */
 async function replaceFiles(files, onProgress) {
   const existing = await ctx.f.getDocs(col(FILES));
   const keep = new Set(files.map((f) => fileKey(f.path)));
@@ -863,7 +880,16 @@ async function replaceFiles(files, onProgress) {
   for (const f of files)
     ops.push({
       id: fileKey(f.path),
-      data: { name: f.name, path: f.path, vendor: f.vendor, size: f.size ?? null, mtime: f.mtime ?? null, md5: f.md5 ?? null },
+      data: {
+        name: f.name,
+        path: f.path,
+        vendor: f.vendor,
+        size: f.size ?? null,
+        mtime: f.mtime ?? null,
+        // 모르는 값은 아예 안 씁니다 — 기존 값이 그대로 남습니다.
+        ...(f.driveId ? { driveId: f.driveId } : {}),
+        ...(f.md5 ? { md5: f.md5 } : {}),
+      },
     });
 
   // Firestore 배치는 한 번에 500건까지입니다.
@@ -873,7 +899,7 @@ async function replaceFiles(files, onProgress) {
     for (const op of chunk) {
       const ref = ctx.f.doc(col(FILES), op.id);
       if (op.del) batch.delete(ref);
-      else batch.set(ref, op.data);
+      else batch.set(ref, op.data, { merge: true });
     }
     await batch.commit();
     onProgress?.(Math.min(i + chunk.length, ops.length), ops.length);
