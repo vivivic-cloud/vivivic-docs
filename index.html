@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -504,11 +504,14 @@ function buildBatches(files, rules = []) {
 
   const list = [...batches.values()].map(summarize);
   list.sort((a, b) => (b.year - a.year) || (b.no - a.no) || a.vendor.localeCompare(b.vendor));
-  return { batches: list, unassigned, excluded };
+  return { batches: list, unassigned: collapse(unassigned), excluded: collapse(excluded) };
 }
 
 /** 차수 하나에 대해 단계별 채움 여부·진행률·이상 징후를 계산합니다. */
-function summarize(b) {
+function summarize(raw) {
+  // 내용이 같은 파일은 한 건으로 접고 시작합니다.
+  const b = { ...raw, docs: collapse(raw.docs) };
+
   const stages = STAGES.map((s) => ({
     ...s,
     docs: b.docs.filter((d) => d.stageKey === s.key),
@@ -563,7 +566,7 @@ function findIssues(b, stages) {
   for (const dup of findDuplicates(b.docs)) {
     out.push({
       level: 'info',
-      text: `"${dup.display}" 가 ${dup.count}벌 중복 저장돼 있습니다.`,
+      text: `"${dup.display}" 가 ${dup.count}벌 있습니다${dup.byHash ? ' (내용이 같은 파일)' : ''}.`,
       files: dup.files,
     });
   }
@@ -571,20 +574,50 @@ function findIssues(b, stages) {
   return out;
 }
 
-/** 이름·크기가 같은 파일 묶음 */
-function findDuplicates(docs) {
-  const map = new Map();
-  for (const d of docs) {
-    const key = `${d.display}|${d.size ?? ''}`;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(d);
-  }
-  return [...map.values()]
-    .filter((g) => g.length > 1)
-    .map((g) => ({ display: g[0].display, count: g.length, files: g.map((x) => x.path) }));
+/**
+ * 같은 파일인지 가리는 열쇠.
+ * 드라이브가 주는 md5 가 있으면 **내용**으로 봅니다 — 이름이 달라도 내용이 같으면 한 파일입니다.
+ * md5 가 없으면(브라우저 수동 스캔) 이름·크기로 갈음합니다.
+ */
+function dupKey(d) {
+  const who = d.vendor ?? '';
+  return d.md5 ? `${who}|h:${d.md5}` : `${who}|n:${d.display}|${d.size ?? ''}`;
 }
 
-return { ASIDE, STAGES, STAGE_BY_KEY, applyRules, buildBatches, classify, extOf, findDuplicates, findIssues, normalizeName, parseBatch, parseDate, parseDocNo, ruleMatches, suggestKeyword, summarize };
+/**
+ * 내용이 같은 파일을 한 건으로 접습니다.
+ * 남는 건 사라지지 않고 copies 에 경로로 남아, 어디에 몇 벌 있는지 볼 수 있습니다.
+ */
+function collapse(docs) {
+  const first = new Map();
+  const out = [];
+  for (const d of docs) {
+    const k = dupKey(d);
+    const head = first.get(k);
+    if (head) {
+      head.copies.push(d.path);
+      continue;
+    }
+    const doc = { ...d, copies: [], byHash: !!d.md5 };
+    first.set(k, doc);
+    out.push(doc);
+  }
+  return out;
+}
+
+/** 접힌 결과에서 중복 묶음만 추려냅니다. */
+function findDuplicates(docs) {
+  return docs
+    .filter((d) => d.copies?.length)
+    .map((d) => ({
+      display: d.display,
+      count: d.copies.length + 1,
+      files: [d.path, ...d.copies],
+      byHash: !!d.byHash,
+    }));
+}
+
+return { ASIDE, STAGES, STAGE_BY_KEY, applyRules, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, normalizeName, parseBatch, parseDate, parseDocNo, ruleMatches, suggestKeyword, summarize };
 })();
 const FS = (() => {
 /**
@@ -828,7 +861,7 @@ async function replaceFiles(files, onProgress) {
   for (const f of files)
     ops.push({
       id: fileKey(f.path),
-      data: { name: f.name, path: f.path, vendor: f.vendor, size: f.size ?? null, mtime: f.mtime ?? null },
+      data: { name: f.name, path: f.path, vendor: f.vendor, size: f.size ?? null, mtime: f.mtime ?? null, md5: f.md5 ?? null },
     });
 
   // Firestore 배치는 한 번에 500건까지입니다.
@@ -1092,6 +1125,17 @@ function visible() {
   });
 }
 
+/**
+ * 같은 파일이 여러 벌이면 몇 벌인지 배지로 붙입니다.
+ * 목록에는 한 건만 나오므로, 나머지가 어디 있는지는 툴팁으로 봅니다.
+ */
+function copyBadge(d) {
+  if (!d.copies?.length) return '';
+  const where = d.copies.join('\n');
+  return `<span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 shrink-0"
+                title="${esc(`같은 파일이 여기에도 있습니다:\n${where}`)}">${d.copies.length + 1}벌</span>`;
+}
+
 /** 단계 키 → 짧은 이름. 검색 결과에 배지로 붙입니다. */
 const STAGE_LABEL = Object.fromEntries([...STAGES, ...ASIDE].map((s) => [s.key, s.short ?? s.label]));
 
@@ -1125,6 +1169,7 @@ function renderFileHits() {
     <li class="py-2 flex items-center gap-3 ${d.off ? 'opacity-55' : ''}">
       <button data-file="${esc(d.path)}" title="${esc(d.path)}"
               class="text-left text-[13px] text-info hover:underline truncate min-w-0 flex-1">${esc(d.display)}</button>
+      ${copyBadge(d)}
       <span class="text-[11px] font-semibold text-faint shrink-0">${esc(d.vendor)}</span>
       <span class="text-[11px] font-bold shrink-0 w-[64px] text-right ${d.off ? 'text-faint' : ''}">${esc(d.where)}</span>
       <span class="text-[11px] text-faint shrink-0 w-[80px] text-right">${esc(STAGE_LABEL[d.stageKey] ?? '')}</span>
@@ -1801,6 +1846,7 @@ function renderDrawer(id) {
         <button data-doc="${esc(d.path)}" class="text-left text-[12px] text-info hover:underline truncate" title="${esc(d.path)}">
           ${esc(d.display)}
         </button>
+        ${copyBadge(d)}
         ${d.driveId ? `<a href="${driveOpen(d.driveId)}" target="_blank" rel="noopener"
              class="text-[11px] text-faint hover:text-ink shrink-0">↗</a>` : ''}
       </div>
