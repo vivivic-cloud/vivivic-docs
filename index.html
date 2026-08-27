@@ -44,7 +44,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.5</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.6</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -72,7 +72,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.5</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.6</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -160,18 +160,23 @@
     <h3 class="text-[16px] font-bold mb-1">선택한 파일 지정</h3>
     <p id="assignSummary" class="text-[12px] text-muted mb-5"></p>
 
-    <label class="block mb-3">
-      <span class="text-[11px] font-bold text-faint tracking-wide">차수</span>
-      <input id="asBatch" class="field mt-1" placeholder="26-18 · 비워두면 그대로" />
+    <label class="block mb-1">
+      <span class="text-[11px] font-bold text-faint tracking-wide">거래처</span>
+      <select id="asVendor" class="field mt-1"></select>
     </label>
+    <input id="asVendorNew" class="field mb-3" placeholder="새 거래처 이름" hidden />
+
     <label class="block mb-3">
       <span class="text-[11px] font-bold text-faint tracking-wide">단계</span>
       <select id="asStage" class="field mt-1"></select>
     </label>
-    <label class="block mb-5">
-      <span class="text-[11px] font-bold text-faint tracking-wide">거래처</span>
-      <input id="asVendor" class="field mt-1" placeholder="비워두면 그대로" />
+
+    <label class="block mb-1">
+      <span class="text-[11px] font-bold text-faint tracking-wide">차수</span>
+      <select id="asBatch" class="field mt-1"></select>
     </label>
+    <input id="asBatchNew" class="field mb-3" placeholder="새 차수 — 예: 26-18" hidden />
+    <div id="asBatchDocs" class="mb-5"></div>
 
     <div class="border-t border-line pt-4 mb-5">
       <label class="flex items-start gap-2 cursor-pointer">
@@ -185,8 +190,8 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <button id="asSave" class="btn btn-primary">저장</button>
-      <button id="asCancel" class="btn btn-ghost">취소</button>
+      <button id="asSave" class="btn btn-primary">확정</button>
+      <button id="asCancel" class="btn btn-ghost">미정으로 두기</button>
     </div>
   </div>
 </div>
@@ -1409,22 +1414,71 @@ function openAssign(mode) {
     paths.length === 1 ? first?.display ?? paths[0] : `${paths.length}건 · ${first?.display ?? ''} 외`;
 
   const isAssign = mode === 'assign';
-  $('#asBatch').closest('label').hidden = !isAssign;
-  $('#asStage').closest('label').hidden = !isAssign;
   $('#asVendor').closest('label').hidden = !isAssign;
+  $('#asStage').closest('label').hidden = !isAssign;
+  $('#asBatch').closest('label').hidden = !isAssign;
+  $('#asVendorNew').hidden = true;
+  $('#asBatchNew').hidden = true;
+  $('#asBatchDocs').innerHTML = '';
 
   $('#asStage').innerHTML =
     '<option value="">그대로</option>' +
     STAGES.map((x) => `<option value="${x.key}">${esc(x.label)}</option>`).join('') +
     '<option value="dev">제품개발</option><option value="fta">FTA · 원산지</option>';
+  $('#asStage').value = '';
 
-  $('#asBatch').value = '';
-  $('#asVendor').value = '';
+  const vendors = [...new Set(state.batches.map((b) => b.vendor))].sort();
+  $('#asVendor').innerHTML =
+    '<option value="">그대로</option>' +
+    vendors.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('') +
+    '<option value="__new__">+ 새 거래처</option>';
+  $('#asVendor').value = first?.vendor && vendors.includes(first.vendor) ? first.vendor : '';
+
+  const syncBatchOptions = () => {
+    const vendorSel = $('#asVendor').value;
+    const vendor = vendorSel === '__new__' ? '' : vendorSel || first?.vendor || '';
+    const batches = [...new Set(state.batches.filter((b) => !vendor || b.vendor === vendor).map((b) => b.batch))]
+      .sort()
+      .reverse();
+    $('#asBatch').innerHTML =
+      '<option value="">그대로</option>' +
+      batches.map((b) => `<option value="${esc(b)}">${esc(b)}차</option>`).join('') +
+      '<option value="__new__">+ 새 차수</option>';
+    $('#asBatch').value = '';
+    $('#asBatchNew').hidden = true;
+    $('#asBatchDocs').innerHTML = '';
+  };
+  syncBatchOptions();
+
+  $('#asVendor').onchange = () => {
+    $('#asVendorNew').hidden = $('#asVendor').value !== '__new__';
+    syncBatchOptions();
+  };
+
+  $('#asBatch').onchange = () => {
+    const val = $('#asBatch').value;
+    $('#asBatchNew').hidden = val !== '__new__';
+    if (!val || val === '__new__') return ($('#asBatchDocs').innerHTML = '');
+    const vendorSel = $('#asVendor').value;
+    const vendor = vendorSel === '__new__' ? '' : vendorSel || first?.vendor || '';
+    const b = state.batches.find((x) => x.vendor === vendor && x.batch === val);
+    const docs = b?.docs ?? [];
+    $('#asBatchDocs').innerHTML = docs.length
+      ? `<div class="text-[11px] font-bold text-faint tracking-wide mb-1.5">${esc(vendor)} ${esc(val)}차의 다른 파일 — 눌러서 실제 내용 확인</div>
+         <ul class="space-y-0.5 max-h-[160px] overflow-y-auto border border-line rounded-lg p-2">
+           ${docs.map((d) => `<li><button type="button" data-asdoc="${esc(d.path)}"
+             class="text-left text-[12px] text-info hover:underline truncate w-full">${esc(d.display)}</button></li>`).join('')}
+         </ul>`
+      : `<p class="text-[11px] text-faint">이 차수에는 아직 다른 파일이 없습니다.</p>`;
+    for (const el of $('#asBatchDocs').querySelectorAll('[data-asdoc]')) {
+      el.onclick = () => openDoc(docs.find((d) => d.path === el.dataset.asdoc));
+    }
+  };
+
   $('#asRule').checked = paths.length > 1;
   $('#asKeyword').value = first ? suggestKeyword(first.name) : '';
   $('#asKeyword').hidden = !$('#asRule').checked;
   $('#assignScrim').hidden = false;
-  setTimeout(() => (isAssign ? $('#asBatch') : $('#asKeyword')).focus(), 50);
 }
 
 const closeAssign = () => ($('#assignScrim').hidden = true);
@@ -1435,14 +1489,19 @@ async function saveAssign() {
   const useRule = $('#asRule').checked;
   const keyword = $('#asKeyword').value.trim();
 
+  const vendorSel = $('#asVendor').value;
+  const vendor = vendorSel === '__new__' ? $('#asVendorNew').value.trim() : vendorSel;
+  const batchSel = $('#asBatch').value;
+  const batch = batchSel === '__new__' ? $('#asBatchNew').value.trim() : batchSel;
+
   const body =
     mode === 'exclude'
       ? { action: 'exclude' }
       : {
           action: 'assign',
-          ...($('#asBatch').value.trim() ? { batch: $('#asBatch').value.trim() } : {}),
+          ...(batch ? { batch } : {}),
           ...($('#asStage').value ? { stageKey: $('#asStage').value } : {}),
-          ...($('#asVendor').value.trim() ? { vendor: $('#asVendor').value.trim() } : {}),
+          ...(vendor ? { vendor } : {}),
         };
 
   if (mode === 'assign' && !body.batch && !body.stageKey && !body.vendor)
