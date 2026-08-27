@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.9</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.6.9</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.7.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -136,7 +136,6 @@
         <h2 class="text-[13px] font-bold text-faint tracking-wide">차수가 붙지 않은 파일</h2>
         <span id="defineCount" class="text-[12px] text-faint font-semibold"></span>
         <div class="ml-auto flex items-center gap-2">
-          <button id="btnReview" class="btn btn-primary">하나씩 짚어보기</button>
           <button id="btnRules" class="btn btn-ghost">규칙 <span id="ruleCount"></span></button>
           <button id="btnExcluded" class="btn btn-ghost">제외함 <span id="excludedCount"></span></button>
         </div>
@@ -196,18 +195,6 @@
       <button id="asSave" class="btn btn-primary">확정</button>
       <button id="asCancel" class="btn btn-ghost">미정으로 두기</button>
     </div>
-  </div>
-</div>
-
-<!-- ── 하나씩 짚어보기 ── -->
-<div id="reviewScrim" class="fixed inset-0 bg-black/35 z-[230] flex items-center justify-center px-6 py-8" hidden>
-  <div class="w-full max-w-[1080px] max-h-full overflow-y-auto bg-white border border-line rounded-2xl shadow-lg">
-    <div class="sticky top-0 bg-white border-b border-line px-7 h-[60px] flex items-center gap-3">
-      <span class="text-[13px] font-bold">하나씩 짚어보기</span>
-      <span id="rvProgress" class="text-[12px] text-faint font-semibold"></span>
-      <button id="rvClose" class="btn btn-ghost ml-auto">닫기</button>
-    </div>
-    <div id="reviewBody" class="p-7"></div>
   </div>
 </div>
 
@@ -593,117 +580,7 @@ function findDuplicates(docs) {
     .map((g) => ({ display: g[0].display, count: g.length, files: g.map((x) => x.path) }));
 }
 
-/* ── 짚어보기: 이 파일이 뭘까 추측하기 ───────────────────
- * 판정이 안 된 파일 하나를 놓고, 주변 파일에서 단서를 긁어
- * 차수·단계 후보를 점수순으로 제안합니다.
- */
-
-/** 이름에서 형제 파일을 찾기 위한 앞머리 */
-function namePrefix(name) {
-  return normalizeName(name)
-    .replace(/\.[a-z0-9]{1,6}$/i, '')
-    .slice(0, 6)
-    .toLowerCase();
-}
-
-const DAY = 86400000;
-
-/** 약한 단서 — 확정 규칙에는 못 미치지만 후보로 낼 만한 것들 */
-const WEAK_STAGE = [
-  [/装箱单|packing/i, 'cipl', '装箱单(패킹리스트) 표기'],
-  [/发票|invoice/i, 'pi', '发票(인보이스) 표기'],
-  [/收据|영수/i, 'piReceipt', '영수 표기'],
-  [/合同|계약/i, 'order', '계약 표기'],
-  [/提单|BL/i, 'bl', 'BL 표기'],
-  [/报价|견적|quotation/i, 'dev', '견적 표기'],
-  [/图|도면|dwg|dxf/i, 'dev', '도면 표기'],
-  [/装车|상차|현장|사진/i, 'loading', '상차·사진 표기'],
-];
-
-const EXT_STAGE = {
-  jpg: ['loading', '사진 파일'],
-  jpeg: ['loading', '사진 파일'],
-  png: ['loading', '사진 파일'],
-  heic: ['loading', '사진 파일'],
-  dwg: ['dev', '도면 파일'],
-  dxf: ['dev', '도면 파일'],
-  zip: ['dev', '묶음 파일'],
-};
-
-/**
- * @param doc  판정 안 된 파일 (buildBatches 가 만든 형태)
- * @param all  같은 스캔의 전체 파일 (차수가 붙은 것 포함)
- * @returns { batches: [{label, why, score}], stages: [{key, why, score}], reason }
- */
-function suggest(doc, all) {
-  const batches = new Map();
-  const stages = new Map();
-  const add = (map, key, why, score) => {
-    const cur = map.get(key);
-    if (!cur || cur.score < score) map.set(key, { key, label: key, why, score });
-    else if (cur.why.indexOf(why) < 0) cur.why += ` · ${why}`;
-  };
-
-  const sameVendor = all.filter((f) => f.vendor === doc.vendor && f.path !== doc.path);
-
-  // 1) 문서번호가 같은 파일 — 가장 강한 단서
-  if (doc.docNo) {
-    for (const f of sameVendor) {
-      if (f.docNo === doc.docNo && f.batch) add(batches, f.batch, `문서번호 ${doc.docNo} 가 같은 파일`, 100);
-    }
-  }
-
-  // 2) 같은 폴더에서 이름 앞머리가 같은 파일
-  const dir = doc.path.split('/').slice(0, -1).join('/');
-  const pre = namePrefix(doc.name);
-  for (const f of sameVendor) {
-    if (!f.batch) continue;
-    const fdir = f.path.split('/').slice(0, -1).join('/');
-    if (fdir === dir && namePrefix(f.name) === pre) add(batches, f.batch, `이름이 비슷한 같은 폴더 파일`, 80);
-  }
-
-  // 3) 날짜가 가까운 파일 — 같은 시기에 오간 서류
-  const when = doc.mtime ?? null;
-  if (when) {
-    for (const f of sameVendor) {
-      if (!f.batch || !f.mtime) continue;
-      const gap = Math.abs(f.mtime - when);
-      if (gap > 21 * DAY) continue;
-      add(batches, f.batch, `${Math.round(gap / DAY)}일 차이로 올라온 같은 거래처 파일`, 60 - gap / DAY);
-    }
-  }
-
-  // 4) 이름 안에 차수처럼 생긴 숫자
-  const loose = [...normalizeName(doc.name).matchAll(/(2[3-9])\s*[-_. ]\s*(\d{1,2})(?!\d)/g)];
-  for (const m of loose) {
-    const label = `${m[1]}-${String(Number(m[2])).padStart(2, '0')}`;
-    add(batches, label, `이름에 ${m[0].trim()} 이 들어 있음`, 40);
-  }
-
-  // 5) 그 거래처의 최근 차수 — 마지막 보루
-  const recent = [...new Set(sameVendor.filter((f) => f.batch).map((f) => f.batch))]
-    .sort()
-    .reverse()
-    .slice(0, 3);
-  recent.forEach((label, i) => add(batches, label, '이 거래처의 최근 차수', 20 - i));
-
-  // ── 단계 후보 ──
-  for (const [re, key, why] of WEAK_STAGE) if (re.test(doc.name)) add(stages, key, why, 70);
-  const ext = extOf(doc.name);
-  if (EXT_STAGE[ext]) add(stages, EXT_STAGE[ext][0], EXT_STAGE[ext][1], 40);
-  if (doc.stageKey && doc.stageKey !== 'etc') add(stages, doc.stageKey, '자동 판정', 90);
-
-  const reason = !doc.batch
-    ? doc.stageKey === 'etc'
-      ? '차수도 단계도 못 읽었습니다.'
-      : '단계는 읽었는데 차수 표기를 못 찾았습니다.'
-    : '단계를 못 읽었습니다.';
-
-  const rank = (m) => [...m.values()].sort((a, b) => b.score - a.score).slice(0, 5);
-  return { batches: rank(batches), stages: rank(stages), reason };
-}
-
-return { ASIDE, STAGES, STAGE_BY_KEY, applyRules, buildBatches, classify, extOf, findDuplicates, findIssues, namePrefix, normalizeName, parseBatch, parseDate, parseDocNo, ruleMatches, suggest, suggestKeyword, summarize };
+return { ASIDE, STAGES, STAGE_BY_KEY, applyRules, buildBatches, classify, extOf, findDuplicates, findIssues, normalizeName, parseBatch, parseDate, parseDocNo, ruleMatches, suggestKeyword, summarize };
 })();
 const FS = (() => {
 /**
@@ -1020,7 +897,7 @@ const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
 
 return { APP_ID, FILES, OVERLAY, RULES, authMessage, deleteRule, fileKey, init, overlayKey, replaceFiles, saveOverlay, saveRule, saveRules, signIn, signOut, watchAuth, watchFiles, watchOverlay, watchRules };
 })();
-const { STAGES, buildBatches, suggestKeyword, suggest } = PARSE;
+const { STAGES, buildBatches, suggestKeyword } = PARSE;
 
 
 
@@ -1036,7 +913,6 @@ const state = {
   excluded: [],
   selected: new Set(),
   assignMode: 'assign',
-  review: { queue: [], idx: 0, batch: null, stage: null, rule: false },
   filter: { vendor: null, status: null, q: '' },
   openId: null,
   unsub: [],
@@ -1063,15 +939,12 @@ async function boot() {
   $('#asCancel').onclick = closeAssign;
   $('#asSave').onclick = saveAssign;
   $('#asRule').onchange = (e) => ($('#asKeyword').hidden = !e.target.checked);
-  $('#btnReview').onclick = openReview;
-  $('#rvClose').onclick = closeReview;
   $('#viewerClose').onclick = closeViewer;
   $('#btnConnect').onclick = () => connectFolder().then((ok) => ok && renderConnectState());
   $('#search').oninput = (e) => { state.filter.q = e.target.value.trim(); render(); };
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (!$('#viewerScrim').hidden) return closeViewer();
-    if (!$('#reviewScrim').hidden) return closeReview();
     if (!$('#assignScrim').hidden) return closeAssign();
     if (!$('#panelScrim').hidden) return closePanel();
     closeDrawer();
@@ -1221,7 +1094,6 @@ function render() {
   renderChips();
   renderGrid();
   renderDefine();
-  renderReview();
   if (state.openId) renderDrawer(state.openId);
 }
 
@@ -1231,20 +1103,15 @@ function renderKpis() {
     ['총 차수', all.length, ''],
     ['진행 중', all.filter((b) => b.status === 'active').length, 'text-info'],
     ['이상 감지', all.reduce((n, b) => n + b.issues.filter((i) => i.level === 'warn').length, 0), 'text-warn'],
-    ['미확인 파일', state.unassigned.length, 'text-faint', 'review'],
+    ['미확인 파일', state.unassigned.length, 'text-faint'],
   ];
   $('#kpis').innerHTML = cards
-    .map(([label, value, cls, act]) => `
-      <${act ? 'button' : 'div'} class="card px-5 py-4 text-left w-full ${act ? 'hover:border-ink/25 hover:shadow transition-all' : ''}"
-           ${act ? `data-kpi="${act}"` : ''}>
+    .map(([label, value, cls]) => `
+      <div class="card px-5 py-4">
         <div class="text-[11px] font-bold text-faint tracking-wide mb-1">${label}</div>
         <div class="text-[26px] font-bold leading-none ${cls}">${value}</div>
-        ${act ? '<div class="text-[11px] font-bold text-info mt-1">하나씩 보고 분리하기 →</div>' : ''}
-      </${act ? 'button' : 'div'}>`)
+      </div>`)
     .join('');
-
-  const go = $('#kpis [data-kpi="review"]');
-  if (go) go.onclick = openReview;
 }
 
 function renderChips() {
@@ -1766,183 +1633,6 @@ async function connectFolder() {
   } catch (e) {
     if (e?.name !== 'AbortError') toast(`연결하지 못했습니다: ${e.message}`);
     return false;
-  }
-}
-
-/* ── 하나씩 짚어보기 ──────────────────────────────────── */
-
-/** 판정된 것까지 포함한 전체 파일 — 추측의 단서로 씁니다. */
-function allDocs() {
-  return [...state.batches.flatMap((b) => b.docs), ...state.unassigned];
-}
-
-function openReview() {
-  if (!state.unassigned.length) return toast('짚어볼 파일이 없습니다.');
-  state.review = { queue: state.unassigned.map((d) => d.path), idx: 0, batch: null, stage: null, rule: false };
-  $('#reviewScrim').hidden = false;
-  renderReview();
-}
-
-const closeReview = () => ($('#reviewScrim').hidden = true);
-
-function currentReviewDoc() {
-  const { queue } = state.review;
-  // 이미 처리돼 목록에서 빠진 파일은 건너뜁니다.
-  while (state.review.idx < queue.length) {
-    const doc = state.unassigned.find((d) => d.path === queue[state.review.idx]);
-    if (doc) return doc;
-    state.review.idx += 1;
-  }
-  return null;
-}
-
-function nextReview() {
-  state.review.idx += 1;
-  state.review.batch = null;
-  state.review.stage = null;
-  state.review.rule = false;
-  renderReview();
-}
-
-function renderReview() {
-  if ($('#reviewScrim').hidden) return;
-  const doc = currentReviewDoc();
-  const { queue, idx } = state.review;
-  $('#rvProgress').textContent = doc ? `${idx + 1} / ${queue.length}` : '';
-
-  if (!doc) {
-    $('#reviewBody').innerHTML = `
-      <div class="text-center py-10">
-        <div class="text-[18px] font-bold mb-2">다 봤습니다</div>
-        <p class="text-[13px] text-muted">남은 파일이 없습니다.</p>
-      </div>`;
-    return;
-  }
-
-  const s = suggest(doc, allDocs());
-  const stageName = (k) => STAGES.find((x) => x.key === k)?.label ?? { dev: '제품개발', fta: 'FTA · 원산지' }[k] ?? k;
-  const pill = (on) =>
-    `text-left px-3 py-2 rounded-lg border transition-all ${on ? 'border-ink bg-ink text-white' : 'border-line bg-white hover:bg-hover'}`;
-
-  // 껍데기는 한 번만 만듭니다. 왼쪽만 다시 그려야 오른쪽 미리보기가 되감기지 않습니다.
-  if (!$('#rvLeft')) {
-    $('#reviewBody').innerHTML =
-      '<div class="grid grid-cols-1 lg:grid-cols-[1fr_460px] gap-7">' +
-      '<div id="rvLeft"></div><div id="rvRight"></div></div>';
-    shownPath.delete('pv');
-  }
-  if (shownPath.get('pv') !== doc.path) {
-    $('#rvRight').innerHTML = previewPane(doc, 'pv');
-    fillPreview(doc, 'pv');
-  }
-
-  $('#rvLeft').innerHTML = `
-    <div class="mb-1 text-[11px] font-bold text-faint tracking-wide">${esc(doc.vendor)}</div>
-    <h3 class="text-[17px] font-bold leading-snug break-all mb-1">${esc(doc.display)}</h3>
-    <div class="text-[11px] text-faint mb-4">${[doc.path, fmtSize(doc.size), doc.date].filter(Boolean).map(esc).join(' · ')}</div>
-    <div class="text-[12px] px-3 py-2.5 rounded-lg bg-[#fdf3e3] text-[#8a5a00] mb-6">${esc(s.reason)}</div>
-
-    <div class="mb-6">
-      <div class="text-[11px] font-bold text-faint tracking-wide mb-2">차수</div>
-      <div class="grid grid-cols-1 gap-1.5">
-        ${s.batches
-          .map(
-            (b) => `<button class="${pill(state.review.batch === b.key)}" data-rvb="${esc(b.key)}">
-              <span class="text-[13px] font-bold">${esc(b.key)}차</span>
-              <span class="text-[11px] ${state.review.batch === b.key ? 'text-white/70' : 'text-faint'}"> · ${esc(b.why)}</span>
-            </button>`
-          )
-          .join('') || '<span class="text-[12px] text-faint">추측할 단서가 없습니다.</span>'}
-      </div>
-      <input id="rvBatch" class="field mt-2" placeholder="직접 입력 — 26-18" value="${esc(state.review.batch ?? '')}" />
-    </div>
-
-    <div class="mb-6">
-      <div class="text-[11px] font-bold text-faint tracking-wide mb-2">단계</div>
-      <div class="grid grid-cols-1 gap-1.5">
-        ${s.stages
-          .map(
-            (x) => `<button class="${pill(state.review.stage === x.key)}" data-rvs="${esc(x.key)}">
-              <span class="text-[13px] font-bold">${esc(stageName(x.key))}</span>
-              <span class="text-[11px] ${state.review.stage === x.key ? 'text-white/70' : 'text-faint'}"> · ${esc(x.why)}</span>
-            </button>`
-          )
-          .join('')}
-      </div>
-      <select id="rvStage" class="field mt-2">
-        <option value="">직접 선택</option>
-        ${STAGES.map((x) => `<option value="${x.key}">${esc(x.label)}</option>`).join('')}
-        <option value="dev">제품개발</option>
-        <option value="fta">FTA · 원산지</option>
-      </select>
-    </div>
-
-    <label class="flex items-start gap-2 cursor-pointer border-t border-line pt-4 mb-4">
-      <input id="rvRule" type="checkbox" class="mt-0.5" ${state.review.rule ? 'checked' : ''} />
-      <span class="text-[12px] leading-relaxed">
-        <span class="font-semibold">비슷한 파일도 같이</span>
-        <span class="text-muted"> — 이 키워드가 들어간 파일은 앞으로도 이렇게 분류됩니다.</span>
-      </span>
-    </label>
-    <input id="rvKeyword" class="field mb-5" value="${esc(suggestKeyword(doc.name))}" ${state.review.rule ? '' : 'hidden'} />
-
-    <div class="flex items-center gap-2">
-      <button id="rvSave" class="btn btn-primary">저장하고 다음</button>
-      <button id="rvExclude" class="btn btn-ghost">제외</button>
-      <button id="rvSkip" class="ml-auto text-[12px] text-faint hover:text-ink font-bold">건너뛰기 →</button>
-    </div>`;
-
-  for (const el of $('#reviewBody').querySelectorAll('[data-rvb]')) {
-    el.onclick = () => {
-      state.review.batch = state.review.batch === el.dataset.rvb ? null : el.dataset.rvb;
-      renderReview();
-    };
-  }
-  for (const el of $('#reviewBody').querySelectorAll('[data-rvs]')) {
-    el.onclick = () => {
-      state.review.stage = state.review.stage === el.dataset.rvs ? null : el.dataset.rvs;
-      renderReview();
-    };
-  }
-  $('#rvBatch').oninput = (e) => (state.review.batch = e.target.value.trim() || null);
-  $('#rvStage').onchange = (e) => {
-    state.review.stage = e.target.value || null;
-    renderReview();
-  };
-  $('#rvRule').onchange = (e) => {
-    state.review.rule = e.target.checked;
-    $('#rvKeyword').hidden = !e.target.checked;
-  };
-  $('#rvSkip').onclick = nextReview;
-  $('#rvSave').onclick = () => commitReview(doc, 'assign');
-  $('#rvExclude').onclick = () => commitReview(doc, 'exclude');
-}
-
-async function commitReview(doc, mode) {
-  const { batch, stage, rule } = state.review;
-  const keyword = $('#rvKeyword').value.trim();
-
-  if (mode === 'assign' && !batch && !stage) return toast('차수나 단계를 하나는 골라주세요.');
-  if (rule && !keyword) return toast('규칙으로 쓸 키워드를 넣어주세요.');
-
-  const body =
-    mode === 'exclude'
-      ? { action: 'exclude' }
-      : { action: 'assign', ...(batch ? { batch } : {}), ...(stage ? { stageKey: stage } : {}) };
-
-  const newRule = rule
-    ? { ...body, matchType: 'contains', match: keyword, note: '짚어보기에서 만듦' }
-    : { ...body, matchType: 'path', match: doc.path };
-
-  if (state.demo) {
-    toast('데모 모드라 저장하지 않습니다.');
-    return nextReview();
-  }
-  try {
-    await DB.saveRules([newRule], state.user?.email);
-    nextReview();
-  } catch (e) {
-    toast(`저장 실패: ${e.message}`);
   }
 }
 
