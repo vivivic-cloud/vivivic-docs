@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -993,6 +993,16 @@ async function saveOverlay(batchId, data, email) {
   });
 }
 
+/* ── 동기화 호출 주소 ─────────────────────────────────── */
+
+const CONFIG = 'docs_config';
+
+/** Apps Script 웹앱 주소. 스크립트가 publishUrl() 로 적어둡니다. */
+async function syncUrl() {
+  const snap = await ctx.f.getDoc(ctx.f.doc(col(CONFIG), 'sync'));
+  return snap.exists() ? (snap.data().url ?? null) : null;
+}
+
 /* ── 사용자 정의 규칙 ─────────────────────────────────── */
 
 const RULES = 'docs_rules';
@@ -1027,7 +1037,7 @@ async function saveRules(rules, email) {
 
 const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
 
-return { APP_ID, FILES, OVERLAY, RULES, authMessage, deleteRule, fileKey, init, overlayKey, replaceFiles, saveOverlay, saveRule, saveRules, signIn, signOut, watchAuth, watchFiles, watchOverlay, watchRules };
+return { APP_ID, CONFIG, FILES, OVERLAY, RULES, authMessage, deleteRule, fileKey, init, overlayKey, replaceFiles, saveOverlay, saveRule, saveRules, signIn, signOut, syncUrl, watchAuth, watchFiles, watchOverlay, watchRules };
 })();
 const { STAGES, ASIDE, buildBatches, suggestKeyword } = PARSE;
 
@@ -1127,6 +1137,7 @@ async function enterApp(user) {
   }
   renderConnectState();
   checkForUpdate();
+  askSync();
 
   state.unsub.push(
     DB.watchFiles((files) => { state.files = files; applyParse(); }),
@@ -1179,6 +1190,36 @@ function applyParse() {
   $('#empty').hidden = has;
   $('#dash').hidden = !has;
   render();
+}
+
+/* ── 켤 때 드라이브 한 번 확인 ────────────────────────── */
+
+/**
+ * 앱을 켜거나 새로고침하면 Apps Script 에 "드라이브 좀 봐줘" 하고 부릅니다.
+ * 바뀐 게 없으면 저쪽에서 지문만 비교하고 끝나므로 부담이 없습니다.
+ * 답은 안 받습니다 — 결과는 어차피 Firestore 구독으로 흘러들어옵니다.
+ *
+ * 새로고침을 연달아 눌러도 1분에 한 번만 부릅니다.
+ */
+const SYNC_GAP = 60_000;
+
+async function askSync() {
+  if (state.demo) return;
+  try {
+    const last = Number(sessionStorage.getItem('lastAsk') ?? 0);
+    if (Date.now() - last < SYNC_GAP) return;
+
+    const url = await DB.syncUrl();
+    if (!url) return; // 아직 웹앱을 배포하지 않았으면 조용히 넘어갑니다
+
+    sessionStorage.setItem('lastAsk', String(Date.now()));
+    cloud('드라이브 확인 중…');
+    // 다른 출처라 응답은 못 읽습니다. 부르기만 하면 됩니다.
+    await fetch(url, { mode: 'no-cors', cache: 'no-store' });
+    cloud('연결됨');
+  } catch {
+    cloud('연결됨');
+  }
 }
 
 /* ── 드라이브 스캔 → 클라우드 업로드 ──────────────────── */
