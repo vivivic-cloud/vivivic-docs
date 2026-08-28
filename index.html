@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.3</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.3</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -311,8 +311,20 @@ function parseBatch(rawName) {
   m = /AMT\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
   if (m) return mk(m[1], m[2]);
 
-  // 4) 앞뒤가 숫자가 아닌 "26-16.17" 같은 복수 차수 → 첫 번째만
-  m = /(?:^|[^\d])(2[4-9])\s*-\s*(\d{1,2})(?![\d.]*\d{3})/.exec(n);
+  // 4) 문서번호가 해를 알려주는 경우: "25-182-AMT-13-B-포니엘 6차" → 25-06
+  //    문서번호 앞 두 자리가 해입니다. 차수는 "N차" 표기를 먼저 믿고,
+  //    없으면 "AMT-ZH-16" 처럼 거래처 코드 뒤에 붙은 번호를 씁니다.
+  const docNo = /(\d{2})-\d{3}-AMT/i.exec(n);
+  if (docNo) {
+    const cha = /(?:^|[^\d])(\d{1,2})\s*차/.exec(n);
+    if (cha) return mk(docNo[1], cha[1]);
+    const tail = /-AMT-(?:[A-Z]{2}-)?(\d{1,2})(?!\d)/i.exec(n);
+    if (tail) return mk(docNo[1], tail[1]);
+  }
+
+  // 5) "(제헤우드 26-16)" 처럼 차 없이 적힌 것, "26-16.17" 같은 복수 차수 → 첫 번째만.
+  //    뒤에 숫자가 더 붙으면 차수가 아니라 문서번호입니다 — 26-085 는 26-08차가 아닙니다.
+  m = /(?:^|[^\d])(2[4-9])\s*-\s*(\d{1,2})(?!\d)/.exec(n);
   if (m) return mk(m[1], m[2]);
 
   return null;
