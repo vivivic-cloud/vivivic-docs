@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.2</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.2</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -409,8 +409,9 @@ function classify(rawName) {
   // 4. 상차이미지
   if (/상차|装[车車]|裝車|loading/i.test(n)) return hit('loading', '상차 키워드');
 
-  // 1. 발주서 — AMT이 내보내는 Ordersheet·PO 쪽입니다
-  if (/ordersheet|order\s*sheet|(?<![A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서|订单|訂單/i.test(n))
+  // 1. 발주서 — AMT이 내보내는 Ordersheet·PO 쪽만입니다.
+  //    거래처가 보내오는 중국어 파일(订单·报价 등)은 발주서가 될 수 없습니다.
+  if (/ordersheet|order\s*sheet|(?<![A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서/i.test(n))
     return hit('order', '발주 키워드');
 
   // 부가: FTA·원산지
@@ -426,6 +427,75 @@ function classify(rawName) {
   return hit('etc', '규칙에 걸리지 않음');
 }
 
+
+/* ── 중국어 파일명 뜻풀이 ─────────────────────────────── */
+
+/**
+ * 거래처가 보내오는 파일명에 나오는 말들입니다.
+ * 긴 것부터 맞춰 보므로 순서가 중요합니다 — 形式发票和装箱单 이 形式发票 보다 먼저.
+ */
+const CJK_GLOSS = [
+  ['形式发票和装箱单发给客户', 'PI·패킹리스트 거래처 발송'],
+  ['形式发票和装箱单', 'PI·패킹리스트'],
+  ['形式发票', '프로포마 인보이스(PI)'],
+  ['装箱单', '패킹리스트'],
+  ['电放单', '전신방출 선하증권'],
+  ['立方数', '재화 부피'],
+  ['两种方案', '두 가지 안'],
+  ['组合柜', '조합장'],
+  ['转角柜', '코너장'],
+  ['复合板', '복합판'],
+  ['白色', '흰색'],
+  ['箱唛', '화인'],
+  ['旋转', '회전'],
+  ['书架', '책장'],
+  ['产品', '제품'],
+  ['订单', '주문'],
+  ['合同', '계약서'],
+  ['报价', '견적'],
+  ['報價', '견적'],
+  ['发票', '인보이스'],
+  ['提单', '선하증권'],
+  ['装车', '상차'],
+  ['裝車', '상차'],
+  ['客户', '거래처'],
+  ['发给', '발송'],
+  ['说明', '설명'],
+  ['方案', '안'],
+  ['贸易', '무역'],
+  ['床', '침대'],
+  ['柜', '장'],
+  ['加', '추가'],
+  ['和', '및'],
+  ['年', '년'],
+];
+
+/**
+ * 중국어가 든 파일명을 대충 풀어 줍니다. 없으면 null.
+ * 사전에 있는 말만 바꾸고 모르는 글자는 그대로 둡니다 — 번역기가 아니라 길잡이입니다.
+ */
+function glossCJK(rawName) {
+  const runs = normalizeName(rawName).match(/[\u4e00-\u9fff]+/g);
+  if (!runs) return null;
+
+  return runs
+    .map((run) => {
+      let rest = run;
+      const words = [];
+      while (rest) {
+        const hit = CJK_GLOSS.find(([zh]) => rest.startsWith(zh));
+        if (hit) {
+          words.push(hit[1]);
+          rest = rest.slice(hit[0].length);
+        } else {
+          words.push(rest[0]); // 모르는 글자는 그대로 둡니다
+          rest = rest.slice(1);
+        }
+      }
+      return words.join(' ');
+    })
+    .join(' · ');
+}
 
 /* ── 사용자 정의 규칙 ─────────────────────────────────────
  * 파일명 규칙만으로 안 잡히는 파일을 사람이 직접 정의합니다.
@@ -687,7 +757,7 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, STAGES, STAGE_BY_KEY, VENDOR_ALIAS, applyRules, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, normalizeName, parseBatch, parseDate, parseDocNo, parseVendor, ruleMatches, suggestKeyword, summarize };
+return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, VENDOR_ALIAS, applyRules, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, parseBatch, parseDate, parseDocNo, parseVendor, ruleMatches, suggestKeyword, summarize };
 })();
 const FS = (() => {
 /**
@@ -1039,7 +1109,7 @@ const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
 
 return { APP_ID, CONFIG, FILES, OVERLAY, RULES, authMessage, deleteRule, fileKey, init, overlayKey, replaceFiles, saveOverlay, saveRule, saveRules, signIn, signOut, syncUrl, watchAuth, watchFiles, watchOverlay, watchRules };
 })();
-const { STAGES, ASIDE, buildBatches, suggestKeyword } = PARSE;
+const { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK } = PARSE;
 
 
 
@@ -1262,6 +1332,15 @@ function visible() {
 }
 
 /**
+ * 파일 위에 마우스를 올렸을 때 뜨는 설명.
+ * 중국어 파일명이면 대충이라도 무슨 서류인지 같이 보여줍니다.
+ */
+function fileTitle(d) {
+  const gloss = glossCJK(d.name ?? d.display);
+  return gloss ? `${d.path}\n\n${gloss}` : d.path;
+}
+
+/**
  * 같은 파일이 여러 벌이면 몇 벌인지 배지로 붙입니다.
  * 목록에는 한 건만 나오므로, 나머지가 어디 있는지는 툴팁으로 봅니다.
  */
@@ -1303,7 +1382,7 @@ function renderFileHits() {
   const shown = hits.slice(0, 200);
   const row = (d) => `
     <li class="py-2 flex items-center gap-3 ${d.off ? 'opacity-55' : ''}">
-      <button data-file="${esc(d.path)}" title="${esc(d.path)}"
+      <button data-file="${esc(d.path)}" title="${esc(fileTitle(d))}"
               class="text-left text-[13px] text-info hover:underline truncate min-w-0 flex-1">${esc(d.display)}</button>
       ${copyBadge(d)}
       <span class="text-[11px] font-semibold text-faint shrink-0">${esc(d.vendor)}</span>
@@ -1979,7 +2058,7 @@ function renderDrawer(id) {
   const docLink = (d) => `
     <li>
       <div class="flex items-center gap-2">
-        <button data-doc="${esc(d.path)}" class="text-left text-[12px] text-info hover:underline truncate" title="${esc(d.path)}">
+        <button data-doc="${esc(d.path)}" class="text-left text-[12px] text-info hover:underline truncate" title="${esc(fileTitle(d))}">
           ${esc(d.display)}
         </button>
         ${copyBadge(d)}
@@ -2112,7 +2191,9 @@ function renderConnectState() {
 function openDoc(doc) {
   if (!doc) return;
   $('#viewerTitle').textContent = doc.display;
-  $('#viewerMeta').textContent = [doc.path, fmtSize(doc.size), doc.date].filter(Boolean).join(' · ');
+  $('#viewerMeta').textContent = [doc.path, fmtSize(doc.size), doc.date, glossCJK(doc.name ?? doc.display)]
+    .filter(Boolean)
+    .join(' · ');
   $('#viewerBody').innerHTML = previewPane(doc, 'vw');
   $('#viewerScrim').hidden = false;
   fillPreview(doc, 'vw');
