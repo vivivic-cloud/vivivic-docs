@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.8.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -293,6 +293,45 @@ function extOf(name) {
 const IMAGE_EXT = new Set(['jpg', 'jpeg', 'png', 'heic', 'webp', 'gif']);
 
 /**
+ * 파일명에 나오는 거래처 코드.
+ * 폴더는 사람이 잘못 넣을 수 있으니, 파일명에 근거가 있으면 그쪽을 믿습니다.
+ * 확실한 것만 둡니다 — ING·JW 처럼 여러 거래처에 걸쳐 나오는 표기는 넣지 않습니다.
+ */
+const VENDOR_ALIAS = {
+  ZH: '제헤우드',
+  ZEHE: '제헤우드',
+};
+
+/**
+ * 파일명만 보고 거래처를 정합니다. 근거가 없으면 null 을 돌려주고,
+ * 그때만 폴더 이름을 씁니다.
+ * @param vendors 이번 스캔에서 실제로 본 거래처 이름들
+ */
+function parseVendor(rawName, vendors = []) {
+  const n = normalizeName(rawName);
+
+  // 1) 거래처 이름이 그대로 적혀 있으면 가장 확실합니다.
+  for (const v of vendors) {
+    if (v && v !== '(루트)' && n.includes(v)) return v;
+  }
+
+  // 2) 문서번호 안의 거래처 코드 — "26-085-AMT-ZH-16"
+  const m = /-AMT-([A-Z]{2,4})-/i.exec(n);
+  if (m) {
+    const hit = VENDOR_ALIAS[m[1].toUpperCase()];
+    if (hit && vendors.includes(hit)) return hit;
+  }
+
+  // 3) "AMT(ZH)26-11", "ZEHE-ING26 -15"
+  const m2 = /\(([A-Z]{2,4})\)|\b(ZEHE|ZH)\b/i.exec(n);
+  const code = (m2?.[1] ?? m2?.[2] ?? '').toUpperCase();
+  const hit2 = VENDOR_ALIAS[code];
+  if (hit2 && vendors.includes(hit2)) return hit2;
+
+  return null;
+}
+
+/**
  * 파일명에서 차수를 뽑습니다. → { year: 26, no: 18, label: '26-18' } | null
  * 확신이 높은 패턴부터 시도합니다.
  */
@@ -485,11 +524,19 @@ function buildBatches(files, rules = []) {
   const unassigned = [];
   const excluded = [];
 
+  // 이번 스캔에서 본 거래처 이름들 — 파일명에서 거래처를 읽을 때 대조표로 씁니다.
+  const vendors = [...new Set(files.map((f) => f.vendor).filter(Boolean))];
+
   for (const f of files) {
     const parsed = parseBatch(f.name);
     const cls = classify(f.name);
+    const named = parseVendor(f.name, vendors);
     let doc = {
       ...f,
+      // 폴더는 사람이 잘못 넣을 수 있습니다. 파일명에 근거가 있으면 그쪽이 이깁니다.
+      vendor: named ?? f.vendor,
+      folderVendor: f.vendor,
+      misfiled: !!named && named !== f.vendor,
       display: normalizeName(f.name),
       stageKey: cls.key,
       stageId: cls.stage,
@@ -576,6 +623,14 @@ function findIssues(b, stages) {
       });
   }
 
+  // 파일명이 가리키는 거래처와 실제 폴더가 다른 경우
+  for (const d of b.docs.filter((x) => x.misfiled)) {
+    out.push({
+      level: 'warn',
+      text: `"${d.display}" 는 ${d.folderVendor} 폴더에 있습니다. 파일명을 보고 ${d.vendor} 로 넣었습니다.`,
+    });
+  }
+
   // 같은 파일이 여러 벌
   for (const dup of findDuplicates(b.docs)) {
     out.push({
@@ -632,7 +687,7 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, STAGES, STAGE_BY_KEY, applyRules, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, normalizeName, parseBatch, parseDate, parseDocNo, ruleMatches, suggestKeyword, summarize };
+return { ASIDE, STAGES, STAGE_BY_KEY, VENDOR_ALIAS, applyRules, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, normalizeName, parseBatch, parseDate, parseDocNo, parseVendor, ruleMatches, suggestKeyword, summarize };
 })();
 const FS = (() => {
 /**
