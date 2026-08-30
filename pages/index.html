@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.4</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.12.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.4</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.12.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -718,8 +718,14 @@ function shipDate(doc) {
 }
 
 const NEAR_DAYS = 7;
+const NEAR_DAYS_PAPER = 14;
 /** 선적 시점에 오가는 문서 — 이름에 차수가 없어도 날짜로 이을 만합니다. */
 const SHIP_TIME = new Set(['bl', 'fta']);
+/** 서류 안에 인보이스 날짜가 적혀 오는 것들 */
+const PAPER_TIME = new Set(['pi', 'cipl']);
+
+/** 이 서류가 오간 시점 — 이름에 날짜가 없으면 올라온 시각으로 갈음합니다. */
+const whenOf = (d) => d.date ?? (d.mtime ? new Date(d.mtime).toISOString().slice(0, 10) : null);
 const dayGap = (a, b) => Math.abs(new Date(a) - new Date(b)) / 86400000;
 
 /**
@@ -820,31 +826,47 @@ function buildBatches(files, rules = []) {
   // 선하증권처럼 이름에 차수가 없는 것들입니다. 후보가 하나뿐일 때만 붙입니다.
   const stillLoose = [];
   for (const d of unassigned) {
-    // 날짜로 잇는 건 선적 시점 문서에만 씁니다.
-    // 견적·도면은 선적일 근처에 있어도 그 발주 소속이라는 근거가 못 됩니다.
-    const when = SHIP_TIME.has(d.stageKey) ? shipDate(d) : null;
-    if (!when) {
+    // 어디에 견줄지는 서류 성격에 따라 다릅니다.
+    let when = null;
+    let pool = null;
+    let gate = NEAR_DAYS;
+    let why = '';
+
+    if (SHIP_TIME.has(d.stageKey)) {
+      // 선하증권은 이름에 선적일이 적혀 옵니다. 선적 시점 문서(CI&PL)하고만 견줍니다.
+      when = shipDate(d);
+      pool = (b) => b.docs.filter((x) => x.stageKey === 'cipl' && x.date).map((x) => x.date);
+      why = '선적일';
+    } else if (PAPER_TIME.has(d.stageKey) && d.cipl?.invoiceDate) {
+      // 파일명에 차수가 없는 거래처는 서류 **안**의 인보이스 날짜가 유일한 단서입니다.
+      when = d.cipl.invoiceDate;
+      pool = (b) => b.docs.map(whenOf).filter(Boolean);
+      gate = NEAR_DAYS_PAPER;
+      why = '서류에 적힌 날짜';
+    }
+
+    if (!when || !pool) {
       stillLoose.push(d);
       continue;
     }
-    // 선적 시점 문서(CI&PL)하고만 견줍니다. 발주서·영수증 날짜까지 보면 후보가 우수수 걸립니다.
+
     const ranked = [...batches.values()]
       .filter((b) => b.vendor === d.vendor)
-      .map((b) => ({
-        b,
-        gap: Math.min(
-          ...b.docs.filter((x) => x.stageKey === 'cipl' && x.date).map((x) => dayGap(x.date, when)),
-          Infinity
-        ),
-      }))
-      .filter((x) => x.gap <= NEAR_DAYS)
+      .map((b) => ({ b, gap: Math.min(...pool(b).map((x) => dayGap(x, when)), Infinity) }))
+      .filter((x) => x.gap <= gate)
       .sort((a, b) => a.gap - b.gap);
 
     // 1등이 2등보다 확실히 가까울 때만 붙입니다. 비슷하면 사람이 봐야 합니다.
     const clear = ranked[0] && (!ranked[1] || ranked[1].gap - ranked[0].gap >= 2);
-    if (clear) {
+
+    // 잔액서류는 선적 수치의 근거라, 이미 제대로 붙은 게 있으면 추정으로 얹지 않습니다.
+    // 이때 2등으로 떠넘기지도 않습니다 — 엉뚱한 차수에 들어가느니 미분류가 낫습니다.
+    const taken =
+      clear && d.stageKey === 'cipl' && ranked[0].b.docs.some((x) => x.stageKey === 'cipl' && !x.guessed);
+
+    if (clear && !taken) {
       d.batch = ranked[0].b.batch;
-      d.guessed = `선적일 ${when} 이 이 차수 CI&PL과 ${Math.round(ranked[0].gap)}일 차이`;
+      d.guessed = `${why} ${when} 이 이 차수 서류와 ${Math.round(ranked[0].gap)}일 차이`;
       ranked[0].b.docs.push(d);
     } else {
       stillLoose.push(d);
