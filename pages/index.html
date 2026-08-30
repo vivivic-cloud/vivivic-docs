@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.3</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.3</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2347,11 +2347,13 @@ function shipSummary(b, ov) {
     return `
       <section>
         <h3 class="text-[12px] font-bold text-faint tracking-wide mb-2">선적 요약</h3>
-        <p class="text-[12px] text-muted leading-relaxed">
-          잔액서류를 아직 읽지 못했습니다.
-          ${state.root ? '엑셀이 아니면(스캔 PDF 등) 자동으로 못 읽습니다 — 아래 직접 입력에 채워 주세요.'
-            : '이 기기에 폴더가 연결돼 있지 않습니다. 연결하면 엑셀에서 자동으로 읽습니다.'}
+        <p class="text-[12px] text-muted leading-relaxed mb-2">
+          잔액서류에서 아직 수치를 읽지 못했습니다.
+          ${state.root
+            ? '엑셀이 아니면(스캔 PDF 등) 자동으로 못 읽습니다 — 아래 직접 입력에 채워 주세요.'
+            : '이 기기에 폴더가 연결돼 있지 않습니다. 크롬은 새로고침하면 폴더 권한을 놓아서, 한 번 눌러 다시 열어줘야 합니다.'}
         </p>
+        ${state.root ? '' : '<button id="ciplConnect" class="btn btn-ghost">폴더 연결하고 읽기</button>'}
       </section>`;
   }
 
@@ -2516,6 +2518,14 @@ function renderDrawer(id) {
 
   $('#drawerClose').onclick = closeDrawer;
   $('#ovSave').onclick = () => saveOverlay(id);
+  const connect = $('#ciplConnect');
+  if (connect)
+    connect.onclick = () =>
+      connectFolder().then((ok) => {
+        if (!ok) return;
+        renderConnectState();
+        loadCipl(b);
+      });
   for (const el of $('#drawerBody').querySelectorAll('[data-doc]')) {
     el.onclick = () => openDoc(b.docs.find((d) => d.path === el.dataset.doc));
   }
