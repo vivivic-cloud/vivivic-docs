@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2315,6 +2315,55 @@ async function loadCipl(b) {
   }
 }
 
+/**
+ * 선적 요약 — 총중량·박스수·CBM.
+ * 잔액서류에서 읽어낸 값을 쓰되, 사람이 넣은 값이 있으면 그게 이깁니다.
+ * 스캔 PDF처럼 읽을 수 없는 서류도 있어서, 손으로 채울 자리를 늘 열어 둡니다.
+ */
+function shipSummary(b, ov) {
+  const auto = ov.cipl ?? null;
+  const pick = (manual, autoVal) => ({
+    value: manual !== undefined && manual !== '' ? Number(manual) : autoVal,
+    byHand: manual !== undefined && manual !== '',
+  });
+  const rows = [
+    ['총중량', pick(ov.grossKg, auto?.gross), 'kg'],
+    ['박스', pick(ov.cartons, auto?.cartons), '개'],
+    ['부피', pick(ov.cbm, auto?.cbm), 'CBM'],
+  ];
+  if (!rows.some((r) => r[1].value)) {
+    // 아직 아무것도 없습니다. 잔액서류가 왔는데 못 읽은 경우만 안내합니다.
+    const has = b.stages.find((s) => s.key === 'cipl')?.docs.length;
+    if (!has) return '';
+    return `
+      <section>
+        <h3 class="text-[12px] font-bold text-faint tracking-wide mb-2">선적 요약</h3>
+        <p class="text-[12px] text-muted leading-relaxed">
+          잔액서류를 아직 읽지 못했습니다.
+          ${state.root ? '엑셀이 아니면(스캔 PDF 등) 자동으로 못 읽습니다 — 아래 직접 입력에 채워 주세요.'
+            : '이 기기에 폴더가 연결돼 있지 않습니다. 연결하면 엑셀에서 자동으로 읽습니다.'}
+        </p>
+      </section>`;
+  }
+
+  return `
+    <section>
+      <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">선적 요약</h3>
+      <div class="grid grid-cols-3 gap-3">
+        ${rows.map(([label, got, unit]) => `
+          <div class="card px-4 py-3">
+            <div class="text-[11px] font-bold text-faint tracking-wide mb-1">${label}</div>
+            <div class="text-[17px] font-bold leading-none">${got.value ? `${esc(fmtNum(got.value))} <span class="text-[12px] text-faint">${unit}</span>` : '<span class="text-faint">—</span>'}</div>
+            ${got.byHand ? '<div class="text-[10px] font-bold text-faint mt-1">직접 입력</div>' : ''}
+          </div>`).join('')}
+      </div>
+      ${auto ? `<p class="text-[11px] text-faint mt-2 leading-relaxed">
+        ${esc(auto.from)} 의 패킹리스트 ${auto.lines}줄을 더했습니다${auto.pcs ? ` · ${fmtNum(auto.pcs)} pcs` : ''}${auto.net ? ` · 순중량 ${fmtNum(auto.net)} kg` : ''}
+        ${auto.swapped ? '<br /><span class="text-warn font-semibold">서류에 G.W. 와 N.W. 가 뒤바뀌어 있어 큰 값을 총중량으로 봤습니다.</span>' : ''}
+      </p>` : ''}
+    </section>`;
+}
+
 /* ── 상세 서랍 ────────────────────────────────────────── */
 
 function openDrawer(id) {
@@ -2336,6 +2385,7 @@ function renderDrawer(id) {
   const b = state.batches.find((x) => x.id === id);
   if (!b) return closeDrawer();
   const ov = state.overlay[id] ?? {};
+  const auto = ov.cipl ?? null;
 
   const field = (key, label, opts = {}) => `
     <label class="block">
@@ -2408,25 +2458,7 @@ function renderDrawer(id) {
             </div>`).join('')}
         </section>` : ''}
 
-      ${ov.cipl ? `
-        <section>
-          <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">잔액서류 요약</h3>
-          <div class="grid grid-cols-3 gap-3">
-            ${[
-              ['총중량', `${fmtNum(ov.cipl.gross)} kg`],
-              ['박스', `${fmtNum(ov.cipl.cartons)} 개`],
-              ['부피', `${fmtNum(ov.cipl.cbm)} CBM`],
-            ].map(([k, v]) => `
-              <div class="card px-4 py-3">
-                <div class="text-[11px] font-bold text-faint tracking-wide mb-1">${k}</div>
-                <div class="text-[17px] font-bold leading-none">${esc(v)}</div>
-              </div>`).join('')}
-          </div>
-          <p class="text-[11px] text-faint mt-2 leading-relaxed">
-            ${esc(ov.cipl.from)} 의 패킹리스트 ${ov.cipl.lines}줄을 더했습니다${ov.cipl.pcs ? ` · ${fmtNum(ov.cipl.pcs)} pcs` : ''}${ov.cipl.net ? ` · 순중량 ${fmtNum(ov.cipl.net)} kg` : ''}
-            ${ov.cipl.swapped ? '<br /><span class="text-warn font-semibold">서류에 G.W. 와 N.W. 가 뒤바뀌어 있어 큰 값을 총중량으로 봤습니다.</span>' : ''}
-          </p>
-        </section>` : ''}
+      ${shipSummary(b, ov)}
 
       <section>
         <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">직접 입력</h3>
@@ -2434,6 +2466,9 @@ function renderDrawer(id) {
           ${field('piAmount', '계약 총액 (PI)', { placeholder: 'USD' })}
           ${field('ciAmount', '실출하 총액 (CI&PL)', { placeholder: 'USD' })}
           ${field('container', '컨테이너 번호')}
+          ${field('grossKg', '총중량 (kg)', { placeholder: auto?.gross ? String(auto.gross) : '' })}
+          ${field('cartons', '박스 수', { placeholder: auto?.cartons ? String(auto.cartons) : '' })}
+          ${field('cbm', 'CBM', { placeholder: auto?.cbm ? String(auto.cbm) : '' })}
           ${field('due', '마감 예정일', { type: 'date' })}
           ${field('etd', '출항일', { type: 'date' })}
           ${field('eta', '도착 예정일', { type: 'date' })}
