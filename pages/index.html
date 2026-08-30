@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.2</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.2</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1299,8 +1299,8 @@ async function syncUrl() {
 }
 
 /** CI&PL 에서 읽어낸 요약. 사람이 넣은 값은 건드리지 않고 겹쳐 씁니다. */
-async function saveCipl(batchId, cipl) {
-  await ctx.f.setDoc(ctx.f.doc(col(OVERLAY), overlayKey(batchId)), { batchId, cipl }, { merge: true });
+async function saveCipl(batchId, patch) {
+  await ctx.f.setDoc(ctx.f.doc(col(OVERLAY), overlayKey(batchId)), { batchId, ...patch }, { merge: true });
 }
 
 /* ── 사용자 정의 규칙 ─────────────────────────────────── */
@@ -2285,31 +2285,40 @@ const SHEET_EXT = /\.(xlsx?|xlsm)$/i;
 async function loadCipl(b) {
   if (state.demo || !state.root || state.ciplBusy.has(b.id)) return;
 
-  const doc = b.stages.find((s) => s.key === 'cipl')?.docs.find((d) => SHEET_EXT.test(d.name));
-  if (!doc) return;
+  const docs = b.stages.find((s) => s.key === 'cipl')?.docs.filter((d) => SHEET_EXT.test(d.name)) ?? [];
+  if (!docs.length) return;
 
-  // 같은 파일을 이미 읽어 뒀으면 다시 읽지 않습니다.
-  const saved = state.overlay[b.id]?.cipl;
-  if (saved && saved.path === doc.path && saved.size === (doc.size ?? null)) return;
+  // 이미 같은 파일들을 읽어 뒀으면 다시 읽지 않습니다.
+  const saved = state.overlay[b.id]?.ciplFiles ?? [];
+  const same =
+    saved.length === docs.length &&
+    docs.every((d) => saved.some((x) => x.path === d.path && x.size === (d.size ?? null)));
+  if (same) return;
 
   state.ciplBusy.add(b.id);
   try {
-    const file = await FS.getFileByPath(state.root, doc.path);
-    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-    let best = null;
-    for (const name of wb.SheetNames) {
-      const got = readCipl(XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, blankrows: false }));
-      // 중량은 보통 PL 시트에만 있습니다 — 중량이 있는 쪽을 씁니다.
-      if (got && (!best || (got.gross && !best.gross))) best = got;
+    const files = [];
+    for (const doc of docs) {
+      try {
+        const file = await FS.getFileByPath(state.root, doc.path);
+        const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+        let best = null;
+        for (const name of wb.SheetNames) {
+          const got = readCipl(XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, blankrows: false }));
+          // 중량은 보통 PL 시트에만 있습니다 — 중량이 있는 쪽을 씁니다.
+          if (got && (!best || (got.gross && !best.gross))) best = got;
+        }
+        if (best) files.push({ ...best, path: doc.path, size: doc.size ?? null, from: doc.display });
+      } catch (e) {
+        console.warn('잔액서류를 읽지 못했습니다', doc.path, e);
+      }
     }
-    if (!best) return;
+    if (!files.length) return;
 
-    const cipl = { ...best, path: doc.path, size: doc.size ?? null, from: doc.display };
-    state.overlay[b.id] = { ...(state.overlay[b.id] ?? {}), cipl };
-    await DB.saveCipl(b.id, cipl);
+    const patch = { ciplFiles: files, cipl: files.find((f) => f.gross) ?? files[0] };
+    state.overlay[b.id] = { ...(state.overlay[b.id] ?? {}), ...patch };
+    await DB.saveCipl(b.id, patch);
     if (state.openId === b.id) renderDrawer(b.id);
-  } catch (e) {
-    console.warn('잔액서류를 읽지 못했습니다', doc.path, e);
   } finally {
     state.ciplBusy.delete(b.id);
   }
@@ -2394,6 +2403,9 @@ function renderDrawer(id) {
              ${opts.placeholder ? `placeholder="${esc(opts.placeholder)}"` : ''} class="field mt-1" />
     </label>`;
 
+  // 이 파일에서 읽어낸 수치 — 잔액서류 줄 아래에 붙습니다.
+  const ciplOf = (d) => (ov.ciplFiles ?? []).find((x) => x.path === d.path);
+
   const docLink = (d) => `
     <li>
       <div class="flex items-center gap-2">
@@ -2405,6 +2417,20 @@ function renderDrawer(id) {
              class="text-[11px] text-faint hover:text-ink shrink-0">↗</a>` : ''}
       </div>
       <span class="text-[11px] text-faint">${[d.date, fmtSize(d.size)].filter(Boolean).join(' · ')}</span>
+      ${(() => {
+        const c = ciplOf(d);
+        if (!c) return '';
+        return `
+          <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+            ${[
+              ['총중량', `${fmtNum(c.gross)} kg`],
+              ['박스', `${fmtNum(c.cartons)} 개`],
+              ['부피', `${fmtNum(c.cbm)} CBM`],
+              ...(c.pcs ? [['수량', `${fmtNum(c.pcs)} pcs`]] : []),
+            ].map(([k, v]) => `<span><span class="text-faint">${k}</span> <span class="font-bold">${esc(v)}</span></span>`).join('')}
+            ${c.swapped ? '<span class="text-warn font-semibold" title="서류에 G.W. 와 N.W. 가 뒤바뀌어 있어 큰 값을 총중량으로 봤습니다">G.W./N.W. 뒤바뀜</span>' : ''}
+          </div>`;
+      })()}
     </li>`;
 
   $('#drawerBody').innerHTML = `
@@ -2551,8 +2577,10 @@ function closeViewer() {
 
 async function saveOverlay(id) {
   // 자동으로 읽어둔 요약은 그대로 들고 갑니다 — 안 그러면 저장할 때 지워집니다.
-  const keep = state.overlay[id]?.cipl;
-  const data = keep ? { cipl: keep } : {};
+  const prev = state.overlay[id] ?? {};
+  const data = {};
+  if (prev.cipl) data.cipl = prev.cipl;
+  if (prev.ciplFiles) data.ciplFiles = prev.ciplFiles;
   for (const el of $('#drawerBody').querySelectorAll('[data-ov]')) {
     const v = el.value.trim();
     if (v) data[el.dataset.ov] = v;
