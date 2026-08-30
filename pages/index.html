@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.4</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.11.4</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2285,8 +2285,10 @@ const SHEET_EXT = /\.(xlsx?|xlsm)$/i;
 async function loadCipl(b) {
   if (state.demo || !state.root || state.ciplBusy.has(b.id)) return;
 
-  const docs = b.stages.find((s) => s.key === 'cipl')?.docs.filter((d) => SHEET_EXT.test(d.name)) ?? [];
-  if (!docs.length) return;
+  const docs = b.stages
+    .find((s) => s.key === 'cipl')
+    ?.docs.filter((d) => SHEET_EXT.test(d.name) && !d.cipl) ?? [];
+  if (!docs.length) return; // 서버가 이미 읽어 뒀으면 할 일이 없습니다
 
   // 이미 같은 파일들을 읽어 뒀으면 다시 읽지 않습니다.
   const saved = state.overlay[b.id]?.ciplFiles ?? [];
@@ -2325,12 +2327,23 @@ async function loadCipl(b) {
 }
 
 /**
+ * 이 차수의 잔액서류에서 읽어낸 수치.
+ * 드라이브 동기화가 서버에서 읽어 파일 정보에 붙여 주므로, 폴더 연결 없이도 있습니다.
+ */
+function ciplOfBatch(b) {
+  const docs = b.stages.find((s) => s.key === 'cipl')?.docs ?? [];
+  const got = docs.filter((d) => d.cipl).map((d) => ({ ...d.cipl, from: d.display, path: d.path }));
+  // 중량은 보통 PL 시트에만 있습니다 — 중량이 있는 쪽을 대표로 씁니다.
+  return got.find((x) => x.gross) ?? got[0] ?? null;
+}
+
+/**
  * 선적 요약 — 총중량·박스수·CBM.
  * 잔액서류에서 읽어낸 값을 쓰되, 사람이 넣은 값이 있으면 그게 이깁니다.
  * 스캔 PDF처럼 읽을 수 없는 서류도 있어서, 손으로 채울 자리를 늘 열어 둡니다.
  */
 function shipSummary(b, ov) {
-  const auto = ov.cipl ?? null;
+  const auto = ciplOfBatch(b) ?? ov.cipl ?? null;
   const pick = (manual, autoVal) => ({
     value: manual !== undefined && manual !== '' ? Number(manual) : autoVal,
     byHand: manual !== undefined && manual !== '',
@@ -2396,7 +2409,7 @@ function renderDrawer(id) {
   const b = state.batches.find((x) => x.id === id);
   if (!b) return closeDrawer();
   const ov = state.overlay[id] ?? {};
-  const auto = ov.cipl ?? null;
+  const auto = ciplOfBatch(b) ?? ov.cipl ?? null;
 
   const field = (key, label, opts = {}) => `
     <label class="block">
@@ -2406,7 +2419,8 @@ function renderDrawer(id) {
     </label>`;
 
   // 이 파일에서 읽어낸 수치 — 잔액서류 줄 아래에 붙습니다.
-  const ciplOf = (d) => (ov.ciplFiles ?? []).find((x) => x.path === d.path);
+  // 서버가 읽어 붙여준 값이 먼저입니다. 없으면 이 기기에서 읽은 값을 씁니다.
+  const ciplOf = (d) => d.cipl ?? (ov.ciplFiles ?? []).find((x) => x.path === d.path);
 
   const docLink = (d) => `
     <li>
