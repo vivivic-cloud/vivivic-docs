@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.10.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.9.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.10.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -586,16 +586,51 @@ function parseDocNo(rawName) {
 }
 
 /**
+ * 한 발주에서 나온 서류들을 잇는 번호를 뽑습니다.
+ * 차수 표기가 없어도 이 번호가 같으면 같은 발주입니다.
+ */
+function orderIds(rawName) {
+  const n = normalizeName(rawName);
+  const out = new Set();
+  // 거래처 문서번호 — F-021, SN-028
+  for (const m of n.matchAll(/(?:^|[^A-Za-z0-9])([FS]N?-\d{3})(?!\d)/gi)) out.add(m[1].toUpperCase());
+  // 선사 예약번호 — SOFRNQB2615115
+  for (const m of n.matchAll(/(SOF[A-Z]{2,3}QB\d{6,7})/gi)) out.add(m[1].toUpperCase());
+  // 원산지증명 번호 — XLTTJ26010059
+  for (const m of n.matchAll(/(XLTTJ\d{8,})/gi)) out.add(m[1].toUpperCase());
+  // AMT 문서번호 — 26-085
+  for (const m of n.matchAll(/(\d{2}-\d{3})-AMT/gi)) out.add(m[1]);
+  return [...out];
+}
+
+/**
+ * 선적일. 선하증권은 "HBL-...-ING-4.29.pdf" 처럼 월.일만 적혀 옵니다.
+ * 해는 파일이 올라온 시각에서 빌립니다 — 그래서 추정입니다.
+ */
+function shipDate(doc) {
+  const exact = parseDate(doc.name);
+  if (exact) return exact;
+  const m = /-[A-Z]{2,4}-(\d{1,2})\.(\d{1,2})(?!\d)/i.exec(normalizeName(doc.name));
+  if (!m || !doc.mtime) return null;
+  const year = new Date(doc.mtime).getFullYear();
+  return `${year}-${String(Number(m[1])).padStart(2, '0')}-${String(Number(m[2])).padStart(2, '0')}`;
+}
+
+const NEAR_DAYS = 7;
+/** 선적 시점에 오가는 문서 — 이름에 차수가 없어도 날짜로 이을 만합니다. */
+const SHIP_TIME = new Set(['bl', 'fta']);
+const dayGap = (a, b) => Math.abs(new Date(a) - new Date(b)) / 86400000;
+
+/**
  * 파일 목록 → 차수별로 묶인 구조.
  * files: [{ name, path, size, mtime, vendor }]
  */
 function buildBatches(files, rules = []) {
-  const batches = new Map();
-  const unassigned = [];
-  const excluded = [];
-
   // 이번 스캔에서 본 거래처 이름들 — 파일명에서 거래처를 읽을 때 대조표로 씁니다.
   const vendors = [...new Set(files.map((f) => f.vendor).filter(Boolean))];
+
+  const docs = [];
+  const excluded = [];
 
   for (const f of files) {
     const parsed = parseBatch(f.name);
@@ -616,26 +651,115 @@ function buildBatches(files, rules = []) {
       batch: parsed ? parsed.label : null,
     };
     doc = applyRules(doc, rules);
-
     if (doc.excluded) {
       excluded.push(doc);
       continue;
     }
-    if (!doc.batch) {
-      unassigned.push(doc);
+    doc.ids = orderIds(doc.name);
+    docs.push(doc);
+  }
+
+  // ── 같은 발주끼리 잇습니다 ──
+  // 차수 표기든 문서번호든, 하나라도 겹치면 같은 발주로 봅니다.
+  const parent = docs.map((_, i) => i);
+  const find = (i) => {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]];
+      i = parent[i];
+    }
+    return i;
+  };
+  const union = (a, b) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[rb] = ra;
+  };
+
+  const first = new Map();
+  docs.forEach((d, i) => {
+    const keys = [];
+    if (d.batch) keys.push(`${d.vendor}|b:${d.batch}`);
+    for (const id of d.ids) keys.push(`${d.vendor}|i:${id}`);
+    for (const k of keys) {
+      if (first.has(k)) union(first.get(k), i);
+      else first.set(k, i);
+    }
+  });
+
+  // 묶음마다 차수 이름을 정합니다 — 회원 중에 차수를 가진 게 있으면 그걸 씁니다.
+  const members = new Map();
+  docs.forEach((d, i) => {
+    const r = find(i);
+    if (!members.has(r)) members.set(r, []);
+    members.get(r).push(d);
+  });
+
+  const batches = new Map();
+  const unassigned = [];
+
+  for (const group of members.values()) {
+    const votes = new Map();
+    for (const d of group) if (d.batch) votes.set(d.batch, (votes.get(d.batch) ?? 0) + 1);
+    const label = [...votes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+    // 차수 이름이 없는 묶음은 아직 발주로 못 봅니다. 미분류로 둡니다.
+    if (!label) {
+      unassigned.push(...group);
       continue;
     }
-    const [y, no] = doc.batch.split('-').map(Number);
-    const id = `${doc.vendor}::${doc.batch}`;
-    if (!batches.has(id)) {
-      batches.set(id, { id, vendor: doc.vendor, batch: doc.batch, year: y, no, docs: [] });
+    for (const d of group) {
+      // 자기 이름엔 차수가 없었는데 번호로 딸려온 서류입니다.
+      if (!d.batch) d.joinedBy = d.ids.join(', ');
+      d.batch = label;
+      put(d, label);
     }
-    batches.get(id).docs.push(doc);
+  }
+
+  // ── 아직 못 붙은 서류를 선적일로 이어봅니다 ──
+  // 선하증권처럼 이름에 차수가 없는 것들입니다. 후보가 하나뿐일 때만 붙입니다.
+  const stillLoose = [];
+  for (const d of unassigned) {
+    // 날짜로 잇는 건 선적 시점 문서에만 씁니다.
+    // 견적·도면은 선적일 근처에 있어도 그 발주 소속이라는 근거가 못 됩니다.
+    const when = SHIP_TIME.has(d.stageKey) ? shipDate(d) : null;
+    if (!when) {
+      stillLoose.push(d);
+      continue;
+    }
+    // 선적 시점 문서(CI&PL)하고만 견줍니다. 발주서·영수증 날짜까지 보면 후보가 우수수 걸립니다.
+    const ranked = [...batches.values()]
+      .filter((b) => b.vendor === d.vendor)
+      .map((b) => ({
+        b,
+        gap: Math.min(
+          ...b.docs.filter((x) => x.stageKey === 'cipl' && x.date).map((x) => dayGap(x.date, when)),
+          Infinity
+        ),
+      }))
+      .filter((x) => x.gap <= NEAR_DAYS)
+      .sort((a, b) => a.gap - b.gap);
+
+    // 1등이 2등보다 확실히 가까울 때만 붙입니다. 비슷하면 사람이 봐야 합니다.
+    const clear = ranked[0] && (!ranked[1] || ranked[1].gap - ranked[0].gap >= 2);
+    if (clear) {
+      d.batch = ranked[0].b.batch;
+      d.guessed = `선적일 ${when} 이 이 차수 CI&PL과 ${Math.round(ranked[0].gap)}일 차이`;
+      ranked[0].b.docs.push(d);
+    } else {
+      stillLoose.push(d);
+    }
   }
 
   const list = [...batches.values()].map(summarize);
-  list.sort((a, b) => (b.year - a.year) || (b.no - a.no) || a.vendor.localeCompare(b.vendor));
-  return { batches: list, unassigned: collapse(unassigned), excluded: collapse(excluded) };
+  list.sort((a, b) => b.year - a.year || b.no - a.no || a.vendor.localeCompare(b.vendor));
+  return { batches: list, unassigned: collapse(stillLoose), excluded: collapse(excluded) };
+
+  function put(doc, label) {
+    const [y, no] = label.split('-').map(Number);
+    const id = `${doc.vendor}::${label}`;
+    if (!batches.has(id)) batches.set(id, { id, vendor: doc.vendor, batch: label, year: y, no, docs: [] });
+    batches.get(id).docs.push(doc);
+  }
 }
 
 /** 차수 하나에 대해 단계별 채움 여부·진행률·이상 징후를 계산합니다. */
@@ -757,7 +881,7 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, VENDOR_ALIAS, applyRules, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, parseBatch, parseDate, parseDocNo, parseVendor, ruleMatches, suggestKeyword, summarize };
+return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, VENDOR_ALIAS, applyRules, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, ruleMatches, shipDate, suggestKeyword, summarize };
 })();
 const FS = (() => {
 /**
@@ -1341,6 +1465,20 @@ function fileTitle(d) {
 }
 
 /**
+ * 이름에 차수가 없는데 묶음에 들어온 서류에 근거를 달아 줍니다.
+ * 번호로 이은 건 확실하고, 선적일로 이은 건 추정입니다.
+ */
+function linkBadge(d) {
+  if (d.joinedBy)
+    return `<span class="text-[10px] font-bold text-info bg-chip rounded px-1.5 py-0.5 shrink-0"
+                  title="${esc(`문서번호 ${d.joinedBy} 가 같아 이 묶음에 넣었습니다`)}">번호</span>`;
+  if (d.guessed)
+    return `<span class="text-[10px] font-bold text-warn bg-[#fdf3e3] rounded px-1.5 py-0.5 shrink-0"
+                  title="${esc(`${d.guessed} — 추정입니다`)}">추정</span>`;
+  return '';
+}
+
+/**
  * 같은 파일이 여러 벌이면 몇 벌인지 배지로 붙입니다.
  * 목록에는 한 건만 나오므로, 나머지가 어디 있는지는 툴팁으로 봅니다.
  */
@@ -1384,7 +1522,7 @@ function renderFileHits() {
     <li class="py-2 flex items-center gap-3 ${d.off ? 'opacity-55' : ''}">
       <button data-file="${esc(d.path)}" title="${esc(fileTitle(d))}"
               class="text-left text-[13px] text-info hover:underline truncate min-w-0 flex-1">${esc(d.display)}</button>
-      ${copyBadge(d)}
+      ${linkBadge(d)}${copyBadge(d)}
       <span class="text-[11px] font-semibold text-faint shrink-0">${esc(d.vendor)}</span>
       <span class="text-[11px] font-bold shrink-0 w-[64px] text-right ${d.off ? 'text-faint' : ''}">${esc(d.where)}</span>
       <span class="text-[11px] text-faint shrink-0 w-[80px] text-right">${esc(STAGE_LABEL[d.stageKey] ?? '')}</span>
@@ -2061,7 +2199,7 @@ function renderDrawer(id) {
         <button data-doc="${esc(d.path)}" class="text-left text-[12px] text-info hover:underline truncate" title="${esc(fileTitle(d))}">
           ${esc(d.display)}
         </button>
-        ${copyBadge(d)}
+        ${linkBadge(d)}${copyBadge(d)}
         ${d.driveId ? `<a href="${driveOpen(d.driveId)}" target="_blank" rel="noopener"
              class="text-[11px] text-faint hover:text-ink shrink-0">↗</a>` : ''}
       </div>
