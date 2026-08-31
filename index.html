@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.12.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.12.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.12.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.12.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -687,6 +687,19 @@ function parseDocNo(rawName) {
 }
 
 /**
+ * 경로에 차수 폴더가 있으면 거기서 읽습니다 — "제헤우드/Zh-26-18차/사진.jpg" → 26-18.
+ * 파일명에 차수가 있으면 그게 먼저고, 없을 때만 폴더를 봅니다.
+ */
+function batchFromPath(path) {
+  const parts = String(path).split('/').slice(0, -1); // 파일명은 뺍니다
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const got = parseBatch(parts[i]);
+    if (got) return got;
+  }
+  return null;
+}
+
+/**
  * 한 발주에서 나온 서류들을 잇는 번호를 뽑습니다.
  * 차수 표기가 없어도 이 번호가 같으면 같은 발주입니다.
  */
@@ -740,8 +753,15 @@ function buildBatches(files, rules = []) {
   const excluded = [];
 
   for (const f of files) {
-    const parsed = parseBatch(f.name);
-    const cls = classify(f.name);
+    const fromName = parseBatch(f.name);
+    const fromPath = fromName ? null : batchFromPath(f.path);
+    const parsed = fromName ?? fromPath;
+
+    let cls = classify(f.name);
+    // 차수 폴더에 올린 사진은 상차 이미지입니다. 파일명이 해시라도 이걸로 잡힙니다.
+    if (fromPath && cls.key === 'etc' && IMAGE_EXT.has(extOf(f.name)))
+      cls = { key: 'loading', stage: STAGE_BY_KEY.loading.id, why: '차수 폴더에 올린 사진' };
+
     const named = parseVendor(f.name, vendors);
     let doc = {
       ...f,
@@ -756,6 +776,7 @@ function buildBatches(files, rules = []) {
       date: parseDate(f.name),
       docNo: parseDocNo(f.name),
       batch: parsed ? parsed.label : null,
+      batchBy: fromName ? 'name' : fromPath ? 'folder' : null,
     };
     doc = applyRules(doc, rules);
     if (doc.excluded) {
@@ -1004,7 +1025,7 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, VENDOR_ALIAS, applyRules, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readCipl, ruleMatches, shipDate, suggestKeyword, summarize };
+return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readCipl, ruleMatches, shipDate, suggestKeyword, summarize };
 })();
 const FS = (() => {
 /**
