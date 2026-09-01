@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.12.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.13.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.12.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.13.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -208,7 +208,12 @@
         <div id="viewerTitle" class="text-[14px] font-bold truncate"></div>
         <div id="viewerMeta" class="text-[11px] text-faint truncate"></div>
       </div>
-      <button id="viewerClose" class="btn btn-ghost ml-auto shrink-0">닫기</button>
+      <div class="ml-auto flex items-center gap-1.5 shrink-0">
+        <span id="viewerCount" class="text-[12px] text-faint font-semibold mr-1"></span>
+        <button id="viewerPrev" class="btn btn-ghost px-3" hidden>←</button>
+        <button id="viewerNext" class="btn btn-ghost px-3" hidden>→</button>
+        <button id="viewerClose" class="btn btn-ghost">닫기</button>
+      </div>
     </div>
     <div id="viewerBody" class="flex-1 min-h-0 p-7"></div>
   </div>
@@ -1404,6 +1409,7 @@ const state = {
   filter: { vendor: null, status: null, q: '' },
   openId: null,
   ciplBusy: new Set(),
+  viewer: { list: [], idx: 0 },
   unsub: [],
 };
 
@@ -1430,9 +1436,15 @@ async function boot() {
   $('#asSave').onclick = saveAssign;
   $('#asRule').onchange = (e) => ($('#asKeyword').hidden = !e.target.checked);
   $('#viewerClose').onclick = closeViewer;
+  $('#viewerPrev').onclick = () => stepViewer(-1);
+  $('#viewerNext').onclick = () => stepViewer(1);
   $('#btnConnect').onclick = () => connectFolder().then((ok) => ok && renderConnectState());
   $('#search').oninput = (e) => { state.filter.q = e.target.value.trim(); render(); };
   document.addEventListener('keydown', (e) => {
+    if (!$('#viewerScrim').hidden && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      return stepViewer(e.key === 'ArrowLeft' ? -1 : 1);
+    }
     if (e.key !== 'Escape') return;
     if (!$('#viewerScrim').hidden) return closeViewer();
     if (!$('#assignScrim').hidden) return closeAssign();
@@ -2025,6 +2037,7 @@ async function saveAssign() {
 
 const driveEmbed = (id) => `https://drive.google.com/file/d/${id}/preview`;
 const driveOpen = (id) => `https://drive.google.com/file/d/${id}/view`;
+const driveThumb = (id, w) => `https://drive.google.com/thumbnail?id=${id}&sz=w${w}`;
 const driveSearch = (name) => `https://drive.google.com/drive/search?q=${encodeURIComponent(name)}`;
 
 /** 브라우저가 그대로 그려줄 수 있는 확장자 */
@@ -2197,6 +2210,14 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
     return;
   }
   if (readError && note) note.textContent = `폴더에서 찾지 못했습니다: ${readError.message}`;
+
+  // 사진은 iframe 대신 그림으로 바로 그립니다. 훨씬 빠르고 확실합니다.
+  if (doc.driveId && PHOTO_EXT.test(doc.name)) {
+    box.className = 'flex-1 min-h-[420px] rounded-lg border border-line bg-hover overflow-auto flex items-center justify-center';
+    box.innerHTML = `<img src="${driveThumb(doc.driveId, 1600)}" alt="${esc(doc.display)}" class="max-w-full h-auto" />`;
+    if (note) note.textContent = '드라이브에서 가져온 그림입니다.';
+    return;
+  }
 
   if (doc.driveId) {
     box.className = 'flex-1 min-h-[420px] rounded-lg border border-line bg-hover overflow-hidden';
@@ -2372,6 +2393,29 @@ async function loadCipl(b) {
   }
 }
 
+/* ── 사진 격자 ────────────────────────────────────────── */
+
+const PHOTO_EXT = /\.(jpe?g|png|heic|webp|gif|bmp)$/i;
+
+/**
+ * 상차 이미지는 이름이 해시라 목록으로 보면 아무것도 안 보입니다.
+ * 작은 그림으로 늘어놓고, 누르면 한 장씩 크게 넘겨 봅니다.
+ */
+function photoGrid(docs, key) {
+  return `
+    <div class="grid grid-cols-4 gap-2">
+      ${docs.map((d, i) => `
+        <button data-photo="${esc(key)}" data-idx="${i}" title="${esc(fileTitle(d))}"
+                class="relative aspect-square rounded-lg overflow-hidden bg-hover border border-line
+                       hover:border-ink/30 transition-all">
+          ${d.driveId
+            ? `<img src="${driveThumb(d.driveId, 400)}" alt="" loading="lazy"
+                    class="w-full h-full object-cover" data-path="${esc(d.path)}" />`
+            : `<span class="absolute inset-0 flex items-center justify-center text-[11px] text-faint">사진</span>`}
+        </button>`).join('')}
+    </div>`;
+}
+
 /**
  * 이 차수의 잔액서류에서 읽어낸 수치.
  * 드라이브 동기화가 서버에서 읽어 파일 정보에 붙여 주므로, 폴더 연결 없이도 있습니다.
@@ -2530,7 +2574,9 @@ function renderDrawer(id) {
                 <span class="text-[13px] font-semibold">${esc(s.label)}</span>
                 <span class="ml-auto text-[11px] text-faint font-semibold">${on ? `${s.docs.length}건` : '없음'}</span>
               </div>
-              ${on ? `<ul class="pl-[42px] pr-3 pb-2 space-y-1">${s.docs.map(docLink).join('')}</ul>` : ''}
+              ${!on ? '' : s.docs.length > 1 && s.docs.every((d) => PHOTO_EXT.test(d.name))
+                ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
+                : `<ul class="pl-[42px] pr-3 pb-2 space-y-1">${s.docs.map(docLink).join('')}</ul>`}
             </li>`;
           }).join('')}
         </ol>
@@ -2589,6 +2635,12 @@ function renderDrawer(id) {
   for (const el of $('#drawerBody').querySelectorAll('[data-doc]')) {
     el.onclick = () => openDoc(b.docs.find((d) => d.path === el.dataset.doc));
   }
+  for (const el of $('#drawerBody').querySelectorAll('[data-photo]')) {
+    el.onclick = () => {
+      const list = b.stages.find((s) => s.key === el.dataset.photo).docs;
+      openDoc(list[Number(el.dataset.idx)], list);
+    };
+  }
 }
 
 /* ── 새 버전 확인 ─────────────────────────────────────── */
@@ -2628,18 +2680,41 @@ function renderConnectState() {
     : '중국 폴더를 연결하면 드라이브 링크가 없는 파일도 바로 볼 수 있습니다.';
 }
 
-function openDoc(doc) {
+/**
+ * 파일 하나를 크게 봅니다.
+ * list 를 같이 주면 그 안에서 ← → 로 넘겨 볼 수 있습니다 (상차 사진 묶음).
+ */
+function openDoc(doc, list = null) {
   if (!doc) return;
+  state.viewer = list ? { list, idx: Math.max(0, list.indexOf(doc)) } : { list: [], idx: 0 };
+  $('#viewerScrim').hidden = false;
+  showViewer(doc);
+}
+
+function showViewer(doc) {
+  const { list, idx } = state.viewer;
   $('#viewerTitle').textContent = doc.display;
   $('#viewerMeta').textContent = [doc.path, fmtSize(doc.size), doc.date, glossCJK(doc.name ?? doc.display)]
     .filter(Boolean)
     .join(' · ');
+  $('#viewerCount').textContent = list.length > 1 ? `${idx + 1} / ${list.length}` : '';
+  $('#viewerPrev').hidden = list.length < 2;
+  $('#viewerNext').hidden = list.length < 2;
   $('#viewerBody').innerHTML = previewPane(doc, 'vw');
-  $('#viewerScrim').hidden = false;
-  fillPreview(doc, 'vw');
+  fillPreview(doc, 'vw', { force: true });
+}
+
+/** 묶음 안에서 앞뒤로 넘깁니다. 끝에서는 반대편으로 돌아갑니다. */
+function stepViewer(by) {
+  const { list, idx } = state.viewer;
+  if (list.length < 2) return;
+  const next = (idx + by + list.length) % list.length;
+  state.viewer.idx = next;
+  showViewer(list[next]);
 }
 
 function closeViewer() {
+  state.viewer = { list: [], idx: 0 };
   $('#viewerScrim').hidden = true;
   $('#viewerBody').innerHTML = '';
   keepBlob('vw', null);
