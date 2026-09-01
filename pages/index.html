@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.13.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.14.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.13.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.14.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -603,6 +603,101 @@ function readCipl(rows) {
   };
 }
 
+/* ── 서류 간추리기 ────────────────────────────────────── */
+
+/** 머리말에 이름표를 달고 오는 값들 */
+const BRIEF_LABELS = [
+  ['piNo', /^pino$/],
+  ['orderDate', /^orderdate$/],
+  ['deliveryDate', /^deliverydate$/],
+  ['invoiceDate', /^invoicedate/],
+];
+
+/** 합계 줄에서 찾을 칸 */
+const BRIEF_COLS = [
+  ['qty', [/^quantity$/, /qtypcs/, /^수량$/]],
+  ['amount', [/^amount$/, /^총액$/]],
+  ['cbm', [/^cbm$/, /totalcbm/]],
+];
+
+/** "2026.08.03" · "20260803" → 2026-08-03 */
+function briefDate(v) {
+  const t = String(v ?? '').trim();
+  let m = /(20\d{2})[.\-/]?(\d{1,2})[.\-/]?(\d{1,2})/.exec(t);
+  if (!m) return null;
+  const [, y, mo, d] = m;
+  if (+mo < 1 || +mo > 12 || +d < 1 || +d > 31) return null;
+  return `${y}-${String(+mo).padStart(2, '0')}-${String(+d).padStart(2, '0')}`;
+}
+
+/**
+ * 서류 한 장을 한 줄로 간추립니다.
+ * 같은 칸에 서류가 여러 장일 때 무엇이 다른지 눈으로 가리려는 용도입니다.
+ * (수정본이 쌓이면 파일명만으로는 구별이 안 됩니다.)
+ */
+function readBrief(rows) {
+  if (!Array.isArray(rows)) return null;
+  const out = {};
+
+  // 1) 이름표가 붙은 값 — 이름표 오른쪽에서 가장 가까운 값을 집습니다.
+  for (let i = 0; i < Math.min(rows.length, 14); i++) {
+    const row = rows[i] ?? [];
+    for (let c = 0; c < row.length; c++) {
+      const key = cell(row[c]).replace(/[:：]/g, '');
+      const hit = BRIEF_LABELS.find(([, re]) => re.test(key));
+      if (!hit) continue;
+      for (let k = c + 1; k < row.length; k++) {
+        const v = String(row[k] ?? '').trim();
+        if (!v) continue;
+        out[hit[0]] = hit[0].endsWith('Date') ? briefDate(v) ?? v : v;
+        break;
+      }
+    }
+  }
+
+  // 2) 합계 줄 — 머리글로 어느 칸이 무엇인지 알아냅니다.
+  let head = -1;
+  let cols = {};
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const found = {};
+    (rows[i] ?? []).forEach((v, c) => {
+      const t = cell(v);
+      if (!t) return;
+      for (const [key, res] of BRIEF_COLS)
+        if (found[key] === undefined && res.some((re) => re.test(t))) found[key] = c;
+    });
+    if (found.qty !== undefined && found.amount !== undefined) {
+      head = i;
+      cols = found;
+      break;
+    }
+  }
+  if (head >= 0) {
+    for (let i = head + 1; i < rows.length; i++) {
+      const row = rows[i] ?? [];
+      if (!/^total$/i.test(String(row[0] ?? '').trim())) continue;
+      for (const [key, c] of Object.entries(cols)) {
+        const n = Number(row[c]);
+        if (Number.isFinite(n) && n) out[key] = n;
+      }
+      // 컨테이너 표기가 같은 줄에 섞여 옵니다 — "40HC*1"
+      const box = row.map((v) => String(v ?? '')).find((v) => /\d{2}\s*(HC|GP|FT)\b/i.test(v));
+      if (box) out.container = box.trim();
+      break;
+    }
+  }
+
+  // 3) 계약금·잔금
+  for (const row of rows) {
+    const label = (row ?? []).map((v) => cell(v)).find((t) => /^(deposit|balance)\d{0,3}%?$/.test(t));
+    if (!label) continue;
+    const nums = (row ?? []).map(Number).filter((n) => Number.isFinite(n) && n);
+    if (nums.length) out[label.startsWith('deposit') ? 'deposit' : 'balance'] = nums[nums.length - 1];
+  }
+
+  return Object.keys(out).length ? out : null;
+}
+
 /* ── 사용자 정의 규칙 ─────────────────────────────────────
  * 파일명 규칙만으로 안 잡히는 파일을 사람이 직접 정의합니다.
  * rule = {
@@ -1033,7 +1128,7 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readCipl, ruleMatches, shipDate, suggestKeyword, summarize };
+return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, ruleMatches, shipDate, suggestKeyword, summarize };
 })();
 const FS = (() => {
 /**
@@ -2512,7 +2607,27 @@ function renderDrawer(id) {
   // 서버가 읽어 붙여준 값이 먼저입니다. 없으면 이 기기에서 읽은 값을 씁니다.
   const ciplOf = (d) => d.cipl ?? (ov.ciplFiles ?? []).find((x) => x.path === d.path);
 
-  const docLink = (d) => `
+  /**
+   * 서류가 한 칸에 여러 장일 때, 무엇이 다른지 한 줄로 적어 줍니다.
+   * 내용이 같은 것은 이미 한 장으로 접혔으니, 여기 남은 건 정말 다른 서류입니다.
+   */
+  const briefLine = (d) => {
+    const b = d.cipl?.brief;
+    if (!b) return '';
+    const bits = [
+      b.orderDate && `발주 ${b.orderDate}`,
+      b.deliveryDate && `납기 ${b.deliveryDate}`,
+      b.qty && `${fmtNum(b.qty)}개`,
+      b.amount && `금액 ${fmtNum(b.amount)}`,
+      b.cbm && `${fmtNum(Math.round(b.cbm * 100) / 100)} CBM`,
+      b.container,
+      b.piNo && `PI ${b.piNo}`,
+    ].filter(Boolean);
+    if (!bits.length) return '';
+    return `<div class="mt-1 text-[11px] text-muted">${esc(bits.join(' · '))}</div>`;
+  };
+
+  const docLink = (d, many = false) => `
     <li>
       <div class="flex items-center gap-2">
         <button data-doc="${esc(d.path)}" class="text-left text-[12px] text-info hover:underline truncate" title="${esc(fileTitle(d))}">
@@ -2523,6 +2638,7 @@ function renderDrawer(id) {
              class="text-[11px] text-faint hover:text-ink shrink-0">↗</a>` : ''}
       </div>
       <span class="text-[11px] text-faint">${[d.date, fmtSize(d.size)].filter(Boolean).join(' · ')}</span>
+      ${many ? briefLine(d) : ''}
       ${(() => {
         const c = ciplOf(d);
         if (!c) return '';
@@ -2576,7 +2692,7 @@ function renderDrawer(id) {
               </div>
               ${!on ? '' : s.docs.length > 1 && s.docs.every((d) => PHOTO_EXT.test(d.name))
                 ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
-                : `<ul class="pl-[42px] pr-3 pb-2 space-y-1">${s.docs.map(docLink).join('')}</ul>`}
+                : `<ul class="pl-[42px] pr-3 pb-2 space-y-1">${s.docs.map((d) => docLink(d, s.docs.length > 1)).join('')}</ul>`}
             </li>`;
           }).join('')}
         </ol>
@@ -2588,7 +2704,7 @@ function renderDrawer(id) {
           ${b.aside.filter((a) => a.docs.length).map((a) => `
             <div class="mb-3">
               <div class="text-[12px] font-semibold mb-1">${esc(a.label)}</div>
-              <ul class="space-y-1">${a.docs.map(docLink).join('')}</ul>
+              <ul class="space-y-1">${a.docs.map((d) => docLink(d, a.docs.length > 1)).join('')}</ul>
             </div>`).join('')}
         </section>` : ''}
 
