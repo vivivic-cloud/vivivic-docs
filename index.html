@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.14.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.15.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.14.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.15.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2608,26 +2608,60 @@ function renderDrawer(id) {
   const ciplOf = (d) => d.cipl ?? (ov.ciplFiles ?? []).find((x) => x.path === d.path);
 
   /**
-   * 서류가 한 칸에 여러 장일 때, 무엇이 다른지 한 줄로 적어 줍니다.
-   * 내용이 같은 것은 이미 한 장으로 접혔으니, 여기 남은 건 정말 다른 서류입니다.
+   * 같은 칸의 서류들을 시간순으로 세우고, 각 장이 **앞 판과 무엇이 다른지**만 적습니다.
+   * 값을 통째로 늘어놓으면 눈이 아프고, 정작 무엇이 바뀌었는지는 안 보입니다.
    */
-  const briefLine = (d) => {
-    const b = d.cipl?.brief;
-    if (!b) return '';
-    const bits = [
-      b.orderDate && `발주 ${b.orderDate}`,
-      b.deliveryDate && `납기 ${b.deliveryDate}`,
-      b.qty && `${fmtNum(b.qty)}개`,
-      b.amount && `금액 ${fmtNum(b.amount)}`,
-      b.cbm && `${fmtNum(Math.round(b.cbm * 100) / 100)} CBM`,
-      b.container,
-      b.piNo && `PI ${b.piNo}`,
-    ].filter(Boolean);
-    if (!bits.length) return '';
-    return `<div class="mt-1 text-[11px] text-muted">${esc(bits.join(' · '))}</div>`;
-  };
+  const DIFF_FIELDS = [
+    ['qty', '수량', true],
+    ['amount', '금액', true],
+    ['cbm', 'CBM', true],
+    ['deliveryDate', '납기', false],
+    ['orderDate', '발주일', false],
+    ['container', '컨테이너', false],
+  ];
 
-  const docLink = (d, many = false) => `
+  function diffNotes(docs) {
+    const notes = new Map();
+    const has = docs.filter((d) => d.cipl?.brief);
+    if (has.length < 2) return notes;
+
+    // 발주일이 같은 수정본이 흔합니다. 그때는 파일이 올라온 시각으로 순서를 잡습니다.
+    const when = (d) =>
+      `${d.cipl.brief.orderDate ?? d.date ?? ''}|${String(d.mtime ?? 0).padStart(16, '0')}`;
+    const line = [...has].sort((a, b) => when(a).localeCompare(when(b)));
+
+    notes.set(line[0].path, '<span class="text-faint">처음 판</span>');
+    const round = (n) => Math.round(Number(n) * 100) / 100;
+
+    for (let i = 1; i < line.length; i++) {
+      const before = line[i - 1].cipl.brief;
+      const now = line[i].cipl.brief;
+      const bits = [];
+      for (const [key, label, isNum] of DIFF_FIELDS) {
+        const x = before[key];
+        const y = now[key];
+        if (x === undefined || y === undefined || x === y) continue;
+        if (isNum) {
+          const gap = round(y) - round(x);
+          bits.push(
+            `${label} ${fmtNum(round(x))} → <span class="font-bold">${fmtNum(round(y))}</span>` +
+              ` <span class="${gap > 0 ? 'text-warn' : 'text-info'}">${gap > 0 ? '+' : ''}${fmtNum(round(gap))}</span>`
+          );
+        } else {
+          bits.push(`${label} ${esc(String(x))} → <span class="font-bold">${esc(String(y))}</span>`);
+        }
+      }
+      notes.set(
+        line[i].path,
+        bits.length ? bits.join(' · ') : '<span class="text-faint">앞 판과 숫자가 같습니다</span>'
+      );
+    }
+    return notes;
+  }
+
+  let diffs = new Map();
+
+  const docLink = (d) => `
     <li>
       <div class="flex items-center gap-2">
         <button data-doc="${esc(d.path)}" class="text-left text-[12px] text-info hover:underline truncate" title="${esc(fileTitle(d))}">
@@ -2638,7 +2672,7 @@ function renderDrawer(id) {
              class="text-[11px] text-faint hover:text-ink shrink-0">↗</a>` : ''}
       </div>
       <span class="text-[11px] text-faint">${[d.date, fmtSize(d.size)].filter(Boolean).join(' · ')}</span>
-      ${many ? briefLine(d) : ''}
+      ${diffs.has(d.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(d.path)}</div>` : ''}
       ${(() => {
         const c = ciplOf(d);
         if (!c) return '';
@@ -2692,7 +2726,7 @@ function renderDrawer(id) {
               </div>
               ${!on ? '' : s.docs.length > 1 && s.docs.every((d) => PHOTO_EXT.test(d.name))
                 ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
-                : `<ul class="pl-[42px] pr-3 pb-2 space-y-1">${s.docs.map((d) => docLink(d, s.docs.length > 1)).join('')}</ul>`}
+                : `<ul class="pl-[42px] pr-3 pb-2 space-y-1">${((diffs = diffNotes(s.docs)), s.docs.map((d) => docLink(d)).join(''))}</ul>`}
             </li>`;
           }).join('')}
         </ol>
@@ -2704,7 +2738,7 @@ function renderDrawer(id) {
           ${b.aside.filter((a) => a.docs.length).map((a) => `
             <div class="mb-3">
               <div class="text-[12px] font-semibold mb-1">${esc(a.label)}</div>
-              <ul class="space-y-1">${a.docs.map((d) => docLink(d, a.docs.length > 1)).join('')}</ul>
+              <ul class="space-y-1">${((diffs = diffNotes(a.docs)), a.docs.map((d) => docLink(d)).join(''))}</ul>
             </div>`).join('')}
         </section>` : ''}
 
