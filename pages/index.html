@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.16.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.17.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.16.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.17.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -711,6 +711,59 @@ function readBrief(rows) {
   return Object.keys(out).length ? out : null;
 }
 
+/* ── 서류 안의 품목 ───────────────────────────────────── */
+
+const ITEM_COLS = [
+  ['code', [/^code#?$/, /^품번$/, /^코드$/]],
+  ['alt', [/^zh#?$/, /^no#?$/]],
+  ['name', [/^productmodel$/, /^itemname$/, /^품명$/, /^descriptionofgoods$/]],
+  ['qty', [/^quantity$/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
+];
+
+/**
+ * 서류의 품목 줄을 뽑습니다 — 무엇이 몇 개인지.
+ * 합계만 견주면 "수량 +10" 까지만 알 수 있습니다.
+ * 어떤 제품이 늘고 줄었는지 보려면 품목이 있어야 합니다.
+ */
+function readItems(rows) {
+  if (!Array.isArray(rows)) return null;
+
+  let head = -1;
+  let cols = {};
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const found = {};
+    (rows[i] ?? []).forEach((v, c) => {
+      const t = cell(v);
+      if (!t) return;
+      for (const [key, res] of ITEM_COLS)
+        if (found[key] === undefined && res.some((re) => re.test(t))) found[key] = c;
+    });
+    if (found.qty !== undefined && (found.code !== undefined || found.alt !== undefined)) {
+      head = i;
+      cols = found;
+      break;
+    }
+  }
+  if (head < 0) return null;
+
+  const codeCol = cols.code ?? cols.alt;
+  const out = new Map();
+  for (let i = head + 1; i < rows.length; i++) {
+    const row = rows[i] ?? [];
+    if (row.some((v) => TOTAL_ROW.test(String(v ?? '')))) break; // 합계 줄에서 멈춥니다
+    const code = String(row[codeCol] ?? '').trim().replace(/\s+/g, ' ');
+    const qty = Number(row[cols.qty]);
+    if (!code || !Number.isFinite(qty)) continue;
+
+    const name = String(row[cols.name] ?? '').trim().split(/\r?\n/)[0].slice(0, 40);
+    const had = out.get(code);
+    // 같은 코드가 색깔별로 여러 줄인 양식이 있습니다 — 합쳐서 셉니다.
+    if (had) had.qty += qty;
+    else out.set(code, { code, name, qty });
+  }
+  return out.size ? [...out.values()] : null;
+}
+
 /* ── 사용자 정의 규칙 ─────────────────────────────────────
  * 파일명 규칙만으로 안 잡히는 파일을 사람이 직접 정의합니다.
  * rule = {
@@ -1141,7 +1194,7 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, ruleMatches, shipDate, suggestKeyword, summarize };
+return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, ruleMatches, shipDate, suggestKeyword, summarize };
 })();
 const FS = (() => {
 /**
@@ -2655,6 +2708,38 @@ function renderDrawer(id) {
     ['container', '컨테이너', false],
   ];
 
+  /**
+   * 두 서류의 품목을 코드로 맞춰 보고, 무엇이 새로 들어오고 빠지고 수량이 바뀌었는지 적습니다.
+   * "수량 +51" 만으로는 어느 제품이 늘었는지 알 수 없습니다.
+   */
+  function itemDiff(before, now) {
+    if (!before?.length || !now?.length) return '';
+    const key = (list) => new Map(list.map((x) => [String(x.code), x]));
+    const A = key(before);
+    const B = key(now);
+    const label = (x) => `${esc(x.name || x.code)}<span class="text-faint">(${esc(x.code)})</span>`;
+
+    const added = [];
+    const moved = [];
+    for (const [code, x] of B) {
+      const was = A.get(code);
+      if (!was) added.push(`${label(x)} ${fmtNum(x.qty)}개`);
+      else if (was.qty !== x.qty)
+        moved.push(`${label(x)} ${fmtNum(was.qty)}→${fmtNum(x.qty)}` +
+          `<span class="${x.qty > was.qty ? 'text-warn' : 'text-info'}">(${x.qty > was.qty ? '+' : ''}${fmtNum(x.qty - was.qty)})</span>`);
+    }
+    const gone = [...A.keys()].filter((c) => !B.has(c)).map((c) => label(A.get(c)));
+
+    const cut = (list, max) =>
+      list.length > max ? `${list.slice(0, max).join(', ')} 외 ${list.length - max}건` : list.join(', ');
+
+    const parts = [];
+    if (added.length) parts.push(`<span class="font-bold">추가</span> ${cut(added, 3)}`);
+    if (moved.length) parts.push(`<span class="font-bold">수량</span> ${cut(moved, 3)}`);
+    if (gone.length) parts.push(`<span class="font-bold">빠짐</span> ${cut(gone, 3)}`);
+    return parts.join(' · ');
+  }
+
   function diffNotes(docs) {
     const notes = new Map();
     const has = docs.filter((d) => d.cipl?.brief);
@@ -2671,7 +2756,10 @@ function renderDrawer(id) {
     for (let i = 1; i < line.length; i++) {
       const before = line[i - 1].cipl.brief;
       const now = line[i].cipl.brief;
+      // 품목이 있으면 무엇이 늘고 줄었는지가 먼저입니다. 합계는 그 다음입니다.
+      const items = itemDiff(line[i - 1].cipl.items, line[i].cipl.items);
       const bits = [];
+      if (items) bits.push(items);
       for (const [key, label, isNum] of DIFF_FIELDS) {
         const x = before[key];
         const y = now[key];
