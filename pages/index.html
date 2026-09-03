@@ -47,7 +47,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.17.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.18.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -75,7 +75,7 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.17.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.18.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -764,6 +764,57 @@ function readItems(rows) {
   return out.size ? [...out.values()] : null;
 }
 
+/* ── 발주서 PDF 안의 품목 ─────────────────────────────────
+ * 구글 문서로 바꾸면 표가 "탭 + 칸 내용" 으로 풀립니다.
+ * 칸 순서는 판마다 조금씩 다릅니다(일련번호 유무, 빈 칸 하나 더).
+ * 그래서 자리를 세지 않고 **금액 → 수량 → 금액** 이 이어지는 자리를 찾습니다.
+ * 그 바로 앞 두 칸이 코드·색이고, 이름은 거기서 몇 칸 더 앞을 되짚어 찾습니다.
+ */
+
+const PDF_MONEY = /^[¥$₩]\s*[\d,]+(?:\.\d+)?$/;
+const PDF_INT = /^[\d,]+$/;
+const PDF_CODE = /^[A-Za-z0-9][A-Za-z0-9_\-./]{1,24}$/;
+const PDF_SIZE = /^\d+\s*\*/;
+
+function readPdfItems(text) {
+  if (!text) return null;
+  const cells = String(text)
+    .split('\t')
+    .map((c) => c.replace(/\u00a0/g, ' ').trim());
+
+  const out = new Map();
+  let lastName = '';
+
+  for (let i = 2; i + 2 < cells.length; i++) {
+    if (!PDF_MONEY.test(cells[i])) continue;
+    if (!PDF_INT.test(cells[i + 1]) || !PDF_MONEY.test(cells[i + 2])) continue;
+
+    const code = cells[i - 2];
+    if (!PDF_CODE.test(code)) continue;
+
+    // 이름은 색·코드·치수 앞에 있습니다. 색깔만 다른 이어지는 줄은
+    // 앞 칸이 죄다 비어 있어, 바로 위 품목의 이름을 물려받습니다.
+    let name = '';
+    for (let k = i - 3; k >= i - 6 && k >= 0; k--) {
+      const c = cells[k];
+      if (!c || PDF_SIZE.test(c) || PDF_MONEY.test(c) || PDF_INT.test(c) || PDF_CODE.test(c)) continue;
+      name = c.split(/\r?\n/)[0].trim().slice(0, 40);
+      break;
+    }
+    if (name) lastName = name;
+    else name = lastName;
+
+    const qty = Number(cells[i + 1].replace(/,/g, ''));
+    if (!Number.isFinite(qty)) continue;
+
+    const had = out.get(code);
+    if (had) had.qty += qty;
+    else out.set(code, { code, name, qty });
+  }
+
+  return out.size ? [...out.values()] : null;
+}
+
 /* ── 사용자 정의 규칙 ─────────────────────────────────────
  * 파일명 규칙만으로 안 잡히는 파일을 사람이 직접 정의합니다.
  * rule = {
@@ -1194,7 +1245,7 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, ruleMatches, shipDate, suggestKeyword, summarize };
+return { ASIDE, CJK_GLOSS, STAGES, STAGE_BY_KEY, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, suggestKeyword, summarize };
 })();
 const FS = (() => {
 /**
