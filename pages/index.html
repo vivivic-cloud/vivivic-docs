@@ -54,11 +54,11 @@
 
     <label class="block mb-3">
       <span class="text-[11px] font-bold text-faint tracking-wide">이메일</span>
-      <input id="email" type="email" autocomplete="username" required class="field mt-1" placeholder="name@example.com" />
+      <input id="email" name="username" type="email" autocomplete="username" required class="field mt-1" placeholder="name@example.com" />
     </label>
     <label class="block mb-5">
       <span class="text-[11px] font-bold text-faint tracking-wide">비밀번호</span>
-      <input id="password" type="password" autocomplete="current-password" required class="field mt-1" />
+      <input id="password" name="password" type="password" autocomplete="current-password" required class="field mt-1" />
     </label>
 
     <button id="loginBtn" type="submit" class="btn btn-primary w-full">로그인</button>
@@ -1632,6 +1632,14 @@ const fmtSize = (b) => (b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${
 
 async function boot() {
   $('#loginForm').onsubmit = doSignIn;
+  // 지난번 이메일을 채워 둔다 (비밀번호는 저장하지 않는다 — 폰 암호 관리자가 채운다)
+  try {
+    const last = localStorage.getItem('docs.lastEmail');
+    if (last) {
+      $('#email').value = last;
+      setTimeout(() => $('#password').focus(), 60);
+    }
+  } catch (e) {}
   $('#demoLink').onclick = loadDemo;
   $('#btnSignOut').onclick = () => DB.signOut();
   $('#btnSync').onclick = $('#btnSync2').onclick = syncFromFolder;
@@ -1724,7 +1732,9 @@ async function doSignIn(e) {
   btn.disabled = true;
   btn.textContent = '들어가는 중…';
   try {
-    await DB.signIn($('#email').value.trim(), $('#password').value);
+    const _email = $('#email').value.trim();
+    await DB.signIn(_email, $('#password').value);
+    try { localStorage.setItem('docs.lastEmail', _email); } catch (e) {}
   } catch (ex) {
     err.textContent = DB.authMessage(ex.code);
     err.hidden = false;
