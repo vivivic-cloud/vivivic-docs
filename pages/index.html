@@ -1443,6 +1443,10 @@ async function init() {
   ]);
   const app = appMod.initializeApp(firebaseConfig);
   ctx = { auth: authMod.getAuth(app), db: fsMod.getFirestore(app), a: authMod, f: fsMod };
+  // 로그인 유지 — 브라우저를 닫아도 남게 한다. (지정하지 않으면 가끔 조용히 풀린다)
+  authMod.setPersistence(ctx.auth, authMod.indexedDBLocalPersistence)
+    .catch(() => authMod.setPersistence(ctx.auth, authMod.browserLocalPersistence))
+    .catch(err => console.warn('로그인 유지 설정 실패:', err));
   return ctx;
 }
 
