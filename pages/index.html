@@ -1945,10 +1945,7 @@ function render() {
 function renderKpis() {
   const all = state.batches;
   const cards = [
-    ['총 차수', all.length, ''],
     ['진행 중', all.filter((b) => b.status === 'active').length, 'text-info'],
-    ['이상 감지', all.reduce((n, b) => n + b.issues.filter((i) => i.level === 'warn').length, 0), 'text-warn'],
-    ['미확인 파일', state.unassigned.length, 'text-faint'],
   ];
   $('#kpis').innerHTML = cards
     .map(([label, value, cls]) => `
