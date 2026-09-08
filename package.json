@@ -1,0 +1,14 @@
+{
+  "name": "vivivic-docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "build:css": "tailwindcss -c tailwind.config.js -i css/src.css -o css/app.css --minify",
+    "dev": "python3 -m http.server 8080"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}
