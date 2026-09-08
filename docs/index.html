@@ -54,11 +54,11 @@
 
     <label class="block mb-3">
       <span class="text-[11px] font-bold text-faint tracking-wide">이메일</span>
-      <input id="email" type="email" autocomplete="username" required class="field mt-1" placeholder="name@example.com" />
+      <input id="email" name="username" type="email" autocomplete="username" required class="field mt-1" placeholder="name@example.com" />
     </label>
     <label class="block mb-5">
       <span class="text-[11px] font-bold text-faint tracking-wide">비밀번호</span>
-      <input id="password" type="password" autocomplete="current-password" required class="field mt-1" />
+      <input id="password" name="password" type="password" autocomplete="current-password" required class="field mt-1" />
     </label>
 
     <button id="loginBtn" type="submit" class="btn btn-primary w-full">로그인</button>
@@ -79,12 +79,6 @@
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
-      <a class="px-3 py-1.5 rounded-md text-faint hover:bg-hover hover:text-ink transition-all"
-         href="https://vivivic-cloud.github.io/vivivic-apps/에이엠티/에이엠티.html">발주서</a>
-      <a class="px-3 py-1.5 rounded-md text-faint hover:bg-hover hover:text-ink transition-all"
-         href="https://vivivic-cloud.github.io/vivivic-apps/에이엠티/에이엠티.html">재단발주</a>
-      <a class="px-3 py-1.5 rounded-md text-faint hover:bg-hover hover:text-ink transition-all"
-         href="https://vivivic-cloud.github.io/vivivic-apps/에이엠티/에이엠티.html">공정관리</a>
       <span class="px-3 py-1.5 rounded-md bg-chip text-ink">서류관리</span>
     </nav>
 
@@ -116,7 +110,7 @@
   </section>
 
   <section id="dash" hidden>
-    <div id="kpis" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
+    <div id="kpis" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6"></div>
 
     <div class="card p-4 mb-6">
       <div class="flex flex-wrap items-center gap-2">
@@ -373,7 +367,8 @@ function parseBatch(rawName) {
   if (m) return mk(m[1], m[2]);
 
   // 2) 거래처 코드가 붙은 형태: "AMT(ZH)26-18", "ING26-14", "ZEHE-ING26 -15"
-  m = /(?:ZH|ING|JW|BJ)\)?\s*-?\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
+  // (?<![A-Za-z]) — loading, shipping 처럼 단어 안의 ing 가 잡히던 것을 막는다.
+  m = /(?<![A-Za-z])(?:ZH|ING|JW|BJ)\)?\s*-?\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
   if (m) return mk(m[1], m[2]);
 
   // 3) "AMT2026-18", "AMT2026-19书架"
@@ -426,12 +421,15 @@ function classify(rawName) {
     return hit('piReceipt', '영수증 (기본 계약금으로 분류)');
   }
 
+  // 2. 계약금서류 — PI 는 패킹리스트보다 먼저 본다.
+  //    "形式发票和装箱单" 처럼 둘 다 적힌 파일은 PI 가 맞다.
+  if (/(?<![A-Za-z])PI(?![A-Za-z])|proforma|形式发票/i.test(n)) return hit('pi', 'PI 번호');
+
   // 5. 잔액서류 — CI&PL / 인보이스+패킹
   if (/CI\s*[&＆和]\s*PL|CI\s*_?\s*PL\b|packing\s*list|装箱单/i.test(n)) return hit('cipl', 'CI&PL');
   if (/70\s*%/.test(n)) return hit('cipl', '70% 표기');
 
   // 2. 계약금서류 — PI 번호, 그리고 거래처가 보내오는 订单合同(주문계약서)
-  if (/(?<![A-Za-z])PI(?![A-Za-z])|proforma|形式发票/i.test(n)) return hit('pi', 'PI 번호');
   // 合同 은 계약서입니다. 이걸 받고 계약금 30%를 넣으므로 발주서가 아니라 계약금서류로 봅니다.
   if (/合同|계약서|주문계약/.test(n)) return hit('pi', '계약서(合同)');
   if (/30\s*%/.test(n)) return hit('pi', '30% 표기');
@@ -1057,7 +1055,10 @@ function buildBatches(files, rules = []) {
     }
     for (const d of group) {
       // 자기 이름엔 차수가 없었는데 번호로 딸려온 서류입니다.
-      if (!d.batch) d.joinedBy = d.ids.join(', ');
+      // 자기 이름에 차수가 적혀 있으면 그것을 지킨다. 예전에는 다수결로 정한 차수를
+      // 덮어써서, 한 파일에 두 차수가 묶여 오면 소수 쪽 차수가 통째로 사라졌다.
+      if (d.batch) { put(d, d.batch); continue; }
+      d.joinedBy = d.ids.join(', ');
       d.batch = label;
       put(d, label);
     }
@@ -1443,6 +1444,22 @@ async function init() {
   ]);
   const app = appMod.initializeApp(firebaseConfig);
   ctx = { auth: authMod.getAuth(app), db: fsMod.getFirestore(app), a: authMod, f: fsMod };
+  // 로그인 유지 — 브라우저를 닫아도 남게 한다. (지정하지 않으면 가끔 조용히 풀린다)
+  // 반드시 기다린다. 아이폰처럼 IndexedDB 가 막히는 곳에서는 이것이 끝나기 전에
+  // 로그인을 시작하면 저장 자리가 정해지지 않은 채로 실패한다.
+  try {
+    await authMod.setPersistence(ctx.auth, authMod.indexedDBLocalPersistence);
+  } catch (e1) {
+    try {
+      await authMod.setPersistence(ctx.auth, authMod.browserLocalPersistence);
+    } catch (e2) {
+      try {
+        await authMod.setPersistence(ctx.auth, authMod.inMemoryPersistence);
+      } catch (e3) {
+        console.warn('로그인 유지 설정 실패:', e3);
+      }
+    }
+  }
   return ctx;
 }
 
@@ -1475,7 +1492,7 @@ function authMessage(code) {
       'auth/invalid-credential': '이메일 또는 비밀번호가 맞지 않습니다.',
       'auth/too-many-requests': '시도가 너무 많았습니다. 잠시 뒤에 다시 해주세요.',
       'auth/network-request-failed': '네트워크에 연결하지 못했습니다.',
-    }[code] ?? '로그인하지 못했습니다.'
+    }[code] ?? ('로그인하지 못했습니다. (' + (code || '까닭 모름') + ')')
   );
 }
 
@@ -1548,7 +1565,7 @@ async function saveOverlay(batchId, data, email) {
     batchId,
     updatedBy: email ?? null,
     updatedAt: new Date().toISOString(),
-  });
+  }, { merge: true });   // merge 없이 쓰면 다른 사람이 방금 넣은 값이 지워진다
 }
 
 /* ── 동기화 호출 주소 ─────────────────────────────────── */
@@ -1588,13 +1605,16 @@ async function saveRule(rule, email) {
 }
 
 async function saveRules(rules, email) {
-  const batch = ctx.f.writeBatch(ctx.db);
-  const stamp = new Date().toISOString();
-  for (const rule of rules) {
-    const id = rule.id ?? `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
-    const { id: _drop, ...body } = rule;
-    batch.set(ctx.f.doc(col(RULES), id), { ...body, createdBy: email ?? null, createdAt: rule.createdAt ?? stamp });
-  }
+    // 한 번에 500건까지만 보낼 수 있다. 넘으면 통째로 실패하므로 450씩 쪼갠다.
+    const stamp = new Date().toISOString();
+    for (let s = 0; s < rules.length; s += 450) {
+        const batch = ctx.f.writeBatch(ctx.db);
+        for (const rule of rules.slice(s, s + 450)) {
+            const id = rule.id ?? `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}${(s).toString(36)}`;
+            const { id: _drop, ...body } = rule;
+            batch.set(ctx.f.doc(col(RULES), id), { ...body, createdBy: email ?? null, createdAt: rule.createdAt ?? stamp });
+        }
+}
   await batch.commit();
 }
 
@@ -1634,6 +1654,14 @@ const fmtSize = (b) => (b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${
 
 async function boot() {
   $('#loginForm').onsubmit = doSignIn;
+  // 지난번 이메일을 채워 둔다 (비밀번호는 저장하지 않는다 — 폰 암호 관리자가 채운다)
+  try {
+    const last = localStorage.getItem('docs.lastEmail');
+    if (last) {
+      $('#email').value = last;
+      setTimeout(() => $('#password').focus(), 60);
+    }
+  } catch (e) {}
   $('#demoLink').onclick = loadDemo;
   $('#btnSignOut').onclick = () => DB.signOut();
   $('#btnSync').onclick = $('#btnSync2').onclick = syncFromFolder;
@@ -1726,7 +1754,9 @@ async function doSignIn(e) {
   btn.disabled = true;
   btn.textContent = '들어가는 중…';
   try {
-    await DB.signIn($('#email').value.trim(), $('#password').value);
+    const _email = $('#email').value.trim();
+    await DB.signIn(_email, $('#password').value);
+    try { localStorage.setItem('docs.lastEmail', _email); } catch (e) {}
   } catch (ex) {
     err.textContent = DB.authMessage(ex.code);
     err.hidden = false;
@@ -1937,10 +1967,7 @@ function render() {
 function renderKpis() {
   const all = state.batches;
   const cards = [
-    ['총 차수', all.length, ''],
     ['진행 중', all.filter((b) => b.status === 'active').length, 'text-info'],
-    ['이상 감지', all.reduce((n, b) => n + b.issues.filter((i) => i.level === 'warn').length, 0), 'text-warn'],
-    ['미확인 파일', state.unassigned.length, 'text-faint'],
   ];
   $('#kpis').innerHTML = cards
     .map(([label, value, cls]) => `
