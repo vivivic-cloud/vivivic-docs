@@ -75,7 +75,12 @@ Pages 빌드는 1분쯤 걸립니다. `curl -s https://vivivic-cloud.github.io/v
 `cipl.v` 로 찍히므로, 이것만 올리면 전부 다시 읽습니다. 다 읽는 데 sync 를 서너 번
 불러야 합니다(한 번에 4분까지만 읽고 나머지는 다음 호출로 미룹니다).
 
-`~/Downloads/vivivic-docs 2` 는 같은 내용의 사본입니다.
+**사본은 없습니다. 작업 폴더는 `~/Projects/vivivic-docs` 하나뿐입니다.**
+예전에 `~/Downloads` 에 있던 사본 둘은 2026-09-08 에 치웠습니다
+(되돌리기 꾸러미: `~/.trash-vivivic/`).
+
+**`~/Downloads`·`~/Documents` 에 두지 마세요.** 맥이 백그라운드로 도는 프로그램의
+접근을 막아서, 바이글의 코드 보기 같은 것이 이 폴더를 못 읽습니다.
 
 ## 코드 관례
 
