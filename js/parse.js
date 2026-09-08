@@ -104,7 +104,8 @@ export function parseBatch(rawName) {
   if (m) return mk(m[1], m[2]);
 
   // 2) 거래처 코드가 붙은 형태: "AMT(ZH)26-18", "ING26-14", "ZEHE-ING26 -15"
-  m = /(?:ZH|ING|JW|BJ)\)?\s*-?\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
+  // (?<![A-Za-z]) — loading, shipping 처럼 단어 안의 ing 가 잡히던 것을 막는다.
+  m = /(?<![A-Za-z])(?:ZH|ING|JW|BJ)\)?\s*-?\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
   if (m) return mk(m[1], m[2]);
 
   // 3) "AMT2026-18", "AMT2026-19书架"
@@ -157,12 +158,15 @@ export function classify(rawName) {
     return hit('piReceipt', '영수증 (기본 계약금으로 분류)');
   }
 
+  // 2. 계약금서류 — PI 는 패킹리스트보다 먼저 본다.
+  //    "形式发票和装箱单" 처럼 둘 다 적힌 파일은 PI 가 맞다.
+  if (/(?<![A-Za-z])PI(?![A-Za-z])|proforma|形式发票/i.test(n)) return hit('pi', 'PI 번호');
+
   // 5. 잔액서류 — CI&PL / 인보이스+패킹
   if (/CI\s*[&＆和]\s*PL|CI\s*_?\s*PL\b|packing\s*list|装箱单/i.test(n)) return hit('cipl', 'CI&PL');
   if (/70\s*%/.test(n)) return hit('cipl', '70% 표기');
 
   // 2. 계약금서류 — PI 번호, 그리고 거래처가 보내오는 订单合同(주문계약서)
-  if (/(?<![A-Za-z])PI(?![A-Za-z])|proforma|形式发票/i.test(n)) return hit('pi', 'PI 번호');
   // 合同 은 계약서입니다. 이걸 받고 계약금 30%를 넣으므로 발주서가 아니라 계약금서류로 봅니다.
   if (/合同|계약서|주문계약/.test(n)) return hit('pi', '계약서(合同)');
   if (/30\s*%/.test(n)) return hit('pi', '30% 표기');
@@ -788,7 +792,10 @@ export function buildBatches(files, rules = []) {
     }
     for (const d of group) {
       // 자기 이름엔 차수가 없었는데 번호로 딸려온 서류입니다.
-      if (!d.batch) d.joinedBy = d.ids.join(', ');
+      // 자기 이름에 차수가 적혀 있으면 그것을 지킨다. 예전에는 다수결로 정한 차수를
+      // 덮어써서, 한 파일에 두 차수가 묶여 오면 소수 쪽 차수가 통째로 사라졌다.
+      if (d.batch) { put(d, d.batch); continue; }
+      d.joinedBy = d.ids.join(', ');
       d.batch = label;
       put(d, label);
     }

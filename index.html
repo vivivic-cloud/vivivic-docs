@@ -45,18 +45,18 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.19.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.19.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
 
     <label class="block mb-3">
       <span class="text-[11px] font-bold text-faint tracking-wide">이메일</span>
-      <input id="email" type="email" autocomplete="username" required class="field mt-1" placeholder="name@example.com" />
+      <input id="email" name="username" type="email" autocomplete="username" required class="field mt-1" placeholder="name@example.com" />
     </label>
     <label class="block mb-5">
       <span class="text-[11px] font-bold text-faint tracking-wide">비밀번호</span>
-      <input id="password" type="password" autocomplete="current-password" required class="field mt-1" />
+      <input id="password" name="password" type="password" autocomplete="current-password" required class="field mt-1" />
     </label>
 
     <button id="loginBtn" type="submit" class="btn btn-primary w-full">로그인</button>
@@ -73,16 +73,10 @@
   <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.19.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.19.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
-      <a class="px-3 py-1.5 rounded-md text-faint hover:bg-hover hover:text-ink transition-all"
-         href="https://vivivic-cloud.github.io/vivivic-apps/에이엠티/에이엠티.html">발주서</a>
-      <a class="px-3 py-1.5 rounded-md text-faint hover:bg-hover hover:text-ink transition-all"
-         href="https://vivivic-cloud.github.io/vivivic-apps/에이엠티/에이엠티.html">재단발주</a>
-      <a class="px-3 py-1.5 rounded-md text-faint hover:bg-hover hover:text-ink transition-all"
-         href="https://vivivic-cloud.github.io/vivivic-apps/에이엠티/에이엠티.html">공정관리</a>
       <span class="px-3 py-1.5 rounded-md bg-chip text-ink">서류관리</span>
     </nav>
 
@@ -114,7 +108,7 @@
   </section>
 
   <section id="dash" hidden>
-    <div id="kpis" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
+    <div id="kpis" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6"></div>
 
     <div class="card p-4 mb-6">
       <div class="flex flex-wrap items-center gap-2">

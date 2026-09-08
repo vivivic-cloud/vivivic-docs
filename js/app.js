@@ -30,6 +30,14 @@ const fmtSize = (b) => (b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${
 
 async function boot() {
   $('#loginForm').onsubmit = doSignIn;
+  // 지난번 이메일을 채워 둔다 (비밀번호는 저장하지 않는다 — 폰 암호 관리자가 채운다)
+  try {
+    const last = localStorage.getItem('docs.lastEmail');
+    if (last) {
+      $('#email').value = last;
+      setTimeout(() => $('#password').focus(), 60);
+    }
+  } catch (e) {}
   $('#demoLink').onclick = loadDemo;
   $('#btnSignOut').onclick = () => DB.signOut();
   $('#btnSync').onclick = $('#btnSync2').onclick = syncFromFolder;
@@ -122,7 +130,9 @@ async function doSignIn(e) {
   btn.disabled = true;
   btn.textContent = '들어가는 중…';
   try {
-    await DB.signIn($('#email').value.trim(), $('#password').value);
+    const _email = $('#email').value.trim();
+    await DB.signIn(_email, $('#password').value);
+    try { localStorage.setItem('docs.lastEmail', _email); } catch (e) {}
   } catch (ex) {
     err.textContent = DB.authMessage(ex.code);
     err.hidden = false;
@@ -333,10 +343,7 @@ function render() {
 function renderKpis() {
   const all = state.batches;
   const cards = [
-    ['총 차수', all.length, ''],
     ['진행 중', all.filter((b) => b.status === 'active').length, 'text-info'],
-    ['이상 감지', all.reduce((n, b) => n + b.issues.filter((i) => i.level === 'warn').length, 0), 'text-warn'],
-    ['미확인 파일', state.unassigned.length, 'text-faint'],
   ];
   $('#kpis').innerHTML = cards
     .map(([label, value, cls]) => `

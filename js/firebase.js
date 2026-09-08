@@ -33,6 +33,22 @@ export async function init() {
   ]);
   const app = appMod.initializeApp(firebaseConfig);
   ctx = { auth: authMod.getAuth(app), db: fsMod.getFirestore(app), a: authMod, f: fsMod };
+  // 로그인 유지 — 브라우저를 닫아도 남게 한다. (지정하지 않으면 가끔 조용히 풀린다)
+  // 반드시 기다린다. 아이폰처럼 IndexedDB 가 막히는 곳에서는 이것이 끝나기 전에
+  // 로그인을 시작하면 저장 자리가 정해지지 않은 채로 실패한다.
+  try {
+    await authMod.setPersistence(ctx.auth, authMod.indexedDBLocalPersistence);
+  } catch (e1) {
+    try {
+      await authMod.setPersistence(ctx.auth, authMod.browserLocalPersistence);
+    } catch (e2) {
+      try {
+        await authMod.setPersistence(ctx.auth, authMod.inMemoryPersistence);
+      } catch (e3) {
+        console.warn('로그인 유지 설정 실패:', e3);
+      }
+    }
+  }
   return ctx;
 }
 
@@ -65,7 +81,7 @@ export function authMessage(code) {
       'auth/invalid-credential': '이메일 또는 비밀번호가 맞지 않습니다.',
       'auth/too-many-requests': '시도가 너무 많았습니다. 잠시 뒤에 다시 해주세요.',
       'auth/network-request-failed': '네트워크에 연결하지 못했습니다.',
-    }[code] ?? '로그인하지 못했습니다.'
+    }[code] ?? ('로그인하지 못했습니다. (' + (code || '까닭 모름') + ')')
   );
 }
 
@@ -138,7 +154,7 @@ export async function saveOverlay(batchId, data, email) {
     batchId,
     updatedBy: email ?? null,
     updatedAt: new Date().toISOString(),
-  });
+  }, { merge: true });   // merge 없이 쓰면 다른 사람이 방금 넣은 값이 지워진다
 }
 
 /* ── 동기화 호출 주소 ─────────────────────────────────── */
@@ -178,14 +194,17 @@ export async function saveRule(rule, email) {
 }
 
 export async function saveRules(rules, email) {
-  const batch = ctx.f.writeBatch(ctx.db);
+  // 한 번에 500건까지만 보낼 수 있다. 넘으면 통째로 실패하므로 450씩 쪼갠다.
   const stamp = new Date().toISOString();
-  for (const rule of rules) {
-    const id = rule.id ?? `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
-    const { id: _drop, ...body } = rule;
-    batch.set(ctx.f.doc(col(RULES), id), { ...body, createdBy: email ?? null, createdAt: rule.createdAt ?? stamp });
+  for (let s = 0; s < rules.length; s += 450) {
+    const batch = ctx.f.writeBatch(ctx.db);
+    for (const rule of rules.slice(s, s + 450)) {
+      const id = rule.id ?? `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}${s.toString(36)}`;
+      const { id: _drop, ...body } = rule;
+      batch.set(ctx.f.doc(col(RULES), id), { ...body, createdBy: email ?? null, createdAt: rule.createdAt ?? stamp });
+    }
+    await batch.commit();
   }
-  await batch.commit();
 }
 
 export const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
