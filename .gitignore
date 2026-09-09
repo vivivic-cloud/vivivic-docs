@@ -4,3 +4,6 @@ dist/
 *.log
 .claude/settings.local.json
 shot*.mjs
+
+# 한 번도 돈 적 없는 죽은 파일. Pages 는 docs/ 를 직접 본다.
+.github/
