@@ -38,6 +38,19 @@
   .vv-sheet td, .vv-sheet th { border:1px solid #ededeb; padding:3px 6px; white-space:nowrap; }
   .vv-sheet tr:nth-child(even) { background:#fafaf9; }
   [hidden] { display: none !important; }
+
+  /* 폰 — 머리가 한 줄에 다 못 들어가면 글자가 한 자씩 세로로 쪼개졌다.
+     단추들을 둘째 줄로 내리고, 어떤 글자도 줄바꿈하지 않는다. */
+  @media (max-width: 767px) {
+    #topbar { height: auto; padding: 9px 14px; gap: 8px; flex-wrap: wrap; }
+    #topbar > div:last-child { width: 100%; margin-left: 0; gap: 6px;
+                               overflow-x: auto; -webkit-overflow-scrolling: touch;
+                               scrollbar-width: none; }
+    #topbar > div:last-child::-webkit-scrollbar { display: none; }
+    #topbar span, #topbar button, #topbar nav { white-space: nowrap; flex: none; }
+    #topbar .btn { padding: 7px 12px; font-size: 12px; }
+    #userEmail { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; }
+  }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
@@ -47,7 +60,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.19.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.19.3</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -72,10 +85,10 @@
 <!-- ── 앱 ───────────────────────────────────────────────── -->
 <div id="app" hidden>
 <header class="w-full bg-white border-b border-line sticky top-0 z-[100]">
-  <div class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
+  <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.19.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.19.3</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
