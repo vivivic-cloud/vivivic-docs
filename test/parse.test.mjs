@@ -54,6 +54,19 @@ test('parseBatch — 문서번호를 차수로 오독하지 않는다', () => {
   assert.equal(parseBatch('TalkFile_30%-SS)PI-26-086-AMT-ZH-17_제헤우드 26-17차영수증.pdf.pdf')?.label, '26-17');
 });
 
+test('parseBatch — 없는 차수는 받지 않는다 (1~60차)', () => {
+  // '관리프로그램 99-99차' 유령 카드가 여기서 났습니다. 파일명에서는 원래 막혔는데,
+  // 손으로 적는 "새 차수" 칸에 잣대가 없어 규칙으로 굳었습니다.
+  // 이제 그 칸도 parseBatch 를 거치므로, 이 잣대가 곧 그 칸의 잣대입니다.
+  assert.equal(parseBatch('99-99차'), null);
+  assert.equal(parseBatch('26-99차'), null);
+  assert.equal(parseBatch('26-0차'), null);
+  assert.equal(parseBatch('26-61차'), null);
+  // 멀쩡한 것은 그대로 통과하고, 한 자리는 두 자리로 다듬습니다.
+  assert.equal(parseBatch('26-18차')?.label, '26-18');
+  assert.equal(parseBatch('25-7차')?.label, '25-07');
+});
+
 test('parseBatch — 문서번호가 해를 알려주면 N차 표기와 맞춘다', () => {
   // 문서번호 25-182 의 앞 두 자리가 해, 차수는 "포니엘 6차" 쪽입니다.
   assert.equal(parseBatch('70%-SS)CI,PL-25-182-AMT-13-B-포니엘 6차_F-022영수증.pdf')?.label, '25-06');
