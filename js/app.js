@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl } from './parse.js';
+import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch } from './parse.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -635,7 +635,11 @@ async function saveAssign() {
   const vendorSel = $('#asVendor').value;
   const vendor = vendorSel === '__new__' ? $('#asVendorNew').value.trim() : vendorSel;
   const batchSel = $('#asBatch').value;
-  const batch = batchSel === '__new__' ? $('#asBatchNew').value.trim() : batchSel;
+  // 손으로 적어 넣은 차수도 파일명에서 읽을 때와 같은 잣대로 받습니다.
+  // 여기가 헐거워서 '99-99' 같은 없는 차수가 규칙으로 굳어, 카드로 떠 있었습니다.
+  const 적은차수 = batchSel === '__new__' ? $('#asBatchNew').value.trim() : '';
+  const batch = batchSel === '__new__' ? (parseBatch(`${적은차수}차`)?.label ?? '') : batchSel;
+  if (적은차수 && !batch) return toast(`'${적은차수}' 같은 차수는 없습니다. 26-18 처럼 적어 주세요.`);
 
   const body =
     mode === 'exclude'
