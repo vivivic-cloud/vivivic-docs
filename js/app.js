@@ -1518,6 +1518,18 @@ async function saveOverlay(id) {
 window.docsCounts = () => ({
   batches: state.batches.length,
   vendors: new Set(state.batches.map((b) => b.vendor)).size,
+  // 거래처 하나가 박스 하나입니다. 진행 중이 많은 곳을 앞에 둡니다.
+  vendorList: [...new Set(state.batches.map((b) => b.vendor))]
+    .map((name) => {
+      const mine = state.batches.filter((b) => b.vendor === name);
+      return {
+        name,
+        batches: mine.length,
+        active: mine.filter((b) => b.status === 'active').length,
+        warn: mine.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
+      };
+    })
+    .sort((a, b) => b.active - a.active || b.batches - a.batches || a.name.localeCompare(b.name, 'ko')),
   active: state.batches.filter((b) => b.status === 'active').length,
   warn: state.batches.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
   loose: state.unassigned.length,
