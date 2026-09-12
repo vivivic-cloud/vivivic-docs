@@ -147,7 +147,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.23.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.23.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -175,7 +175,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.23.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.23.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -212,7 +212,7 @@
     <div class="dhh-sec"><b>나머지</b><span id="dhh-rest">5</span></div>
     <div class="dhh-list">
 
-      <button type="button" class="dhh-row" onclick="docsOpenVendor(null)">
+      <button type="button" class="dhh-row" onclick="docsOpenAll()">
         <span class="dhh-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></span>
         <span class="dhh-t">모든 차수<i id="dhh-c-all">거래처를 가리지 않고 전부</i></span>
       </button>
@@ -421,32 +421,41 @@
   const dhhEsc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
-  /* 거래처 박스를 엽니다. 거르는 일은 원래 있던 거래처 칩을 그대로 눌러서 합니다 —
+  /* 박스를 엽니다. 거르는 일은 원래 있던 그 칩을 그대로 눌러서 합니다 —
      사람이 손으로 누르는 것과 같은 길이라, 안쪽 화면은 하나도 안 고쳤습니다.
-     vendor 가 null 이면 '전체 거래처' 칩을 누릅니다. */
-  function docsOpenVendor(vendor) {
+     무엇으로 자를지는 js/app.js 의 BOX_CUT 한 줄에서 정합니다. */
+  let docsBoxList = [];
+  function docsOpenCut(i) {
+    const it = docsBoxList[i];
     docsOpenBox('batch');
-    const want = vendor ?? '전체 거래처';
-    const chip = [...document.querySelectorAll('#vendorChips button')]
-      .find((b) => b.textContent.trim() === want);
-    chip?.click();
+    const where = it ? it.chipIn : '#vendorChips';
+    const want = it ? it.chip : '전체 거래처';
+    [...document.querySelectorAll(where + ' button')]
+      .find((b) => b.textContent.trim() === want)?.click();
+  }
+  function docsOpenAll() {          // 거르지 않고 전부
+    docsOpenBox('batch');
+    [...document.querySelectorAll('#vendorChips button')]
+      .find((b) => b.textContent.trim() === '전체 거래처')?.click();
+    [...document.querySelectorAll('#statusChips button')]
+      .find((b) => b.textContent.trim() === '전체')?.click();
   }
 
   function docsTiles(list) {
     const box = document.getElementById('dhh-tiles');
     if (!box) return;
+    docsBoxList = list || [];
     const tone = ['dhh-dark', 'dhh-light', 'dhh-white', 'dhh-light'];
-    box.innerHTML = (list || []).map((v, i) => `
-      <button type="button" class="dhh-tile ${tone[i % tone.length]}"
-              onclick="docsOpenVendor('${dhhEsc(v.name).replace(/'/g, "\\'")}')">
+    box.innerHTML = docsBoxList.map((v, i) => `
+      <button type="button" class="dhh-tile ${tone[i % tone.length]}" onclick="docsOpenCut(${i})">
         ${v.warn ? '<span class="dhh-red"></span>' : ''}
         <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
         <span>
           <span class="dhh-nm">${dhhEsc(v.name)}</span>
-          <span class="dhh-pct">${v.batches}차 · 진행 중 ${v.active}</span>
+          <span class="dhh-pct">${dhhEsc(v.note)}</span>
         </span>
       </button>`).join('') ||
-      '<p style="grid-column:1/-1;margin:0;color:var(--vg-muted);font-size:13px">아직 거래처가 없습니다.</p>';
+      '<p style="grid-column:1/-1;margin:0;color:var(--vg-muted);font-size:13px">아직 박스가 없습니다.</p>';
   }
 
   function docsOpenBox(key) {
@@ -480,7 +489,7 @@
 
     const c = window.docsCounts?.();
     if (!c) return;
-    docsTiles(c.vendorList);
+    docsTiles(c.boxes);
     put('dhh-c-all',      '거래처를 가리지 않고 ' + c.batches + '개');
     put('dhh-c-status',   '진행 중 ' + c.active + '개');
     put('dhh-c-loose',    c.loose + '건');
@@ -3404,21 +3413,53 @@ async function saveOverlay(id) {
 /* ── 박스판에 건넬 셈 ─────────────────────────────────────
    첫 화면(박스판)은 index.html 에 있습니다. 여기서는 숫자만 내어 줍니다.
    화면 안쪽은 아무것도 건드리지 않습니다. */
+/* 박스를 무엇으로 자를지 — 바꾸실 곳은 이 한 줄입니다.
+   'vendor' 거래처별 · 'status' 진행 상태별. 지금은 "일단 거래처로". */
+const BOX_CUT = 'vendor';
+
+/** 박스 하나 = { name, note, warn, chips(눌러 줄 칩), chipIn(칩이 있는 줄) } */
+const BOX_CUTS = {
+  vendor: () =>
+    [...new Set(state.batches.map((b) => b.vendor))]
+      .map((name) => {
+        const mine = state.batches.filter((b) => b.vendor === name);
+        const active = mine.filter((b) => b.status === 'active').length;
+        return {
+          name,
+          note: `${mine.length}차 · 진행 중 ${active}`,
+          warn: mine.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
+          chip: name,
+          chipIn: '#vendorChips',
+          active,
+          count: mine.length,
+        };
+      })
+      // 진행 중이 많은 곳을 앞에 둡니다 — 손이 자주 가는 자리입니다
+      .sort((a, b) => b.active - a.active || b.count - a.count || a.name.localeCompare(b.name, 'ko')),
+
+  status: () =>
+    [
+      ['진행 중', (b) => b.status === 'active'],
+      ['완료', (b) => b.status === 'done'],
+      ['문제 있음', (b) => b.issues.length > 0],
+    ].map(([name, hit]) => {
+      const mine = state.batches.filter(hit);
+      return {
+        name,
+        note: `${mine.length}차`,
+        warn: 0,
+        chip: name,
+        chipIn: '#statusChips',
+        active: mine.length,
+        count: mine.length,
+      };
+    }),
+};
+
 window.docsCounts = () => ({
   batches: state.batches.length,
   vendors: new Set(state.batches.map((b) => b.vendor)).size,
-  // 거래처 하나가 박스 하나입니다. 진행 중이 많은 곳을 앞에 둡니다.
-  vendorList: [...new Set(state.batches.map((b) => b.vendor))]
-    .map((name) => {
-      const mine = state.batches.filter((b) => b.vendor === name);
-      return {
-        name,
-        batches: mine.length,
-        active: mine.filter((b) => b.status === 'active').length,
-        warn: mine.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
-      };
-    })
-    .sort((a, b) => b.active - a.active || b.batches - a.batches || a.name.localeCompare(b.name, 'ko')),
+  boxes: (BOX_CUTS[BOX_CUT] ?? BOX_CUTS.vendor)(),
   active: state.batches.filter((b) => b.status === 'active').length,
   warn: state.batches.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
   loose: state.unassigned.length,

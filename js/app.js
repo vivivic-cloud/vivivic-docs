@@ -1515,21 +1515,53 @@ async function saveOverlay(id) {
 /* ── 박스판에 건넬 셈 ─────────────────────────────────────
    첫 화면(박스판)은 index.html 에 있습니다. 여기서는 숫자만 내어 줍니다.
    화면 안쪽은 아무것도 건드리지 않습니다. */
+/* 박스를 무엇으로 자를지 — 바꾸실 곳은 이 한 줄입니다.
+   'vendor' 거래처별 · 'status' 진행 상태별. 지금은 "일단 거래처로". */
+const BOX_CUT = 'vendor';
+
+/** 박스 하나 = { name, note, warn, chips(눌러 줄 칩), chipIn(칩이 있는 줄) } */
+const BOX_CUTS = {
+  vendor: () =>
+    [...new Set(state.batches.map((b) => b.vendor))]
+      .map((name) => {
+        const mine = state.batches.filter((b) => b.vendor === name);
+        const active = mine.filter((b) => b.status === 'active').length;
+        return {
+          name,
+          note: `${mine.length}차 · 진행 중 ${active}`,
+          warn: mine.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
+          chip: name,
+          chipIn: '#vendorChips',
+          active,
+          count: mine.length,
+        };
+      })
+      // 진행 중이 많은 곳을 앞에 둡니다 — 손이 자주 가는 자리입니다
+      .sort((a, b) => b.active - a.active || b.count - a.count || a.name.localeCompare(b.name, 'ko')),
+
+  status: () =>
+    [
+      ['진행 중', (b) => b.status === 'active'],
+      ['완료', (b) => b.status === 'done'],
+      ['문제 있음', (b) => b.issues.length > 0],
+    ].map(([name, hit]) => {
+      const mine = state.batches.filter(hit);
+      return {
+        name,
+        note: `${mine.length}차`,
+        warn: 0,
+        chip: name,
+        chipIn: '#statusChips',
+        active: mine.length,
+        count: mine.length,
+      };
+    }),
+};
+
 window.docsCounts = () => ({
   batches: state.batches.length,
   vendors: new Set(state.batches.map((b) => b.vendor)).size,
-  // 거래처 하나가 박스 하나입니다. 진행 중이 많은 곳을 앞에 둡니다.
-  vendorList: [...new Set(state.batches.map((b) => b.vendor))]
-    .map((name) => {
-      const mine = state.batches.filter((b) => b.vendor === name);
-      return {
-        name,
-        batches: mine.length,
-        active: mine.filter((b) => b.status === 'active').length,
-        warn: mine.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
-      };
-    })
-    .sort((a, b) => b.active - a.active || b.batches - a.batches || a.name.localeCompare(b.name, 'ko')),
+  boxes: (BOX_CUTS[BOX_CUT] ?? BOX_CUTS.vendor)(),
   active: state.batches.filter((b) => b.status === 'active').length,
   warn: state.batches.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
   loose: state.unassigned.length,
