@@ -98,6 +98,27 @@
     font-weight:500; color:var(--vg-muted); }
   .dhh-board .dhh-foot{ margin:22px 0 0; text-align:center; font-size:12px; color:var(--vg-muted); }
 
+  /* 새 박스 만들기 — 작업대의 '새 박스' 와 같은 자리입니다 */
+  .dhh-board .dhh-new{ width:100%; margin-top:12px; display:flex; align-items:center; justify-content:center;
+    gap:8px; background:#fff; border:1px dashed var(--vg-edge); border-radius:26px; padding:16px;
+    font:inherit; font-size:15px; font-weight:700; color:var(--vg-ink); cursor:pointer; }
+  .dhh-board .dhh-new:active{ background:var(--vg-fill); }
+  .dhh-board .dhh-mk{ display:none; margin-top:12px; border:1px solid var(--vg-edge);
+    border-radius:26px; padding:17px; background:#fff; }
+  html[data-docsmk="1"] .dhh-board .dhh-mk{ display:block; }
+  html[data-docsmk="1"] .dhh-board .dhh-new{ display:none; }
+  .dhh-board .dhh-mk b{ display:block; font-size:17px; letter-spacing:-.4px; margin-bottom:2px; }
+  .dhh-board .dhh-mk p{ margin:0 0 12px; font-size:12px; color:var(--vg-muted); line-height:1.5; }
+  .dhh-board .dhh-mk input{ width:100%; font:inherit; font-size:15px; padding:11px 13px; margin-bottom:8px;
+    border:1px solid var(--vg-edge); border-radius:14px; background:#fff; color:var(--vg-body); }
+  .dhh-board .dhh-mk input:focus{ outline:none; border-color:var(--vg-ink); }
+  .dhh-board .dhh-mk .dhh-hint{ margin:2px 0 12px; font-size:12px; color:var(--vg-muted); min-height:1.2em; }
+  .dhh-board .dhh-mk .dhh-go{ display:flex; gap:8px; }
+  .dhh-board .dhh-mk button{ flex:1; font:inherit; font-size:14px; font-weight:700; padding:12px;
+    border-radius:14px; border:0; cursor:pointer; }
+  .dhh-board .dhh-mk .dhh-ok{ background:var(--vg-ink); color:#fff; }
+  .dhh-board .dhh-mk .dhh-no{ background:var(--vg-fill); color:var(--vg-body); }
+
   /* 돌아오는 길 — 박스 안에서 첫 화면으로. 엄지가 닿는 자리에 띄웁니다. */
   #docs-back{ display:none; position:fixed; left:0; right:0; bottom:0; z-index:8100;
     padding:10px 0 calc(10px + env(safe-area-inset-bottom)); text-align:center;
@@ -153,7 +174,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.24.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.25.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -181,7 +202,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.24.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.25.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -214,6 +235,22 @@
 
     <!-- 거래처 하나가 박스 하나입니다. 여기는 코드가 채웁니다. -->
     <div class="dhh-tiles" id="dhh-tiles"></div>
+
+
+    <button type="button" class="dhh-new" id="dhh-new" onclick="docsMakeOpen()">＋ 새 박스</button>
+    <div class="dhh-mk">
+      <b>새 박스</b>
+      <p>이 앱에서 박스는 파일이 모여야 생깁니다. 거래처 이름과, 그 거래처 파일에
+         들어 있는 말을 하나 적어 주세요. 드라이브의 파일은 건드리지 않습니다 —
+         화면에서만 갈립니다.</p>
+      <input id="dhh-mk-name" type="text" placeholder="거래처 이름 — 예: 리나" />
+      <input id="dhh-mk-word" type="text" placeholder="파일명에 든 말 — 예: 리나" oninput="docsMakeCount()" />
+      <p class="dhh-hint" id="dhh-mk-hint"></p>
+      <div class="dhh-go">
+        <button type="button" class="dhh-no" onclick="docsMakeClose()">그만두기</button>
+        <button type="button" class="dhh-ok" onclick="docsMakeGo()">만들기</button>
+      </div>
+    </div>
 
     <div class="dhh-sec"><b>나머지</b><span id="dhh-rest">5</span></div>
     <div class="dhh-list">
@@ -585,6 +622,38 @@
     docsLevel = 'files';
     docsPaint();
     window.scrollTo(0, 0);
+  }
+
+
+  /* ── 새 박스 만들기 ─────────────────────────────────────────────
+     빈 박스는 둘 자리가 없습니다 — 파일이 모여야 박스가 됩니다.
+     그래서 "이 말이 든 파일은 이 거래처 것" 이라는 규칙 한 줄을 세웁니다.
+     원래 있던 규칙 장치라, 규칙 서랍에서 지우면 박스도 같이 사라집니다. */
+  function docsMakeOpen() {
+    document.documentElement.setAttribute('data-docsmk', '1');
+    const n = document.getElementById('dhh-mk-name');
+    if (n) { n.value = ''; setTimeout(() => n.focus(), 60); }
+    const w = document.getElementById('dhh-mk-word');
+    if (w) w.value = '';
+    docsMakeCount();
+  }
+  function docsMakeClose() { document.documentElement.removeAttribute('data-docsmk'); }
+  function docsMakeCount() {
+    const w = document.getElementById('dhh-mk-word')?.value ?? '';
+    const hint = document.getElementById('dhh-mk-hint');
+    if (!hint) return;
+    if (!w.trim()) { hint.textContent = ''; return; }
+    const n = window.docsCountKeyword?.(w) ?? 0;
+    hint.textContent = n ? `이 말이 든 파일 ${n}건이 이 박스로 들어옵니다.` : '이 말이 든 파일이 없습니다.';
+  }
+  async function docsMakeGo() {
+    const name = document.getElementById('dhh-mk-name')?.value ?? '';
+    const word = document.getElementById('dhh-mk-word')?.value ?? '';
+    const hint = document.getElementById('dhh-mk-hint');
+    const r = await window.docsNewBox?.(name, word);
+    if (!r) return;
+    if (hint) hint.textContent = r.msg;
+    if (r.ok) { docsMakeClose(); docsHomeRefresh(); }
   }
 
   function docsHomeRefresh() {

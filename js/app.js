@@ -1586,6 +1586,37 @@ window.docsVendorBoxes = (vendor) => {
   };
 };
 
+/* 새 박스 만들기.
+   이 앱에서 박스는 파일이 있어야 생깁니다 — 빈 박스는 둘 자리가 없습니다.
+   그래서 "이 말이 든 파일은 이 거래처 것" 이라는 규칙 한 줄을 세웁니다.
+   원래 있던 '규칙' 장치를 그대로 쓰는 것이라, 나중에 규칙 서랍에서 지우면
+   박스도 같이 사라집니다. 드라이브는 건드리지 않습니다 — 화면에서만 갈립니다. */
+window.docsNewBox = async (name, keyword) => {
+  name = String(name ?? '').trim();
+  keyword = String(keyword ?? '').trim();
+  if (!name) return { ok: false, msg: '거래처 이름을 넣어주세요.' };
+  if (!keyword) return { ok: false, msg: '어떤 파일을 넣을지 — 파일명에 든 말을 하나 넣어주세요.' };
+
+  const hit = state.files.filter((f) => `${f.name ?? ''} ${f.path ?? ''}`.toLowerCase().includes(keyword.toLowerCase()));
+  if (!hit.length) return { ok: false, msg: `'${keyword}' 가 든 파일이 없습니다.` };
+  if (state.demo) return { ok: false, msg: '데모 모드라 저장하지 않습니다.' };
+
+  try {
+    await DB.saveRule({ action: 'assign', vendor: name, matchType: 'contains', match: keyword, note: '새 박스에서 만듦' },
+                      state.user?.email);
+    return { ok: true, msg: `'${name}' 박스를 만들었습니다 — 파일 ${hit.length}건.` };
+  } catch (e) {
+    return { ok: false, msg: `저장 실패: ${e.message}` };
+  }
+};
+
+/** 이 말이 든 파일이 몇 건인지 미리 세어 봅니다. 아무것도 바꾸지 않습니다. */
+window.docsCountKeyword = (keyword) => {
+  const k = String(keyword ?? '').trim().toLowerCase();
+  if (!k) return 0;
+  return state.files.filter((f) => `${f.name ?? ''} ${f.path ?? ''}`.toLowerCase().includes(k)).length;
+};
+
 /** 박스 판에서 파일 한 장을 그대로 열어 봅니다 — 원래 쓰던 그 보기 창입니다. */
 window.docsOpenFile = (path) => {
   const d = state.unassigned.find((x) => x.path === path);
