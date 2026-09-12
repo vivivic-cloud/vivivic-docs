@@ -44,7 +44,7 @@
      색 토큰·타일·알약을 그대로 가져왔고 새로 만든 색은 없습니다.
      이름은 전부 dhh- 로 시작합니다 — 짧은 이름은 텔윈드와 겹칩니다.
      이 블록과 #docs-home / #docs-back 두 덩어리만 빼면 그대로 되돌아갑니다. */
-  #docs-home{
+  #docs-home, #docs-vendor, #docs-files{
     --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19;
     --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-fill:#F4F4F2; --vg-red:#FF3B30;
     position:fixed; left:0; right:0; bottom:0; z-index:8000;
@@ -53,61 +53,67 @@
     font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif;
     overflow-y:auto; -webkit-overflow-scrolling:touch;
   }
-  html[data-docshome="1"] #docs-home{ display:block; }
-  #docs-home *{ box-sizing:border-box; }
-  #docs-home .dhh-wrap{ max-width:430px; margin:0 auto;
+  html[data-docshome="1"]   #docs-home{ display:block; }
+  html[data-docsvendor="1"] #docs-vendor{ display:block; }
+  html[data-docsfiles="1"]  #docs-files{ display:block; }
+  .dhh-board *{ box-sizing:border-box; }
+  .dhh-board .dhh-wrap{ max-width:430px; margin:0 auto;
     padding:14px 20px calc(28px + env(safe-area-inset-bottom)); }
-  #docs-home .dhh-head{ display:flex; align-items:center; gap:8px; margin:0 0 14px; }
-  #docs-home .dhh-day{ font-size:19px; font-weight:700; letter-spacing:-.4px; color:var(--vg-ink); }
-  #docs-home .dhh-role{ border:1px solid var(--vg-ink); border-radius:999px; padding:3px 9px;
+  .dhh-board .dhh-head{ display:flex; align-items:center; gap:8px; margin:0 0 14px; }
+  .dhh-board .dhh-day{ font-size:19px; font-weight:700; letter-spacing:-.4px; color:var(--vg-ink); }
+  .dhh-board .dhh-role{ border:1px solid var(--vg-ink); border-radius:999px; padding:3px 9px;
     font-size:11px; font-weight:800; letter-spacing:1.2px; color:var(--vg-ink); }
-  #docs-home .dhh-sub{ margin-left:auto; font-size:12px; color:var(--vg-muted); }
+  .dhh-board .dhh-sub{ margin-left:auto; font-size:12px; color:var(--vg-muted); }
 
-  #docs-home .dhh-tiles{ display:grid; grid-template-columns:1.02fr 1fr; gap:12px; }
-  #docs-home .dhh-tile{ position:relative; border-radius:26px; padding:17px; display:flex;
+  .dhh-board .dhh-tiles{ display:grid; grid-template-columns:1.02fr 1fr; gap:12px; }
+  .dhh-board .dhh-tile{ position:relative; border-radius:26px; padding:17px; display:flex;
     flex-direction:column; justify-content:space-between; gap:14px; min-height:132px;
     border:1px solid transparent; text-align:left; cursor:pointer;
     color:inherit; font:inherit; transition:transform .12s; }
-  #docs-home .dhh-tile:active{ transform:scale(.975); }
-  #docs-home .dhh-tile.dhh-light{ background:var(--vg-fill); }
-  #docs-home .dhh-tile.dhh-white{ background:#fff; border-color:var(--vg-edge); }
-  #docs-home .dhh-tile.dhh-dark{ background:var(--vg-ink); color:#fff; }
-  #docs-home .dhh-tile .dhh-ico{ width:54px; height:54px; border-radius:50%; flex:none;
+  .dhh-board .dhh-tile:active{ transform:scale(.975); }
+  .dhh-board .dhh-tile.dhh-light{ background:var(--vg-fill); }
+  .dhh-board .dhh-tile.dhh-white{ background:#fff; border-color:var(--vg-edge); }
+  .dhh-board .dhh-tile.dhh-dark{ background:var(--vg-ink); color:#fff; }
+  .dhh-board .dhh-tile .dhh-ico{ width:54px; height:54px; border-radius:50%; flex:none;
     display:grid; place-items:center; background:rgba(0,0,0,.05); }
-  #docs-home .dhh-tile.dhh-dark .dhh-ico{ background:rgba(255,255,255,.14); }
-  #docs-home .dhh-tile.dhh-white .dhh-ico{ background:var(--vg-fill); }
-  #docs-home .dhh-tile .dhh-nm{ display:block; font-size:20px; line-height:1.22;
+  .dhh-board .dhh-tile.dhh-dark .dhh-ico{ background:rgba(255,255,255,.14); }
+  .dhh-board .dhh-tile.dhh-white .dhh-ico{ background:var(--vg-fill); }
+  .dhh-board .dhh-tile .dhh-nm{ display:block; font-size:20px; line-height:1.22;
     letter-spacing:-.5px; font-weight:700; }
-  #docs-home .dhh-tile .dhh-pct{ display:block; margin-top:5px; font-size:12.5px; color:var(--vg-muted); }
-  #docs-home .dhh-tile.dhh-dark .dhh-pct{ color:rgba(255,255,255,.5); }
-  #docs-home .dhh-red{ position:absolute; right:13px; top:13px; width:9px; height:9px;
+  .dhh-board .dhh-tile .dhh-pct{ display:block; margin-top:5px; font-size:12.5px; color:var(--vg-muted); }
+  .dhh-board .dhh-tile.dhh-dark .dhh-pct{ color:rgba(255,255,255,.5); }
+  .dhh-board .dhh-red{ position:absolute; right:13px; top:13px; width:9px; height:9px;
     border-radius:50%; background:var(--vg-red); box-shadow:0 0 0 3px var(--vg-ink); }
 
-  #docs-home .dhh-sec{ display:flex; align-items:center; justify-content:space-between; margin:26px 0 12px; }
-  #docs-home .dhh-sec b{ font-size:19px; font-weight:700; letter-spacing:-.4px; color:var(--vg-ink); }
-  #docs-home .dhh-sec span{ font-size:12px; color:var(--vg-muted); }
-  #docs-home .dhh-list{ display:flex; flex-direction:column; gap:9px; }
-  #docs-home .dhh-row{ display:flex; align-items:center; gap:12px; background:var(--vg-fill);
+  .dhh-board .dhh-sec{ display:flex; align-items:center; justify-content:space-between; margin:26px 0 12px; }
+  .dhh-board .dhh-sec b{ font-size:19px; font-weight:700; letter-spacing:-.4px; color:var(--vg-ink); }
+  .dhh-board .dhh-sec span{ font-size:12px; color:var(--vg-muted); }
+  .dhh-board .dhh-list{ display:flex; flex-direction:column; gap:9px; }
+  .dhh-board .dhh-row{ display:flex; align-items:center; gap:12px; background:var(--vg-fill);
     border-radius:999px; padding:8px 16px 8px 8px; border:0; width:100%; cursor:pointer;
     color:inherit; font:inherit; transition:transform .12s; }
-  #docs-home .dhh-row:active{ transform:scale(.985); }
-  #docs-home .dhh-row .dhh-ico{ width:42px; height:42px; border-radius:50%; flex:none;
+  .dhh-board .dhh-row:active{ transform:scale(.985); }
+  .dhh-board .dhh-row .dhh-ico{ width:42px; height:42px; border-radius:50%; flex:none;
     display:grid; place-items:center; background:#fff; }
-  #docs-home .dhh-row .dhh-t{ flex:1; min-width:0; font-size:15px; text-align:left;
+  .dhh-board .dhh-row .dhh-t{ flex:1; min-width:0; font-size:15px; text-align:left;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  #docs-home .dhh-row .dhh-t i{ display:block; font-style:normal; font-size:11px;
+  .dhh-board .dhh-row .dhh-t i{ display:block; font-style:normal; font-size:11px;
     font-weight:500; color:var(--vg-muted); }
-  #docs-home .dhh-foot{ margin:22px 0 0; text-align:center; font-size:12px; color:var(--vg-muted); }
+  .dhh-board .dhh-foot{ margin:22px 0 0; text-align:center; font-size:12px; color:var(--vg-muted); }
 
   /* 돌아오는 길 — 박스 안에서 첫 화면으로. 엄지가 닿는 자리에 띄웁니다. */
-  #docs-back{ display:none; position:fixed; left:0; right:0; bottom:0; z-index:180;
+  #docs-back{ display:none; position:fixed; left:0; right:0; bottom:0; z-index:8100;
     padding:10px 0 calc(10px + env(safe-area-inset-bottom)); text-align:center;
     pointer-events:none; }
-  html[data-docsbox] #docs-back{ display:block; }
+  html[data-docsbox] #docs-back,
+  html[data-docsvendor="1"] #docs-back,
+  html[data-docsfiles="1"] #docs-back{ display:block; }
   #docs-back button{ pointer-events:auto; background:#fff; border:1px solid #E2E2DF;
     border-radius:999px; padding:10px 18px; font-size:13px; font-weight:700; color:#111110;
     box-shadow:0 8px 22px -14px rgba(0,0,0,.5); cursor:pointer; }
   #docs-back button:active{ background:#F4F4F2; }
+  html[data-docsvendor="1"] .dhh-wrap,
+  html[data-docsfiles="1"]  .dhh-wrap{ padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
 
   /* ── 박스 안 — 그 박스가 맡은 구역만 남깁니다.
         숨기는 것이지 지우는 것이 아닙니다. 요소는 전부 그대로 있습니다.
@@ -124,6 +130,8 @@
   html[data-docsbox="loose"]  #fileHits,
   html[data-docsbox="loose"]  #grid,
   html[data-docsbox="loose"]  #emptyState{ display:none !important; }
+  html[data-docsv="1"][data-docsbox="batch"] #vendorChips,
+  html[data-docsv="1"][data-docsbox="batch"] #vendorChips + span{ display:none !important; }
   html[data-docsbox] main{ padding-bottom:84px; }
 
   /* 폰 — 머리가 한 줄에 다 못 들어가면 글자가 한 자씩 세로로 쪼개졌다.
@@ -147,7 +155,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.23.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.24.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -175,7 +183,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.23.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.24.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -197,7 +205,7 @@
 <!-- ═══ 박스 판 — 기존 화면 위에 얹는 한 겹 ═══════════════════════
      눈에 나뉘어 보이던 덩어리 하나가 박스 하나입니다. 누르면 그 구역으로 갑니다.
      안쪽 화면은 한 줄도 고치지 않았습니다. 이 판만 빼면 그대로 되돌아갑니다. -->
-<div id="docs-home">
+<div id="docs-home" class="dhh-board">
   <div class="dhh-wrap">
 
     <div class="dhh-head">
@@ -217,12 +225,12 @@
         <span class="dhh-t">모든 차수<i id="dhh-c-all">거래처를 가리지 않고 전부</i></span>
       </button>
 
-      <button type="button" class="dhh-row" onclick="docsOpenBox('status')">
+      <button type="button" class="dhh-row" onclick="docsOpenRest('status')">
         <span class="dhh-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg></span>
         <span class="dhh-t">진행 현황<i id="dhh-c-status">—</i></span>
       </button>
 
-      <button type="button" class="dhh-row" onclick="docsOpenBox('loose')">
+      <button type="button" class="dhh-row" onclick="docsOpenRest('loose')">
         <span class="dhh-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 17h.01"/><path d="M10 12.3c.5-1 2.6-1.2 2.9.2.2 1-1 1.3-1 2"/></svg></span>
         <span class="dhh-t">차수가 붙지 않은 파일<i id="dhh-c-loose">—</i></span>
       </button>
@@ -243,8 +251,34 @@
   </div>
 </div>
 
+
+<!-- 거래처 안 — 발주 · 개발/샘플 · 미확인 -->
+<div id="docs-vendor" class="dhh-board">
+  <div class="dhh-wrap">
+    <div class="dhh-head">
+      <span class="dhh-day" id="dvn-name">—</span>
+      <span class="dhh-role">거래처</span>
+      <span class="dhh-sub" id="dvn-sub">&nbsp;</span>
+    </div>
+    <div class="dhh-tiles" id="dvn-tiles"></div>
+    <p class="dhh-foot">박스를 누르면 이 거래처 것만 나옵니다.</p>
+  </div>
+</div>
+
+<!-- 파일 목록 — 개발/샘플 · 미확인 -->
+<div id="docs-files" class="dhh-board">
+  <div class="dhh-wrap">
+    <div class="dhh-head">
+      <span class="dhh-day" id="dfl-name">—</span>
+      <span class="dhh-sub" id="dfl-sub">&nbsp;</span>
+    </div>
+    <div class="dhh-list" id="dfl-list"></div>
+    <p class="dhh-foot">파일을 누르면 그 자리에서 열어 봅니다.</p>
+  </div>
+</div>
+
 <!-- 박스 안에서 첫 화면으로 돌아오는 자리 -->
-<div id="docs-back"><button type="button" onclick="docsGoHome()">← 박스판</button></div>
+<div id="docs-back"><button type="button" id="dhh-back" onclick="docsBack()">← 박스판</button></div>
 
 <main class="max-w-[1400px] mx-auto px-6 py-8">
 
@@ -391,6 +425,7 @@
   /* 박스 하나 = 지금 화면에서 눈에 나뉘어 보이던 덩어리 하나.
      감추는 것은 CSS 가 하고, 여기서는 표(data-docsbox)만 바꿔 답니다. */
   const DOCS_BOXES = { batch: '차수', status: '진행 현황', loose: '차수가 붙지 않은 파일' };
+  const DHH_ICO_FILE = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
   const DHH_ICO_VENDOR = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h.01M9 12h.01M9 15h.01M9 18h.01"/></svg>';
 
   // 머리띠 높이를 재서 첫 화면이 그 아래에 딱 붙게 합니다.
@@ -401,44 +436,87 @@
   }
   window.addEventListener('resize', docsFitTop);
 
-  // 사람이 박스 안에 들어가 있는가. 첫 화면을 켤지 말지는 늘 이 값으로 정합니다 —
-  // 한 번 걷고 마는 식이면, 자료가 늦게 와서 잠깐 비었을 때 판이 영영 사라집니다.
-  let docsInBox = false;
+  /* 어디에 있는가 — 'home' 첫 판 · 'vendor' 거래처 판 · 'files' 파일 목록 · 'box' 안쪽 화면.
+     한 번 걷고 마는 식이면 자료가 늦게 와서 잠깐 비었을 때 판이 영영 사라집니다.
+     그래서 켤지 말지는 늘 이 값으로 다시 정합니다. */
+  let docsLevel = 'home';
+  let docsVendor = null;      // 어느 거래처 안에 들어와 있는가
+  let docsFiles = [];         // 지금 보고 있는 파일 목록
 
-  function docsShow() {
+  function docsPaint() {
     const root = document.documentElement;
     const c = window.docsCounts?.();
     const has = c ? c.has : true;          // 아직 못 읽었으면 첫 화면을 그대로 둡니다
+    const on = (name, yes) => yes ? root.setAttribute(name, '1') : root.removeAttribute(name);
     if (!has) {                            // 올라간 목록이 없으면 원래 안내를 보여 줍니다
-      root.removeAttribute('data-docshome');
-      root.removeAttribute('data-docsbox');
+      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv']
+        .forEach((n) => root.removeAttribute(n));
       return;
     }
-    if (docsInBox) root.removeAttribute('data-docshome');
-    else { root.removeAttribute('data-docsbox'); root.setAttribute('data-docshome', '1'); }
+    on('data-docshome',   docsLevel === 'home');
+    on('data-docsvendor', docsLevel === 'vendor');
+    on('data-docsfiles',  docsLevel === 'files');
+    on('data-docsv',      !!docsVendor);
+    if (docsLevel !== 'box') root.removeAttribute('data-docsbox');
+    const back = document.getElementById('dhh-back');
+    if (back) back.textContent = (docsLevel === 'box' && docsVendor) ? '← ' + docsVendor
+                               : (docsLevel === 'files') ? '← ' + (docsVendor ?? '거래처')
+                               : '← 박스판';
   }
+
+  function docsOpenBox(key) {
+    if (!DOCS_BOXES[key]) return;
+    docsLevel = 'box';
+    document.documentElement.setAttribute('data-docsbox', key);
+    docsPaint();
+    window.scrollTo(0, 0);
+  }
+
+  // 한 걸음 뒤로 — 안쪽 화면이면 거래처 판으로, 거래처 판이면 첫 판으로.
+  function docsBack() {
+    docsFitTop();
+    if (docsLevel === 'files') docsLevel = 'vendor';
+    else if (docsLevel === 'box' && docsVendor) docsLevel = 'vendor';
+    else { docsLevel = 'home'; docsVendor = null; }
+    if (docsLevel === 'vendor') docsVendorRefresh();
+    else docsHomeRefresh();
+    window.scrollTo(0, 0);
+  }
+  function docsGoHome() { docsLevel = 'home'; docsVendor = null; docsFitTop(); docsHomeRefresh(); window.scrollTo(0, 0); }
 
   const dhhEsc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
-  /* 박스를 엽니다. 거르는 일은 원래 있던 그 칩을 그대로 눌러서 합니다 —
-     사람이 손으로 누르는 것과 같은 길이라, 안쪽 화면은 하나도 안 고쳤습니다.
-     무엇으로 자를지는 js/app.js 의 BOX_CUT 한 줄에서 정합니다. */
+  /* 첫 판의 박스를 엽니다. 무엇으로 자를지는 js/app.js 의 BOX_CUT 한 줄에서 정합니다.
+     거래처로 자른 때에는 그 거래처 판으로 한 겹 더 들어갑니다. */
   let docsBoxList = [];
   function docsOpenCut(i) {
     const it = docsBoxList[i];
+    if (!it) return;
+    if (it.chipIn === '#vendorChips') {    // 거래처 — 안쪽 판으로
+      docsVendor = it.name;
+      docsLevel = 'vendor';
+      docsVendorRefresh();
+      window.scrollTo(0, 0);
+      return;
+    }
+    docsVendor = null;
     docsOpenBox('batch');
-    const where = it ? it.chipIn : '#vendorChips';
-    const want = it ? it.chip : '전체 거래처';
+    docsPressChip(it.chipIn, it.chip);
+  }
+  function docsPressChip(where, want) {
     [...document.querySelectorAll(where + ' button')]
       .find((b) => b.textContent.trim() === want)?.click();
   }
-  function docsOpenAll() {          // 거르지 않고 전부
+  function docsOpenAll() {                 // 거르지 않고 전부
+    docsVendor = null;
     docsOpenBox('batch');
-    [...document.querySelectorAll('#vendorChips button')]
-      .find((b) => b.textContent.trim() === '전체 거래처')?.click();
-    [...document.querySelectorAll('#statusChips button')]
-      .find((b) => b.textContent.trim() === '전체')?.click();
+    docsPressChip('#vendorChips', '전체 거래처');
+    docsPressChip('#statusChips', '전체');
+  }
+  function docsOpenRest(key) {             // '나머지' 줄 — 거래처에 매이지 않습니다
+    docsVendor = null;
+    docsOpenBox(key);
   }
 
   function docsTiles(list) {
@@ -458,30 +536,62 @@
       '<p style="grid-column:1/-1;margin:0;color:var(--vg-muted);font-size:13px">아직 박스가 없습니다.</p>';
   }
 
-  function docsOpenBox(key) {
-    if (!DOCS_BOXES[key]) return;
-    docsInBox = true;
-    document.documentElement.setAttribute('data-docsbox', key);
-    document.documentElement.removeAttribute('data-docshome');
-    window.scrollTo(0, 0);
+  /* ── 거래처 판 ── 발주 · 개발/샘플 · 미확인 ─────────────────────── */
+  function docsVendorRefresh() {
+    if (!docsVendor) return docsGoHome();
+    const v = window.docsVendorBoxes?.(docsVendor);
+    const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    put('dvn-name', docsVendor);
+    if (v) {
+      put('dvn-sub', `차수 ${v.batches}개 · 진행 중 ${v.active}`);
+      const box = document.getElementById('dvn-tiles');
+      if (box) box.innerHTML = `
+        <button type="button" class="dhh-tile dhh-dark" onclick="docsVendorBox('batch')">
+          <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+          <span><span class="dhh-nm">발주</span>
+            <span class="dhh-pct">차수 ${v.batches}개 · 진행 중 ${v.active}</span></span>
+        </button>
+        <button type="button" class="dhh-tile dhh-light" onclick="docsVendorBox('dev')">
+          <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+          <span><span class="dhh-nm">개발 / 샘플</span>
+            <span class="dhh-pct">${v.dev.length}건</span></span>
+        </button>
+        <button type="button" class="dhh-tile dhh-white" onclick="docsVendorBox('unsure')">
+          <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+          <span><span class="dhh-nm">미확인</span>
+            <span class="dhh-pct">${v.unsure.length}건</span></span>
+        </button>`;
+    }
+    docsPaint();
   }
 
-  function docsGoHome() {
-    docsFitTop();
-    docsInBox = false;
-    docsHomeRefresh();
+  function docsVendorBox(kind) {
+    const v = window.docsVendorBoxes?.(docsVendor);
+    if (!v) return;
+    if (kind === 'batch') {                // 발주 — 원래 차수 화면을 그 거래처로 걸러 보여 줍니다
+      docsOpenBox('batch');
+      docsPressChip('#vendorChips', docsVendor);
+      return;
+    }
+    docsFiles = kind === 'dev' ? v.dev : v.unsure;
+    const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    put('dfl-name', kind === 'dev' ? '개발 / 샘플' : '미확인');
+    put('dfl-sub', `${docsVendor} · ${docsFiles.length}건`);
+    const list = document.getElementById('dfl-list');
+    if (list) list.innerHTML = docsFiles.map((f, i) => `
+      <button type="button" class="dhh-row" onclick="window.docsOpenFile('${dhhEsc(f.path).replace(/'/g, "\\'")}')">
+        <span class="dhh-ico">${DHH_ICO_FILE}</span>
+        <span class="dhh-t">${dhhEsc(f.name)}<i>${dhhEsc([f.date, f.why].filter(Boolean).join(' · '))}</i></span>
+      </button>`).join('') ||
+      '<p style="margin:0;color:var(--vg-muted);font-size:13px">이 박스에 든 파일이 없습니다.</p>';
+    docsLevel = 'files';
+    docsPaint();
     window.scrollTo(0, 0);
-  }
-
-  // 규칙·제외함은 원래 있던 그 단추를 그대로 누릅니다 — 화면은 하나도 안 고쳤습니다.
-  function docsOpenPanel(which) {
-    docsOpenBox('loose');
-    document.getElementById(which === 'rules' ? 'btnRules' : 'btnExcluded')?.click();
   }
 
   function docsHomeRefresh() {
     docsFitTop();
-    docsShow();
+    docsPaint();
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     const D = new Date();
     put('dhh-day', D.getDate() + '일 ' + ['일','월','화','수','목','금','토'][D.getDay()] + '요일');
@@ -500,7 +610,7 @@
   window.docsHomeRefresh = docsHomeRefresh;
 
   // 첫 화면으로 엽니다. 일찍 찍어 둬야 잠깐이라도 안쪽이 비치지 않습니다.
-  docsShow();
+  docsPaint();
   window.addEventListener('load', () => { try { docsFitTop(); docsHomeRefresh(); } catch (e) {} });
 </script>
     <!-- 바이글 손잡이 — 주소에 ?viggle=1 이 있을 때만 켜진다 -->
@@ -3454,6 +3564,31 @@ const BOX_CUTS = {
         count: mine.length,
       };
     }),
+};
+
+/* 거래처 하나에 딸린, 차수가 안 붙은 파일을 두 갈래로 가릅니다.
+   개발·샘플 : 파서가 '제품개발'로 본 것(견적·도면·지시서·사양) + 이름에 샘플이 든 것.
+               파서에는 아직 '샘플' 갈래가 없어 여기서만 같이 봅니다 — 판정 규칙은
+               건드리지 않았습니다.
+   미확인    : 그 거래처 것으로는 보이는데 위에 안 드는 나머지 전부. 흘리지 않습니다. */
+const isDevDoc = (d) => d.stageKey === 'dev' || /샘플|sample/i.test(`${d.display ?? ''} ${d.name ?? ''}`);
+const slimDoc = (d) => ({ path: d.path, name: d.display, date: d.date ?? '', why: d.reason ?? '' });
+
+window.docsVendorBoxes = (vendor) => {
+  const mine = state.unassigned.filter((d) => d.vendor === vendor);
+  return {
+    vendor,
+    batches: state.batches.filter((b) => b.vendor === vendor).length,
+    active: state.batches.filter((b) => b.vendor === vendor && b.status === 'active').length,
+    dev: mine.filter(isDevDoc).map(slimDoc),
+    unsure: mine.filter((d) => !isDevDoc(d)).map(slimDoc),
+  };
+};
+
+/** 박스 판에서 파일 한 장을 그대로 열어 봅니다 — 원래 쓰던 그 보기 창입니다. */
+window.docsOpenFile = (path) => {
+  const d = state.unassigned.find((x) => x.path === path);
+  if (d) openDoc(d);
 };
 
 window.docsCounts = () => ({

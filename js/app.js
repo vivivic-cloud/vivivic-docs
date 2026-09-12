@@ -1558,6 +1558,31 @@ const BOX_CUTS = {
     }),
 };
 
+/* 거래처 하나에 딸린, 차수가 안 붙은 파일을 두 갈래로 가릅니다.
+   개발·샘플 : 파서가 '제품개발'로 본 것(견적·도면·지시서·사양) + 이름에 샘플이 든 것.
+               파서에는 아직 '샘플' 갈래가 없어 여기서만 같이 봅니다 — 판정 규칙은
+               건드리지 않았습니다.
+   미확인    : 그 거래처 것으로는 보이는데 위에 안 드는 나머지 전부. 흘리지 않습니다. */
+const isDevDoc = (d) => d.stageKey === 'dev' || /샘플|sample/i.test(`${d.display ?? ''} ${d.name ?? ''}`);
+const slimDoc = (d) => ({ path: d.path, name: d.display, date: d.date ?? '', why: d.reason ?? '' });
+
+window.docsVendorBoxes = (vendor) => {
+  const mine = state.unassigned.filter((d) => d.vendor === vendor);
+  return {
+    vendor,
+    batches: state.batches.filter((b) => b.vendor === vendor).length,
+    active: state.batches.filter((b) => b.vendor === vendor && b.status === 'active').length,
+    dev: mine.filter(isDevDoc).map(slimDoc),
+    unsure: mine.filter((d) => !isDevDoc(d)).map(slimDoc),
+  };
+};
+
+/** 박스 판에서 파일 한 장을 그대로 열어 봅니다 — 원래 쓰던 그 보기 창입니다. */
+window.docsOpenFile = (path) => {
+  const d = state.unassigned.find((x) => x.path === path);
+  if (d) openDoc(d);
+};
+
 window.docsCounts = () => ({
   batches: state.batches.length,
   vendors: new Set(state.batches.map((b) => b.vendor)).size,
