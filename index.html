@@ -145,7 +145,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.22.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.22.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -173,7 +173,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.22.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.22.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -409,8 +409,26 @@
   }
   window.addEventListener('resize', docsFitTop);
 
+  // 사람이 박스 안에 들어가 있는가. 첫 화면을 켤지 말지는 늘 이 값으로 정합니다 —
+  // 한 번 걷고 마는 식이면, 자료가 늦게 와서 잠깐 비었을 때 판이 영영 사라집니다.
+  let docsInBox = false;
+
+  function docsShow() {
+    const root = document.documentElement;
+    const c = window.docsCounts?.();
+    const has = c ? c.has : true;          // 아직 못 읽었으면 첫 화면을 그대로 둡니다
+    if (!has) {                            // 올라간 목록이 없으면 원래 안내를 보여 줍니다
+      root.removeAttribute('data-docshome');
+      root.removeAttribute('data-docsbox');
+      return;
+    }
+    if (docsInBox) root.removeAttribute('data-docshome');
+    else { root.removeAttribute('data-docsbox'); root.setAttribute('data-docshome', '1'); }
+  }
+
   function docsOpenBox(key) {
     if (!DOCS_BOXES[key]) return;
+    docsInBox = true;
     document.documentElement.setAttribute('data-docsbox', key);
     document.documentElement.removeAttribute('data-docshome');
     window.scrollTo(0, 0);
@@ -418,8 +436,7 @@
 
   function docsGoHome() {
     docsFitTop();
-    document.documentElement.removeAttribute('data-docsbox');
-    document.documentElement.setAttribute('data-docshome', '1');
+    docsInBox = false;
     docsHomeRefresh();
     window.scrollTo(0, 0);
   }
@@ -432,6 +449,7 @@
 
   function docsHomeRefresh() {
     docsFitTop();
+    docsShow();
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     const D = new Date();
     put('dhh-day', D.getDate() + '일 ' + ['일','월','화','수','목','금','토'][D.getDay()] + '요일');
@@ -447,17 +465,11 @@
     put('dhh-sub', '차수 ' + c.batches + '개 · 진행 중 ' + c.active + '개');
     const red = document.getElementById('dhh-red-batch');
     if (red) red.hidden = !c.warn;
-
-    // 아직 올라간 목록이 없으면 박스 판을 걷고 원래 안내를 그대로 보여 줍니다
-    if (!c.has) {
-      document.documentElement.removeAttribute('data-docshome');
-      document.documentElement.removeAttribute('data-docsbox');
-    }
   }
   window.docsHomeRefresh = docsHomeRefresh;
 
   // 첫 화면으로 엽니다. 일찍 찍어 둬야 잠깐이라도 안쪽이 비치지 않습니다.
-  document.documentElement.setAttribute('data-docshome', '1');
+  docsShow();
   window.addEventListener('load', () => { try { docsFitTop(); docsHomeRefresh(); } catch (e) {} });
 </script>
 
