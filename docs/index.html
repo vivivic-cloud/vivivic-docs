@@ -39,6 +39,58 @@
   .vv-sheet tr:nth-child(even) { background:#fafaf9; }
   [hidden] { display: none !important; }
 
+  /* ── 박스홈 — 작업대와 같은 모양 ─────────────────────────
+     작업대(바이글)의 홈처럼 거래처를 큰 타일로 놓고, 그 아래에
+     최근 차수를 알약 줄로 둡니다. 폰 375px 기준으로 짭니다. */
+  .wt { max-width: 860px; margin: 0 auto; }
+  .wt-h1 { margin:0 0 4px; font-size:38px; line-height:1.06; letter-spacing:-1.5px; font-weight:700; }
+  .wt-sub { margin:0 0 22px; color:#9b9a97; font-size:15px; }
+  .wt-bar { display:flex; align-items:center; justify-content:space-between; margin:0 0 12px; }
+  .wt-tbtn { display:inline-flex; align-items:center; gap:7px; background:none; border:0; padding:5px 0;
+             font-size:14px; font-weight:600; cursor:pointer; }
+  .wt-tbtn.g { color:#9b9a97; font-weight:500; }
+  .wt-tiles { display:grid; grid-template-columns:1.02fr 1fr; gap:12px; }
+  .wt-tiles.one { grid-template-columns:1fr; }
+  .wt-tile { position:relative; border-radius:26px; padding:17px; display:flex; flex-direction:column;
+             justify-content:space-between; gap:14px; overflow:hidden; cursor:pointer;
+             border:1px solid transparent; text-align:left; min-height:104px;
+             color:inherit; font:inherit; transition:transform .12s; }
+  .wt-tile:active { transform:scale(.975); }
+  .wt-tile.light { background:#f1f1ef; }
+  .wt-tile.white { background:#fff; border-color:#e3e2e0; }
+  .wt-tile.dark  { background:#37352f; color:#fff; }
+  .wt-tile .ico { width:54px; height:54px; border-radius:50%; display:grid; place-items:center; flex:none;
+                  background:rgba(0,0,0,.05); font-size:19px; font-weight:700; }
+  .wt-tile.dark .ico { background:rgba(255,255,255,.14); }
+  .wt-tile.white .ico { background:#f1f1ef; }
+  .wt-tile h3 { margin:0; font-size:20px; line-height:1.22; letter-spacing:-.5px; font-weight:700; }
+  .wt-tile.s1 h3 { font-size:23px; }
+  .wt-tile .pct { display:block; margin:5px 0 0; font-size:12.5px; color:#9b9a97; }
+  .wt-tile.dark .pct { color:rgba(255,255,255,.5); }
+  .wt-red { position:absolute; right:13px; top:13px; width:9px; height:9px; border-radius:50%;
+            background:#eb5757; box-shadow:0 0 0 3px #fbfbfa; }
+  .wt-tile.dark .wt-red  { box-shadow:0 0 0 3px #37352f; }
+  .wt-tile.light .wt-red { box-shadow:0 0 0 3px #f1f1ef; }
+  .wt-tile.white .wt-red { box-shadow:0 0 0 3px #fff; }
+  .wt-sec { display:flex; align-items:center; justify-content:space-between; margin:26px 0 12px; }
+  .wt-sec h2 { margin:0; font-size:19px; font-weight:700; letter-spacing:-.4px; }
+  .wt-list { display:flex; flex-direction:column; gap:9px; }
+  .wt-row { position:relative; display:flex; align-items:center; gap:12px; background:#f1f1ef;
+            border-radius:999px; padding:8px 16px 8px 8px; cursor:pointer; border:0; width:100%;
+            color:inherit; font:inherit; transition:transform .12s; }
+  .wt-row:active { transform:scale(.985); }
+  .wt-row .ico { width:42px; height:42px; border-radius:50%; flex:none; display:grid; place-items:center;
+                 background:#fff; font-size:13px; font-weight:700; }
+  .wt-row .ico.dark { background:#37352f; color:#fff; }
+  .wt-row .t { flex:1; min-width:0; font-size:15px; text-align:left;
+               white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .wt-row .t i { display:block; font-style:normal; font-size:11px; font-weight:500; color:#9b9a97; }
+  .wt-row .when { font-size:12px; color:#9b9a97; flex:none; }
+  /* 줄에서는 점을 차수 동그라미 어깨에 붙입니다 — 오른쪽에 두면 날짜와 겹칩니다 */
+  .wt-row .wt-red { left:38px; right:auto; top:6px; box-shadow:0 0 0 3px #f1f1ef; }
+  .wt-empty { margin:0; color:#9b9a97; font-size:13px; }
+  @media (min-width: 768px) { .wt-tiles { grid-template-columns:repeat(4,1fr); } }
+
   /* 폰 — 머리가 한 줄에 다 못 들어가면 글자가 한 자씩 세로로 쪼개졌다.
      단추들을 둘째 줄로 내리고, 어떤 글자도 줄바꿈하지 않는다. */
   @media (max-width: 767px) {
@@ -60,7 +112,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.19.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.20.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -88,7 +140,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.19.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.20.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -122,7 +174,32 @@
     </p>
   </section>
 
+  <!-- ── 박스홈 ── -->
+  <section id="home" hidden>
+    <div class="wt">
+      <h1 class="wt-h1">서류관리</h1>
+      <p class="wt-sub" id="homeSub"></p>
+
+      <div class="wt-bar">
+        <button class="wt-tbtn" id="homeAll">모든 차수 보기</button>
+        <button class="wt-tbtn g" id="homeCount" hidden></button>
+      </div>
+      <div class="wt-tiles" id="homeTiles"></div>
+
+      <div class="wt-sec">
+        <h2>최근 차수</h2>
+        <button class="wt-tbtn g" id="homeMore"></button>
+      </div>
+      <div class="wt-list" id="homeRecent"></div>
+    </div>
+  </section>
+
   <section id="dash" hidden>
+    <div class="flex items-center gap-3 mb-6">
+      <button id="btnHome" class="btn btn-ghost">← 박스홈</button>
+      <span id="dashWhere" class="text-[14px] font-bold"></span>
+    </div>
+
     <div id="kpis" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6"></div>
 
     <div class="card p-4 mb-6">
@@ -1654,6 +1731,7 @@ const state = {
   selected: new Set(),
   assignMode: 'assign',
   filter: { vendor: null, status: null, q: '' },
+  view: 'home',      // 'home' 은 박스홈, 'dash' 는 차수 목록
   openId: null,
   ciplBusy: new Set(),
   viewer: { list: [], idx: 0 },
@@ -1687,6 +1765,8 @@ async function boot() {
   $('#btnAssign').onclick = () => openAssign('assign');
   $('#btnExclude').onclick = () => openAssign('exclude');
   $('#btnClearSel').onclick = clearSelection;
+  $('#homeAll').onclick = $('#homeCount').onclick = $('#homeMore').onclick = () => setView('dash', null);
+  $('#btnHome').onclick = () => setView('home');
   $('#asCancel').onclick = closeAssign;
   $('#asSave').onclick = saveAssign;
   $('#asRule').onchange = (e) => ($('#asKeyword').hidden = !e.target.checked);
@@ -1803,10 +1883,26 @@ function applyParse() {
   state.batches = batches;
   state.unassigned = unassigned;
   state.excluded = excluded;
+  showView();
+  render();
+}
+
+/** 지금 보여야 할 판 하나만 켭니다. */
+function showView() {
   const has = state.files.length > 0;
   $('#empty').hidden = has;
-  $('#dash').hidden = !has;
+  $('#home').hidden = !has || state.view !== 'home';
+  $('#dash').hidden = !has || state.view !== 'dash';
+}
+
+/** 박스홈 ↔ 차수 목록을 오갑니다. */
+function setView(view, vendor) {
+  state.view = view;
+  if (view === 'dash') state.filter.vendor = vendor ?? null;
+  else { state.filter.vendor = null; state.filter.status = null; state.filter.q = ''; $('#search').value = ''; }
+  showView();
   render();
+  window.scrollTo(0, 0);
 }
 
 /* ── 켤 때 드라이브 한 번 확인 ────────────────────────── */
@@ -1969,8 +2065,88 @@ function renderFileHits() {
   }
 }
 
+/* ── 박스홈 ───────────────────────────────────────────── */
+
+/** 거래처 하나를 타일 한 장으로 봅니다. */
+function vendorBoxes() {
+  const by = new Map();
+  for (const b of state.batches) {
+    const v = by.get(b.vendor) ?? { vendor: b.vendor, all: 0, active: 0, warn: 0, last: '' };
+    v.all += 1;
+    if (b.status === 'active') v.active += 1;
+    if (b.issues.some((i) => i.level === 'warn')) v.warn += 1;
+    if ((b.lastDate ?? '') > v.last) v.last = b.lastDate ?? '';
+    by.set(b.vendor, v);
+  }
+  // 진행 중이 많은 곳을 앞에 둡니다 — 손이 자주 가는 자리입니다
+  return [...by.values()].sort((a, b) => b.active - a.active || b.all - a.all || a.vendor.localeCompare(b.vendor, 'ko'));
+}
+
+const TONES = ['dark', 'light', 'white', 'light'];
+
+function renderHome() {
+  const boxes = vendorBoxes();
+  const batches = state.batches;
+  const active = batches.filter((b) => b.status === 'active').length;
+
+  $('#homeSub').textContent =
+    `거래처 ${boxes.length}곳 · 차수 ${batches.length}개 · 진행 중 ${active}개`;
+  $('#homeCount').hidden = !state.unassigned.length;
+  $('#homeCount').textContent = `차수 안 붙은 파일 ${state.unassigned.length}건`;
+
+  // 첫 타일은 크게 — 작업대와 같은 모양입니다
+  const big = boxes.length >= 3;
+  $('#homeTiles').className = `wt-tiles${boxes.length === 1 ? ' one' : ''}`;
+  $('#homeTiles').innerHTML = boxes.length
+    ? boxes
+        .map((v, i) => {
+          const s1 = big && i === 0;
+          return `
+      <button class="wt-tile ${TONES[i % TONES.length]}${s1 ? ' s1' : ''}"
+              style="${s1 ? 'grid-row:span 2;min-height:220px' : ''}" data-vendor="${esc(v.vendor)}">
+        ${v.warn ? '<span class="wt-red"></span>' : ''}
+        <span class="ico">${esc(v.vendor.slice(0, 1))}</span>
+        <span>
+          <h3>${esc(v.vendor)}</h3>
+          <span class="pct">진행 ${v.active} · 전체 ${v.all}차${v.last ? ` · ${esc(v.last)}` : ''}</span>
+        </span>
+      </button>`;
+        })
+        .join('')
+    : '<p class="wt-empty">아직 거래처가 없습니다.</p>';
+
+  const recent = [...batches]
+    .sort((a, b) => (b.lastDate ?? '').localeCompare(a.lastDate ?? ''))
+    .slice(0, 6);
+  $('#homeMore').hidden = batches.length <= recent.length;
+  $('#homeMore').textContent = `전체 ${batches.length}개`;
+  $('#homeRecent').innerHTML = recent.length
+    ? recent
+        .map((b, i) => `
+      <button class="wt-row" data-batch="${esc(b.id)}">
+        ${b.issues.some((x) => x.level === 'warn') ? '<span class="wt-red"></span>' : ''}
+        <span class="ico ${i % 2 ? 'dark' : ''}">${esc(b.batch)}</span>
+        <span class="t">${esc(b.vendor)} ${esc(b.batch)}차
+          <i>7단계 중 ${b.done} · 서류 ${b.docs.length}건</i></span>
+        <span class="when">${esc(b.lastDate ?? '')}</span>
+      </button>`)
+        .join('')
+    : '<p class="wt-empty">아직 차수가 없습니다.</p>';
+
+  for (const el of $('#homeTiles').querySelectorAll('[data-vendor]'))
+    el.onclick = () => setView('dash', el.dataset.vendor);
+  for (const el of $('#homeRecent').querySelectorAll('[data-batch]'))
+    el.onclick = () => {
+      const b = state.batches.find((x) => x.id === el.dataset.batch);
+      setView('dash', b?.vendor ?? null);
+      openDrawer(el.dataset.batch);
+    };
+}
+
 function render() {
+  if (state.view === 'home') return renderHome();
   if ($('#dash').hidden) return;
+  $('#dashWhere').textContent = state.filter.vendor ?? '모든 거래처';
   renderKpis();
   renderChips();
   renderFileHits();

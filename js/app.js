@@ -15,6 +15,7 @@ const state = {
   selected: new Set(),
   assignMode: 'assign',
   filter: { vendor: null, status: null, q: '' },
+  view: 'home',      // 'home' 은 박스홈, 'dash' 는 차수 목록
   openId: null,
   ciplBusy: new Set(),
   viewer: { list: [], idx: 0 },
@@ -48,6 +49,8 @@ async function boot() {
   $('#btnAssign').onclick = () => openAssign('assign');
   $('#btnExclude').onclick = () => openAssign('exclude');
   $('#btnClearSel').onclick = clearSelection;
+  $('#homeAll').onclick = $('#homeCount').onclick = $('#homeMore').onclick = () => setView('dash', null);
+  $('#btnHome').onclick = () => setView('home');
   $('#asCancel').onclick = closeAssign;
   $('#asSave').onclick = saveAssign;
   $('#asRule').onchange = (e) => ($('#asKeyword').hidden = !e.target.checked);
@@ -164,10 +167,26 @@ function applyParse() {
   state.batches = batches;
   state.unassigned = unassigned;
   state.excluded = excluded;
+  showView();
+  render();
+}
+
+/** 지금 보여야 할 판 하나만 켭니다. */
+function showView() {
   const has = state.files.length > 0;
   $('#empty').hidden = has;
-  $('#dash').hidden = !has;
+  $('#home').hidden = !has || state.view !== 'home';
+  $('#dash').hidden = !has || state.view !== 'dash';
+}
+
+/** 박스홈 ↔ 차수 목록을 오갑니다. */
+function setView(view, vendor) {
+  state.view = view;
+  if (view === 'dash') state.filter.vendor = vendor ?? null;
+  else { state.filter.vendor = null; state.filter.status = null; state.filter.q = ''; $('#search').value = ''; }
+  showView();
   render();
+  window.scrollTo(0, 0);
 }
 
 /* ── 켤 때 드라이브 한 번 확인 ────────────────────────── */
@@ -330,8 +349,88 @@ function renderFileHits() {
   }
 }
 
+/* ── 박스홈 ───────────────────────────────────────────── */
+
+/** 거래처 하나를 타일 한 장으로 봅니다. */
+function vendorBoxes() {
+  const by = new Map();
+  for (const b of state.batches) {
+    const v = by.get(b.vendor) ?? { vendor: b.vendor, all: 0, active: 0, warn: 0, last: '' };
+    v.all += 1;
+    if (b.status === 'active') v.active += 1;
+    if (b.issues.some((i) => i.level === 'warn')) v.warn += 1;
+    if ((b.lastDate ?? '') > v.last) v.last = b.lastDate ?? '';
+    by.set(b.vendor, v);
+  }
+  // 진행 중이 많은 곳을 앞에 둡니다 — 손이 자주 가는 자리입니다
+  return [...by.values()].sort((a, b) => b.active - a.active || b.all - a.all || a.vendor.localeCompare(b.vendor, 'ko'));
+}
+
+const TONES = ['dark', 'light', 'white', 'light'];
+
+function renderHome() {
+  const boxes = vendorBoxes();
+  const batches = state.batches;
+  const active = batches.filter((b) => b.status === 'active').length;
+
+  $('#homeSub').textContent =
+    `거래처 ${boxes.length}곳 · 차수 ${batches.length}개 · 진행 중 ${active}개`;
+  $('#homeCount').hidden = !state.unassigned.length;
+  $('#homeCount').textContent = `차수 안 붙은 파일 ${state.unassigned.length}건`;
+
+  // 첫 타일은 크게 — 작업대와 같은 모양입니다
+  const big = boxes.length >= 3;
+  $('#homeTiles').className = `wt-tiles${boxes.length === 1 ? ' one' : ''}`;
+  $('#homeTiles').innerHTML = boxes.length
+    ? boxes
+        .map((v, i) => {
+          const s1 = big && i === 0;
+          return `
+      <button class="wt-tile ${TONES[i % TONES.length]}${s1 ? ' s1' : ''}"
+              style="${s1 ? 'grid-row:span 2;min-height:220px' : ''}" data-vendor="${esc(v.vendor)}">
+        ${v.warn ? '<span class="wt-red"></span>' : ''}
+        <span class="ico">${esc(v.vendor.slice(0, 1))}</span>
+        <span>
+          <h3>${esc(v.vendor)}</h3>
+          <span class="pct">진행 ${v.active} · 전체 ${v.all}차${v.last ? ` · ${esc(v.last)}` : ''}</span>
+        </span>
+      </button>`;
+        })
+        .join('')
+    : '<p class="wt-empty">아직 거래처가 없습니다.</p>';
+
+  const recent = [...batches]
+    .sort((a, b) => (b.lastDate ?? '').localeCompare(a.lastDate ?? ''))
+    .slice(0, 6);
+  $('#homeMore').hidden = batches.length <= recent.length;
+  $('#homeMore').textContent = `전체 ${batches.length}개`;
+  $('#homeRecent').innerHTML = recent.length
+    ? recent
+        .map((b, i) => `
+      <button class="wt-row" data-batch="${esc(b.id)}">
+        ${b.issues.some((x) => x.level === 'warn') ? '<span class="wt-red"></span>' : ''}
+        <span class="ico ${i % 2 ? 'dark' : ''}">${esc(b.batch)}</span>
+        <span class="t">${esc(b.vendor)} ${esc(b.batch)}차
+          <i>7단계 중 ${b.done} · 서류 ${b.docs.length}건</i></span>
+        <span class="when">${esc(b.lastDate ?? '')}</span>
+      </button>`)
+        .join('')
+    : '<p class="wt-empty">아직 차수가 없습니다.</p>';
+
+  for (const el of $('#homeTiles').querySelectorAll('[data-vendor]'))
+    el.onclick = () => setView('dash', el.dataset.vendor);
+  for (const el of $('#homeRecent').querySelectorAll('[data-batch]'))
+    el.onclick = () => {
+      const b = state.batches.find((x) => x.id === el.dataset.batch);
+      setView('dash', b?.vendor ?? null);
+      openDrawer(el.dataset.batch);
+    };
+}
+
 function render() {
+  if (state.view === 'home') return renderHome();
   if ($('#dash').hidden) return;
+  $('#dashWhere').textContent = state.filter.vendor ?? '모든 거래처';
   renderKpis();
   renderChips();
   renderFileHits();
