@@ -1521,23 +1521,32 @@ const BOX_CUT = 'vendor';
 
 /** 박스 하나 = { name, note, warn, chips(눌러 줄 칩), chipIn(칩이 있는 줄) } */
 const BOX_CUTS = {
+  // 차수가 있는 거래처 + 차수는 없고 파일만 있는 곳까지 모두 박스를 줍니다.
+  // 그래야 어느 박스에도 안 드는 파일이 생기지 않습니다.
   vendor: () =>
-    [...new Set(state.batches.map((b) => b.vendor))]
+    [...new Set([
+      ...state.batches.map((b) => b.vendor),
+      ...state.unassigned.map((d) => d.vendor).filter((v) => v && v !== '(루트)'),
+    ])]
       .map((name) => {
         const mine = state.batches.filter((b) => b.vendor === name);
+        const loose = state.unassigned.filter((d) => d.vendor === name).length;
         const active = mine.filter((b) => b.status === 'active').length;
         return {
           name,
-          note: `${mine.length}차 · 진행 중 ${active}`,
+          note: mine.length ? `${mine.length}차 · 진행 중 ${active}` : `차수 없음 · 파일 ${loose}건`,
           warn: mine.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
           chip: name,
           chipIn: '#vendorChips',
           active,
           count: mine.length,
+          loose,
         };
       })
-      // 진행 중이 많은 곳을 앞에 둡니다 — 손이 자주 가는 자리입니다
-      .sort((a, b) => b.active - a.active || b.count - a.count || a.name.localeCompare(b.name, 'ko')),
+      // 차수가 있는 곳이 먼저, 그중에도 진행 중이 많은 곳이 앞입니다
+      .sort((a, b) =>
+        (b.count > 0) - (a.count > 0) || b.active - a.active || b.count - a.count ||
+        b.loose - a.loose || a.name.localeCompare(b.name, 'ko')),
 
   status: () =>
     [
