@@ -15,8 +15,6 @@ const state = {
   selected: new Set(),
   assignMode: 'assign',
   filter: { vendor: null, status: null, q: '' },
-  view: 'home',      // 'home' 은 박스홈, 'dash' 는 그 박스의 화면
-  pane: null,        // 박스 하나만 볼 때 그 덩어리 id — null 이면 화면 전체
   openId: null,
   ciplBusy: new Set(),
   viewer: { list: [], idx: 0 },
@@ -50,10 +48,6 @@ async function boot() {
   $('#btnAssign').onclick = () => openAssign('assign');
   $('#btnExclude').onclick = () => openAssign('exclude');
   $('#btnClearSel').onclick = clearSelection;
-  $('#homeAll').onclick = () => setView('dash', null);
-  $('#homeCount').onclick = () => setView('dash', 'define');
-  $('#homeMore').onclick = () => setView('dash', 'paneBatch');
-  $('#btnHome').onclick = () => setView('home');
   $('#asCancel').onclick = closeAssign;
   $('#asSave').onclick = saveAssign;
   $('#asRule').onchange = (e) => ($('#asKeyword').hidden = !e.target.checked);
@@ -170,28 +164,11 @@ function applyParse() {
   state.batches = batches;
   state.unassigned = unassigned;
   state.excluded = excluded;
-  showView();
-  render();
-}
-
-/** 지금 보여야 할 판 하나만 켭니다. */
-function showView() {
   const has = state.files.length > 0;
   $('#empty').hidden = has;
-  $('#home').hidden = !has || state.view !== 'home';
-  $('#dash').hidden = !has || state.view !== 'dash';
-}
-
-/**
- * 박스홈 ↔ 그 박스의 화면을 오갑니다.
- * pane 을 주면 그 덩어리만, 안 주면(null) 지금까지처럼 화면 전체를 봅니다.
- */
-function setView(view, pane = null) {
-  state.view = view;
-  if (view === 'dash') state.pane = pane;
-  showView();
+  $('#dash').hidden = !has;
   render();
-  window.scrollTo(0, 0);
+  window.docsHomeRefresh?.();
 }
 
 /* ── 켤 때 드라이브 한 번 확인 ────────────────────────── */
@@ -354,103 +331,14 @@ function renderFileHits() {
   }
 }
 
-/* ── 박스홈 ───────────────────────────────────────────────
-   지금 화면에서 눈에 나뉘어 보이는 덩어리를 그대로 박스로 자른 것입니다.
-   박스를 누르면 그 덩어리가 지금 모습 그대로 나옵니다 — 안쪽은 건드리지
-   않았습니다. 필터·검색은 차수 격자를 거르는 손잡이라 한 박스에 둡니다. */
-
-const PANES = ['paneKpi', 'paneBatch', 'define'];
-
-function homeBoxes() {
-  const batches = state.batches;
-  const warn = batches.filter((b) => b.issues.some((i) => i.level === 'warn')).length;
-  return [
-    { pane: 'paneBatch', ico: '차', name: '차수',
-      note: `${batches.length}개 · 거래처 ${new Set(batches.map((b) => b.vendor)).size}곳`, red: warn },
-    { pane: 'paneKpi', ico: '현', name: '진행 현황',
-      note: `진행 중 ${batches.filter((b) => b.status === 'active').length}개`, red: 0 },
-    { pane: 'define', ico: '미', name: '차수가 붙지 않은 파일',
-      note: `${state.unassigned.length}건 · 규칙 ${state.rules.length}`, red: 0 },
-  ];
-}
-
-const TONES = ['dark', 'light', 'white', 'light'];
-
-function renderHome() {
-  const boxes = homeBoxes();
-  const batches = state.batches;
-  const active = batches.filter((b) => b.status === 'active').length;
-
-  $('#homeSub').textContent =
-    `거래처 ${new Set(batches.map((b) => b.vendor)).size}곳 · 차수 ${batches.length}개 · 진행 중 ${active}개`;
-  $('#homeCount').hidden = !state.unassigned.length;
-  $('#homeCount').textContent = `차수 안 붙은 파일 ${state.unassigned.length}건`;
-
-  // 첫 타일은 크게 — 작업대와 같은 모양입니다
-  $('#homeTiles').className = 'wt-tiles';
-  $('#homeTiles').innerHTML = boxes
-    .map((v, i) => {
-      const s1 = i === 0;
-      return `
-      <button class="wt-tile ${TONES[i % TONES.length]}${s1 ? ' s1' : ''}"
-              style="${s1 ? 'grid-row:span 2;min-height:220px' : ''}" data-pane="${v.pane}">
-        ${v.red ? '<span class="wt-red"></span>' : ''}
-        <span class="ico">${v.ico}</span>
-        <span>
-          <h3>${v.name}</h3>
-          <span class="pct">${v.note}</span>
-        </span>
-      </button>`;
-    })
-    .join('');
-
-  const recent = [...batches]
-    .sort((a, b) => (b.lastDate ?? '').localeCompare(a.lastDate ?? ''))
-    .slice(0, 6);
-  $('#homeMore').hidden = batches.length <= recent.length;
-  $('#homeMore').textContent = `전체 ${batches.length}개`;
-  $('#homeRecent').innerHTML = recent.length
-    ? recent
-        .map((b, i) => `
-      <button class="wt-row" data-batch="${esc(b.id)}">
-        ${b.issues.some((x) => x.level === 'warn') ? '<span class="wt-red"></span>' : ''}
-        <span class="ico ${i % 2 ? 'dark' : ''}">${esc(b.batch)}</span>
-        <span class="t">${esc(b.vendor)} ${esc(b.batch)}차
-          <i>7단계 중 ${b.done} · 서류 ${b.docs.length}건</i></span>
-        <span class="when">${esc(b.lastDate ?? '')}</span>
-      </button>`)
-        .join('')
-    : '<p class="wt-empty">아직 차수가 없습니다.</p>';
-
-  for (const el of $('#homeTiles').querySelectorAll('[data-pane]'))
-    el.onclick = () => setView('dash', el.dataset.pane);
-  for (const el of $('#homeRecent').querySelectorAll('[data-batch]'))
-    el.onclick = () => {
-      setView('dash', 'paneBatch');
-      openDrawer(el.dataset.batch);
-    };
-}
-
-/** 고른 박스의 덩어리만 남기고 나머지를 접습니다. 안쪽은 그대로입니다. */
-function applyPane() {
-  const only = state.pane;
-  $('#paneKpi').hidden = !!(only && only !== 'paneKpi');
-  $('#paneBatch').hidden = !!(only && only !== 'paneBatch');
-  // 미분류는 renderDefine 이 있을 때만 켭니다 — 그 판단을 덮지 않고 접기만 합니다
-  if (only && only !== 'define') $('#define').hidden = true;
-}
-
 function render() {
-  if (state.view === 'home') return renderHome();
   if ($('#dash').hidden) return;
-  $('#dashWhere').textContent =
-    homeBoxes().find((b) => b.pane === state.pane)?.name ?? '전체 화면';
   renderKpis();
   renderChips();
   renderFileHits();
   renderGrid();
   renderDefine();
-  applyPane();
+  window.docsHomeRefresh?.();
   if (state.openId) renderDrawer(state.openId);
 }
 
@@ -1623,6 +1511,20 @@ async function saveOverlay(id) {
     toast(`저장 실패: ${e.message}`);
   }
 }
+
+/* ── 박스판에 건넬 셈 ─────────────────────────────────────
+   첫 화면(박스판)은 index.html 에 있습니다. 여기서는 숫자만 내어 줍니다.
+   화면 안쪽은 아무것도 건드리지 않습니다. */
+window.docsCounts = () => ({
+  batches: state.batches.length,
+  vendors: new Set(state.batches.map((b) => b.vendor)).size,
+  active: state.batches.filter((b) => b.status === 'active').length,
+  warn: state.batches.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
+  loose: state.unassigned.length,
+  rules: state.rules.length,
+  excluded: state.excluded.length,
+  has: state.files.length > 0,
+});
 
 /* ── 토스트 ───────────────────────────────────────────── */
 

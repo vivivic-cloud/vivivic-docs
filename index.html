@@ -36,57 +36,92 @@
   .vv-sheet tr:nth-child(even) { background:#fafaf9; }
   [hidden] { display: none !important; }
 
-  /* ── 박스홈 — 작업대와 같은 모양 ─────────────────────────
-     작업대(바이글)의 홈처럼 거래처를 큰 타일로 놓고, 그 아래에
-     최근 차수를 알약 줄로 둡니다. 폰 375px 기준으로 짭니다. */
-  .wt { max-width: 860px; margin: 0 auto; }
-  .wt-h1 { margin:0 0 4px; font-size:38px; line-height:1.06; letter-spacing:-1.5px; font-weight:700; }
-  .wt-sub { margin:0 0 22px; color:#9b9a97; font-size:15px; }
-  .wt-bar { display:flex; align-items:center; justify-content:space-between; margin:0 0 12px; }
-  .wt-tbtn { display:inline-flex; align-items:center; gap:7px; background:none; border:0; padding:5px 0;
-             font-size:14px; font-weight:600; cursor:pointer; }
-  .wt-tbtn.g { color:#9b9a97; font-weight:500; }
-  .wt-tiles { display:grid; grid-template-columns:1.02fr 1fr; gap:12px; }
-  .wt-tiles.one { grid-template-columns:1fr; }
-  .wt-tile { position:relative; border-radius:26px; padding:17px; display:flex; flex-direction:column;
-             justify-content:space-between; gap:14px; overflow:hidden; cursor:pointer;
-             border:1px solid transparent; text-align:left; min-height:104px;
-             color:inherit; font:inherit; transition:transform .12s; }
-  .wt-tile:active { transform:scale(.975); }
-  .wt-tile.light { background:#f1f1ef; }
-  .wt-tile.white { background:#fff; border-color:#e3e2e0; }
-  .wt-tile.dark  { background:#37352f; color:#fff; }
-  .wt-tile .ico { width:54px; height:54px; border-radius:50%; display:grid; place-items:center; flex:none;
-                  background:rgba(0,0,0,.05); font-size:19px; font-weight:700; }
-  .wt-tile.dark .ico { background:rgba(255,255,255,.14); }
-  .wt-tile.white .ico { background:#f1f1ef; }
-  .wt-tile h3 { margin:0; font-size:20px; line-height:1.22; letter-spacing:-.5px; font-weight:700; }
-  .wt-tile.s1 h3 { font-size:23px; }
-  .wt-tile .pct { display:block; margin:5px 0 0; font-size:12.5px; color:#9b9a97; }
-  .wt-tile.dark .pct { color:rgba(255,255,255,.5); }
-  .wt-red { position:absolute; right:13px; top:13px; width:9px; height:9px; border-radius:50%;
-            background:#eb5757; box-shadow:0 0 0 3px #fbfbfa; }
-  .wt-tile.dark .wt-red  { box-shadow:0 0 0 3px #37352f; }
-  .wt-tile.light .wt-red { box-shadow:0 0 0 3px #f1f1ef; }
-  .wt-tile.white .wt-red { box-shadow:0 0 0 3px #fff; }
-  .wt-sec { display:flex; align-items:center; justify-content:space-between; margin:26px 0 12px; }
-  .wt-sec h2 { margin:0; font-size:19px; font-weight:700; letter-spacing:-.4px; }
-  .wt-list { display:flex; flex-direction:column; gap:9px; }
-  .wt-row { position:relative; display:flex; align-items:center; gap:12px; background:#f1f1ef;
-            border-radius:999px; padding:8px 16px 8px 8px; cursor:pointer; border:0; width:100%;
-            color:inherit; font:inherit; transition:transform .12s; }
-  .wt-row:active { transform:scale(.985); }
-  .wt-row .ico { width:42px; height:42px; border-radius:50%; flex:none; display:grid; place-items:center;
-                 background:#fff; font-size:13px; font-weight:700; }
-  .wt-row .ico.dark { background:#37352f; color:#fff; }
-  .wt-row .t { flex:1; min-width:0; font-size:15px; text-align:left;
-               white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .wt-row .t i { display:block; font-style:normal; font-size:11px; font-weight:500; color:#9b9a97; }
-  .wt-row .when { font-size:12px; color:#9b9a97; flex:none; }
-  /* 줄에서는 점을 차수 동그라미 어깨에 붙입니다 — 오른쪽에 두면 날짜와 겹칩니다 */
-  .wt-row .wt-red { left:38px; right:auto; top:6px; box-shadow:0 0 0 3px #f1f1ef; }
-  .wt-empty { margin:0; color:#9b9a97; font-size:13px; }
-  @media (min-width: 768px) { .wt-tiles { grid-template-columns:repeat(4,1fr); } }
+  /* ═══ 박스 판 — 기존 화면 위에 얹는 한 겹 ══════════════════════════
+     작업대(viggle)·에이엠티·조혼가구에 있는 것과 같은 모양입니다.
+     색 토큰·타일·알약을 그대로 가져왔고 새로 만든 색은 없습니다.
+     이름은 전부 dhh- 로 시작합니다 — 짧은 이름은 텔윈드와 겹칩니다.
+     이 블록과 #docs-home / #docs-back 두 덩어리만 빼면 그대로 되돌아갑니다. */
+  #docs-home{
+    --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19;
+    --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-fill:#F4F4F2; --vg-red:#FF3B30;
+    position:fixed; left:0; right:0; bottom:0; z-index:8000;
+    top:var(--dhh-top, 65px);   /* 머리띠 바로 아래 — 높이는 재서 넣습니다 */
+    display:none; background:var(--vg-bg); color:var(--vg-body);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  html[data-docshome="1"] #docs-home{ display:block; }
+  #docs-home *{ box-sizing:border-box; }
+  #docs-home .dhh-wrap{ max-width:430px; margin:0 auto;
+    padding:14px 20px calc(28px + env(safe-area-inset-bottom)); }
+  #docs-home .dhh-head{ display:flex; align-items:center; gap:8px; margin:0 0 14px; }
+  #docs-home .dhh-day{ font-size:19px; font-weight:700; letter-spacing:-.4px; color:var(--vg-ink); }
+  #docs-home .dhh-role{ border:1px solid var(--vg-ink); border-radius:999px; padding:3px 9px;
+    font-size:11px; font-weight:800; letter-spacing:1.2px; color:var(--vg-ink); }
+  #docs-home .dhh-sub{ margin-left:auto; font-size:12px; color:var(--vg-muted); }
+
+  #docs-home .dhh-tiles{ display:grid; grid-template-columns:1.02fr 1fr; gap:12px; }
+  #docs-home .dhh-tile{ position:relative; border-radius:26px; padding:17px; display:flex;
+    flex-direction:column; justify-content:space-between; gap:14px; min-height:132px;
+    border:1px solid transparent; text-align:left; cursor:pointer;
+    color:inherit; font:inherit; transition:transform .12s; }
+  #docs-home .dhh-tile:active{ transform:scale(.975); }
+  #docs-home .dhh-tile.dhh-light{ background:var(--vg-fill); }
+  #docs-home .dhh-tile.dhh-white{ background:#fff; border-color:var(--vg-edge); }
+  #docs-home .dhh-tile.dhh-dark{ background:var(--vg-ink); color:#fff; }
+  #docs-home .dhh-tile .dhh-ico{ width:54px; height:54px; border-radius:50%; flex:none;
+    display:grid; place-items:center; background:rgba(0,0,0,.05); }
+  #docs-home .dhh-tile.dhh-dark .dhh-ico{ background:rgba(255,255,255,.14); }
+  #docs-home .dhh-tile.dhh-white .dhh-ico{ background:var(--vg-fill); }
+  #docs-home .dhh-tile .dhh-nm{ display:block; font-size:20px; line-height:1.22;
+    letter-spacing:-.5px; font-weight:700; }
+  #docs-home .dhh-tile .dhh-pct{ display:block; margin-top:5px; font-size:12.5px; color:var(--vg-muted); }
+  #docs-home .dhh-tile.dhh-dark .dhh-pct{ color:rgba(255,255,255,.5); }
+  #docs-home .dhh-red{ position:absolute; right:13px; top:13px; width:9px; height:9px;
+    border-radius:50%; background:var(--vg-red); box-shadow:0 0 0 3px var(--vg-ink); }
+
+  #docs-home .dhh-sec{ display:flex; align-items:center; justify-content:space-between; margin:26px 0 12px; }
+  #docs-home .dhh-sec b{ font-size:19px; font-weight:700; letter-spacing:-.4px; color:var(--vg-ink); }
+  #docs-home .dhh-sec span{ font-size:12px; color:var(--vg-muted); }
+  #docs-home .dhh-list{ display:flex; flex-direction:column; gap:9px; }
+  #docs-home .dhh-row{ display:flex; align-items:center; gap:12px; background:var(--vg-fill);
+    border-radius:999px; padding:8px 16px 8px 8px; border:0; width:100%; cursor:pointer;
+    color:inherit; font:inherit; transition:transform .12s; }
+  #docs-home .dhh-row:active{ transform:scale(.985); }
+  #docs-home .dhh-row .dhh-ico{ width:42px; height:42px; border-radius:50%; flex:none;
+    display:grid; place-items:center; background:#fff; }
+  #docs-home .dhh-row .dhh-t{ flex:1; min-width:0; font-size:15px; text-align:left;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #docs-home .dhh-row .dhh-t i{ display:block; font-style:normal; font-size:11px;
+    font-weight:500; color:var(--vg-muted); }
+  #docs-home .dhh-foot{ margin:22px 0 0; text-align:center; font-size:12px; color:var(--vg-muted); }
+
+  /* 돌아오는 길 — 박스 안에서 첫 화면으로. 엄지가 닿는 자리에 띄웁니다. */
+  #docs-back{ display:none; position:fixed; left:0; right:0; bottom:0; z-index:180;
+    padding:10px 0 calc(10px + env(safe-area-inset-bottom)); text-align:center;
+    pointer-events:none; }
+  html[data-docsbox] #docs-back{ display:block; }
+  #docs-back button{ pointer-events:auto; background:#fff; border:1px solid #E2E2DF;
+    border-radius:999px; padding:10px 18px; font-size:13px; font-weight:700; color:#111110;
+    box-shadow:0 8px 22px -14px rgba(0,0,0,.5); cursor:pointer; }
+  #docs-back button:active{ background:#F4F4F2; }
+
+  /* ── 박스 안 — 그 박스가 맡은 구역만 남깁니다.
+        숨기는 것이지 지우는 것이 아닙니다. 요소는 전부 그대로 있습니다.
+        거르기·검색 카드는 아이디가 없어 자리로 짚습니다(#dash 의 직계 .card.p-4). ── */
+  html[data-docsbox="batch"]  #kpis,
+  html[data-docsbox="batch"]  #define,
+  html[data-docsbox="status"] #dash > .card.p-4,
+  html[data-docsbox="status"] #fileHits,
+  html[data-docsbox="status"] #grid,
+  html[data-docsbox="status"] #emptyState,
+  html[data-docsbox="status"] #define,
+  html[data-docsbox="loose"]  #kpis,
+  html[data-docsbox="loose"]  #dash > .card.p-4,
+  html[data-docsbox="loose"]  #fileHits,
+  html[data-docsbox="loose"]  #grid,
+  html[data-docsbox="loose"]  #emptyState{ display:none !important; }
+  html[data-docsbox] main{ padding-bottom:84px; }
 
   /* 폰 — 머리가 한 줄에 다 못 들어가면 글자가 한 자씩 세로로 쪼개졌다.
      단추들을 둘째 줄로 내리고, 어떤 글자도 줄바꿈하지 않는다. */
@@ -110,7 +145,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.21.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.22.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -138,7 +173,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.21.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.22.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -156,6 +191,70 @@
   </div>
 </header>
 
+
+<!-- ═══ 박스 판 — 기존 화면 위에 얹는 한 겹 ═══════════════════════
+     눈에 나뉘어 보이던 덩어리 하나가 박스 하나입니다. 누르면 그 구역으로 갑니다.
+     안쪽 화면은 한 줄도 고치지 않았습니다. 이 판만 빼면 그대로 되돌아갑니다. -->
+<div id="docs-home">
+  <div class="dhh-wrap">
+
+    <div class="dhh-head">
+      <span class="dhh-day" id="dhh-day">—</span>
+      <span class="dhh-role">서류관리</span>
+      <span class="dhh-sub" id="dhh-sub">&nbsp;</span>
+    </div>
+
+    <div class="dhh-tiles">
+
+      <button type="button" class="dhh-tile dhh-dark" onclick="docsOpenBox('batch')">
+        <span class="dhh-red" id="dhh-red-batch" hidden></span>
+        <span class="dhh-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></span>
+        <span>
+          <span class="dhh-nm">차수</span>
+          <span class="dhh-pct" id="dhh-c-batch">—</span>
+        </span>
+      </button>
+
+      <button type="button" class="dhh-tile dhh-light" onclick="docsOpenBox('status')">
+        <span class="dhh-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg></span>
+        <span>
+          <span class="dhh-nm">진행 현황</span>
+          <span class="dhh-pct" id="dhh-c-status">—</span>
+        </span>
+      </button>
+
+      <button type="button" class="dhh-tile dhh-white" onclick="docsOpenBox('loose')">
+        <span class="dhh-ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 17h.01"/><path d="M10 12.3c.5-1 2.6-1.2 2.9.2.2 1-1 1.3-1 2"/></svg></span>
+        <span>
+          <span class="dhh-nm">차수가 붙지<br>않은 파일</span>
+          <span class="dhh-pct" id="dhh-c-loose">—</span>
+        </span>
+      </button>
+
+    </div>
+
+    <div class="dhh-sec"><b>나머지</b><span>2</span></div>
+    <div class="dhh-list">
+
+      <button type="button" class="dhh-row" onclick="docsOpenPanel('rules')">
+        <span class="dhh-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg></span>
+        <span class="dhh-t">규칙<i id="dhh-c-rules">파일을 자동으로 분류하는 잣대</i></span>
+      </button>
+
+      <button type="button" class="dhh-row" onclick="docsOpenPanel('excluded')">
+        <span class="dhh-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg></span>
+        <span class="dhh-t">제외함<i id="dhh-c-excluded">목록에서 뺀 파일</i></span>
+      </button>
+
+    </div>
+
+    <p class="dhh-foot">박스를 누르면 지금 쓰던 그 화면이 그대로 나옵니다.<br><b id="dhh-ver"></b></p>
+  </div>
+</div>
+
+<!-- 박스 안에서 첫 화면으로 돌아오는 자리 -->
+<div id="docs-back"><button type="button" onclick="docsGoHome()">← 박스판</button></div>
+
 <main class="max-w-[1400px] mx-auto px-6 py-8">
 
   <!-- 클라우드에 데이터가 없을 때 -->
@@ -172,39 +271,9 @@
     </p>
   </section>
 
-  <!-- ── 박스홈 ── -->
-  <section id="home" hidden>
-    <div class="wt">
-      <h1 class="wt-h1">서류관리</h1>
-      <p class="wt-sub" id="homeSub"></p>
-
-      <div class="wt-bar">
-        <button class="wt-tbtn" id="homeAll">전체 화면 그대로 보기</button>
-        <button class="wt-tbtn g" id="homeCount" hidden></button>
-      </div>
-      <div class="wt-tiles" id="homeTiles"></div>
-
-      <div class="wt-sec">
-        <h2>최근 차수</h2>
-        <button class="wt-tbtn g" id="homeMore"></button>
-      </div>
-      <div class="wt-list" id="homeRecent"></div>
-    </div>
-  </section>
-
   <section id="dash" hidden>
-    <div class="flex items-center gap-3 mb-6">
-      <button id="btnHome" class="btn btn-ghost">← 박스홈</button>
-      <span id="dashWhere" class="text-[14px] font-bold"></span>
-    </div>
+    <div id="kpis" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6"></div>
 
-    <!-- 박스 · 진행 현황 — 안쪽은 그대로입니다 -->
-    <div id="paneKpi">
-      <div id="kpis" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6"></div>
-    </div>
-
-    <!-- 박스 · 차수 — 안쪽은 그대로입니다 -->
-    <div id="paneBatch">
     <div class="card p-4 mb-6">
       <div class="flex flex-wrap items-center gap-2">
         <div id="vendorChips" class="flex flex-wrap items-center gap-1.5"></div>
@@ -218,7 +287,6 @@
 
     <div id="grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
     <div id="emptyState" class="card p-12 text-center text-muted" hidden>조건에 맞는 차수가 없습니다.</div>
-    </div>
 
     <!-- ── 정의 안 된 파일 ── -->
     <section id="define" class="mt-10" hidden>
@@ -325,6 +393,73 @@
 <div id="toast"
      class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-white text-[13px] font-semibold
             px-4 py-2.5 rounded-lg shadow-lg z-[300] opacity-0 pointer-events-none transition-opacity"></div>
+
+
+<!-- 박스 판을 움직이는 코드 — 안쪽 화면(js/app.js)은 건드리지 않습니다 -->
+<script>
+  /* 박스 하나 = 지금 화면에서 눈에 나뉘어 보이던 덩어리 하나.
+     감추는 것은 CSS 가 하고, 여기서는 표(data-docsbox)만 바꿔 답니다. */
+  const DOCS_BOXES = { batch: '차수', status: '진행 현황', loose: '차수가 붙지 않은 파일' };
+
+  // 머리띠 높이를 재서 첫 화면이 그 아래에 딱 붙게 합니다.
+  function docsFitTop() {
+    const h = document.querySelector('#app header');
+    const px = h ? Math.round(h.getBoundingClientRect().height) : 65;
+    if (px > 0) document.documentElement.style.setProperty('--dhh-top', px + 'px');
+  }
+  window.addEventListener('resize', docsFitTop);
+
+  function docsOpenBox(key) {
+    if (!DOCS_BOXES[key]) return;
+    document.documentElement.setAttribute('data-docsbox', key);
+    document.documentElement.removeAttribute('data-docshome');
+    window.scrollTo(0, 0);
+  }
+
+  function docsGoHome() {
+    docsFitTop();
+    document.documentElement.removeAttribute('data-docsbox');
+    document.documentElement.setAttribute('data-docshome', '1');
+    docsHomeRefresh();
+    window.scrollTo(0, 0);
+  }
+
+  // 규칙·제외함은 원래 있던 그 단추를 그대로 누릅니다 — 화면은 하나도 안 고쳤습니다.
+  function docsOpenPanel(which) {
+    docsOpenBox('loose');
+    document.getElementById(which === 'rules' ? 'btnRules' : 'btnExcluded')?.click();
+  }
+
+  function docsHomeRefresh() {
+    docsFitTop();
+    const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    const D = new Date();
+    put('dhh-day', D.getDate() + '일 ' + ['일','월','화','수','목','금','토'][D.getDay()] + '요일');
+    put('dhh-ver', document.querySelector('#app .tracking-wider')?.textContent?.trim() ?? '');
+
+    const c = window.docsCounts?.();
+    if (!c) return;
+    put('dhh-c-batch',  c.batches + '개 · 거래처 ' + c.vendors + '곳');
+    put('dhh-c-status', '진행 중 ' + c.active + '개');
+    put('dhh-c-loose',  c.loose + '건');
+    put('dhh-c-rules',  '파일을 자동으로 분류하는 잣대 ' + c.rules + '개');
+    put('dhh-c-excluded', '목록에서 뺀 파일 ' + c.excluded + '건');
+    put('dhh-sub', '차수 ' + c.batches + '개 · 진행 중 ' + c.active + '개');
+    const red = document.getElementById('dhh-red-batch');
+    if (red) red.hidden = !c.warn;
+
+    // 아직 올라간 목록이 없으면 박스 판을 걷고 원래 안내를 그대로 보여 줍니다
+    if (!c.has) {
+      document.documentElement.removeAttribute('data-docshome');
+      document.documentElement.removeAttribute('data-docsbox');
+    }
+  }
+  window.docsHomeRefresh = docsHomeRefresh;
+
+  // 첫 화면으로 엽니다. 일찍 찍어 둬야 잠깐이라도 안쪽이 비치지 않습니다.
+  document.documentElement.setAttribute('data-docshome', '1');
+  window.addEventListener('load', () => { try { docsFitTop(); docsHomeRefresh(); } catch (e) {} });
+</script>
 
 <script src="./js/vendor/xlsx.full.min.js"></script>
 <script type="module" src="./js/app.js"></script>
