@@ -110,7 +110,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.20.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.21.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -138,7 +138,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.20.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.21.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -179,7 +179,7 @@
       <p class="wt-sub" id="homeSub"></p>
 
       <div class="wt-bar">
-        <button class="wt-tbtn" id="homeAll">모든 차수 보기</button>
+        <button class="wt-tbtn" id="homeAll">전체 화면 그대로 보기</button>
         <button class="wt-tbtn g" id="homeCount" hidden></button>
       </div>
       <div class="wt-tiles" id="homeTiles"></div>
@@ -198,8 +198,13 @@
       <span id="dashWhere" class="text-[14px] font-bold"></span>
     </div>
 
-    <div id="kpis" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6"></div>
+    <!-- 박스 · 진행 현황 — 안쪽은 그대로입니다 -->
+    <div id="paneKpi">
+      <div id="kpis" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6"></div>
+    </div>
 
+    <!-- 박스 · 차수 — 안쪽은 그대로입니다 -->
+    <div id="paneBatch">
     <div class="card p-4 mb-6">
       <div class="flex flex-wrap items-center gap-2">
         <div id="vendorChips" class="flex flex-wrap items-center gap-1.5"></div>
@@ -213,6 +218,7 @@
 
     <div id="grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
     <div id="emptyState" class="card p-12 text-center text-muted" hidden>조건에 맞는 차수가 없습니다.</div>
+    </div>
 
     <!-- ── 정의 안 된 파일 ── -->
     <section id="define" class="mt-10" hidden>

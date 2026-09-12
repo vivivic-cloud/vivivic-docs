@@ -15,7 +15,8 @@ const state = {
   selected: new Set(),
   assignMode: 'assign',
   filter: { vendor: null, status: null, q: '' },
-  view: 'home',      // 'home' 은 박스홈, 'dash' 는 차수 목록
+  view: 'home',      // 'home' 은 박스홈, 'dash' 는 그 박스의 화면
+  pane: null,        // 박스 하나만 볼 때 그 덩어리 id — null 이면 화면 전체
   openId: null,
   ciplBusy: new Set(),
   viewer: { list: [], idx: 0 },
@@ -49,7 +50,9 @@ async function boot() {
   $('#btnAssign').onclick = () => openAssign('assign');
   $('#btnExclude').onclick = () => openAssign('exclude');
   $('#btnClearSel').onclick = clearSelection;
-  $('#homeAll').onclick = $('#homeCount').onclick = $('#homeMore').onclick = () => setView('dash', null);
+  $('#homeAll').onclick = () => setView('dash', null);
+  $('#homeCount').onclick = () => setView('dash', 'define');
+  $('#homeMore').onclick = () => setView('dash', 'paneBatch');
   $('#btnHome').onclick = () => setView('home');
   $('#asCancel').onclick = closeAssign;
   $('#asSave').onclick = saveAssign;
@@ -179,11 +182,13 @@ function showView() {
   $('#dash').hidden = !has || state.view !== 'dash';
 }
 
-/** 박스홈 ↔ 차수 목록을 오갑니다. */
-function setView(view, vendor) {
+/**
+ * 박스홈 ↔ 그 박스의 화면을 오갑니다.
+ * pane 을 주면 그 덩어리만, 안 주면(null) 지금까지처럼 화면 전체를 봅니다.
+ */
+function setView(view, pane = null) {
   state.view = view;
-  if (view === 'dash') state.filter.vendor = vendor ?? null;
-  else { state.filter.vendor = null; state.filter.status = null; state.filter.q = ''; $('#search').value = ''; }
+  if (view === 'dash') state.pane = pane;
   showView();
   render();
   window.scrollTo(0, 0);
@@ -349,55 +354,55 @@ function renderFileHits() {
   }
 }
 
-/* ── 박스홈 ───────────────────────────────────────────── */
+/* ── 박스홈 ───────────────────────────────────────────────
+   지금 화면에서 눈에 나뉘어 보이는 덩어리를 그대로 박스로 자른 것입니다.
+   박스를 누르면 그 덩어리가 지금 모습 그대로 나옵니다 — 안쪽은 건드리지
+   않았습니다. 필터·검색은 차수 격자를 거르는 손잡이라 한 박스에 둡니다. */
 
-/** 거래처 하나를 타일 한 장으로 봅니다. */
-function vendorBoxes() {
-  const by = new Map();
-  for (const b of state.batches) {
-    const v = by.get(b.vendor) ?? { vendor: b.vendor, all: 0, active: 0, warn: 0, last: '' };
-    v.all += 1;
-    if (b.status === 'active') v.active += 1;
-    if (b.issues.some((i) => i.level === 'warn')) v.warn += 1;
-    if ((b.lastDate ?? '') > v.last) v.last = b.lastDate ?? '';
-    by.set(b.vendor, v);
-  }
-  // 진행 중이 많은 곳을 앞에 둡니다 — 손이 자주 가는 자리입니다
-  return [...by.values()].sort((a, b) => b.active - a.active || b.all - a.all || a.vendor.localeCompare(b.vendor, 'ko'));
+const PANES = ['paneKpi', 'paneBatch', 'define'];
+
+function homeBoxes() {
+  const batches = state.batches;
+  const warn = batches.filter((b) => b.issues.some((i) => i.level === 'warn')).length;
+  return [
+    { pane: 'paneBatch', ico: '차', name: '차수',
+      note: `${batches.length}개 · 거래처 ${new Set(batches.map((b) => b.vendor)).size}곳`, red: warn },
+    { pane: 'paneKpi', ico: '현', name: '진행 현황',
+      note: `진행 중 ${batches.filter((b) => b.status === 'active').length}개`, red: 0 },
+    { pane: 'define', ico: '미', name: '차수가 붙지 않은 파일',
+      note: `${state.unassigned.length}건 · 규칙 ${state.rules.length}`, red: 0 },
+  ];
 }
 
 const TONES = ['dark', 'light', 'white', 'light'];
 
 function renderHome() {
-  const boxes = vendorBoxes();
+  const boxes = homeBoxes();
   const batches = state.batches;
   const active = batches.filter((b) => b.status === 'active').length;
 
   $('#homeSub').textContent =
-    `거래처 ${boxes.length}곳 · 차수 ${batches.length}개 · 진행 중 ${active}개`;
+    `거래처 ${new Set(batches.map((b) => b.vendor)).size}곳 · 차수 ${batches.length}개 · 진행 중 ${active}개`;
   $('#homeCount').hidden = !state.unassigned.length;
   $('#homeCount').textContent = `차수 안 붙은 파일 ${state.unassigned.length}건`;
 
   // 첫 타일은 크게 — 작업대와 같은 모양입니다
-  const big = boxes.length >= 3;
-  $('#homeTiles').className = `wt-tiles${boxes.length === 1 ? ' one' : ''}`;
-  $('#homeTiles').innerHTML = boxes.length
-    ? boxes
-        .map((v, i) => {
-          const s1 = big && i === 0;
-          return `
+  $('#homeTiles').className = 'wt-tiles';
+  $('#homeTiles').innerHTML = boxes
+    .map((v, i) => {
+      const s1 = i === 0;
+      return `
       <button class="wt-tile ${TONES[i % TONES.length]}${s1 ? ' s1' : ''}"
-              style="${s1 ? 'grid-row:span 2;min-height:220px' : ''}" data-vendor="${esc(v.vendor)}">
-        ${v.warn ? '<span class="wt-red"></span>' : ''}
-        <span class="ico">${esc(v.vendor.slice(0, 1))}</span>
+              style="${s1 ? 'grid-row:span 2;min-height:220px' : ''}" data-pane="${v.pane}">
+        ${v.red ? '<span class="wt-red"></span>' : ''}
+        <span class="ico">${v.ico}</span>
         <span>
-          <h3>${esc(v.vendor)}</h3>
-          <span class="pct">진행 ${v.active} · 전체 ${v.all}차${v.last ? ` · ${esc(v.last)}` : ''}</span>
+          <h3>${v.name}</h3>
+          <span class="pct">${v.note}</span>
         </span>
       </button>`;
-        })
-        .join('')
-    : '<p class="wt-empty">아직 거래처가 없습니다.</p>';
+    })
+    .join('');
 
   const recent = [...batches]
     .sort((a, b) => (b.lastDate ?? '').localeCompare(a.lastDate ?? ''))
@@ -417,25 +422,35 @@ function renderHome() {
         .join('')
     : '<p class="wt-empty">아직 차수가 없습니다.</p>';
 
-  for (const el of $('#homeTiles').querySelectorAll('[data-vendor]'))
-    el.onclick = () => setView('dash', el.dataset.vendor);
+  for (const el of $('#homeTiles').querySelectorAll('[data-pane]'))
+    el.onclick = () => setView('dash', el.dataset.pane);
   for (const el of $('#homeRecent').querySelectorAll('[data-batch]'))
     el.onclick = () => {
-      const b = state.batches.find((x) => x.id === el.dataset.batch);
-      setView('dash', b?.vendor ?? null);
+      setView('dash', 'paneBatch');
       openDrawer(el.dataset.batch);
     };
+}
+
+/** 고른 박스의 덩어리만 남기고 나머지를 접습니다. 안쪽은 그대로입니다. */
+function applyPane() {
+  const only = state.pane;
+  $('#paneKpi').hidden = !!(only && only !== 'paneKpi');
+  $('#paneBatch').hidden = !!(only && only !== 'paneBatch');
+  // 미분류는 renderDefine 이 있을 때만 켭니다 — 그 판단을 덮지 않고 접기만 합니다
+  if (only && only !== 'define') $('#define').hidden = true;
 }
 
 function render() {
   if (state.view === 'home') return renderHome();
   if ($('#dash').hidden) return;
-  $('#dashWhere').textContent = state.filter.vendor ?? '모든 거래처';
+  $('#dashWhere').textContent =
+    homeBoxes().find((b) => b.pane === state.pane)?.name ?? '전체 화면';
   renderKpis();
   renderChips();
   renderFileHits();
   renderGrid();
   renderDefine();
+  applyPane();
   if (state.openId) renderDrawer(state.openId);
 }
 
