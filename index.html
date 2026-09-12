@@ -186,7 +186,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.25.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.25.2</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -214,7 +214,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.25.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.25.2</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -622,7 +622,7 @@
     if (!v) return;
     if (kind === 'batch') {                // 발주 — 원래 차수 화면을 그 거래처로 걸러 보여 줍니다
       docsOpenBox('batch');
-      docsPressChip('#vendorChips', docsVendor);
+      window.docsFilterVendor?.(docsVendor);
       return;
     }
     docsFiles = kind === 'dev' ? v.dev : v.unsure;

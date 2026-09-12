@@ -1624,6 +1624,15 @@ window.docsCountKeyword = (keyword) => {
   return state.files.filter((f) => `${f.name ?? ''} ${f.path ?? ''}`.toLowerCase().includes(k)).length;
 };
 
+/* 발주 박스 — 그 거래처 것만 걸러 둡니다.
+   칩을 눌러 거르면 차수가 없는 거래처(삐에노·리나 같은 곳)는 칩이 없어
+   아무것도 안 걸리고 남의 차수까지 그대로 나옵니다. 그래서 여기서 곧장 겁니다. */
+window.docsFilterVendor = (vendor) => {
+  state.filter.vendor = vendor ?? null;
+  state.filter.status = null;   // 그 거래처 차수를 다 보여 줍니다
+  render();
+};
+
 /** 박스 판에서 파일 한 장을 그대로 열어 봅니다 — 원래 쓰던 그 보기 창입니다. */
 window.docsOpenFile = (path) => {
   const d = state.unassigned.find((x) => x.path === path);

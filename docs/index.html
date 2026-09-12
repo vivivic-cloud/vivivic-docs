@@ -188,7 +188,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.25.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.25.2</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -216,7 +216,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.25.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.25.2</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -624,7 +624,7 @@
     if (!v) return;
     if (kind === 'batch') {                // 발주 — 원래 차수 화면을 그 거래처로 걸러 보여 줍니다
       docsOpenBox('batch');
-      docsPressChip('#vendorChips', docsVendor);
+      window.docsFilterVendor?.(docsVendor);
       return;
     }
     docsFiles = kind === 'dev' ? v.dev : v.unsure;
@@ -3716,6 +3716,15 @@ window.docsCountKeyword = (keyword) => {
   const k = String(keyword ?? '').trim().toLowerCase();
   if (!k) return 0;
   return state.files.filter((f) => `${f.name ?? ''} ${f.path ?? ''}`.toLowerCase().includes(k)).length;
+};
+
+/* 발주 박스 — 그 거래처 것만 걸러 둡니다.
+   칩을 눌러 거르면 차수가 없는 거래처(삐에노·리나 같은 곳)는 칩이 없어
+   아무것도 안 걸리고 남의 차수까지 그대로 나옵니다. 그래서 여기서 곧장 겁니다. */
+window.docsFilterVendor = (vendor) => {
+  state.filter.vendor = vendor ?? null;
+  state.filter.status = null;   // 그 거래처 차수를 다 보여 줍니다
+  render();
 };
 
 /** 박스 판에서 파일 한 장을 그대로 열어 봅니다 — 원래 쓰던 그 보기 창입니다. */
