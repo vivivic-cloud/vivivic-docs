@@ -1597,6 +1597,13 @@ window.docsNewBox = async (name, keyword) => {
   if (!name) return { ok: false, msg: '거래처 이름을 넣어주세요.' };
   if (!keyword) return { ok: false, msg: '어떤 파일을 넣을지 — 파일명에 든 말을 하나 넣어주세요.' };
 
+  // 이름이 겹치면 두 거래처 자료가 한 박스에 섞입니다. 겹치면 만들지 않습니다.
+  const 있는것 = new Set([
+    ...state.batches.map((b) => b.vendor),
+    ...state.unassigned.map((d) => d.vendor),
+  ].filter(Boolean).map((v) => v.trim()));
+  if (있는것.has(name)) return { ok: false, msg: `'${name}' 박스는 이미 있습니다. 다른 이름으로 해주세요.` };
+
   const hit = state.files.filter((f) => `${f.name ?? ''} ${f.path ?? ''}`.toLowerCase().includes(keyword.toLowerCase()));
   if (!hit.length) return { ok: false, msg: `'${keyword}' 가 든 파일이 없습니다.` };
   if (state.demo) return { ok: false, msg: '데모 모드라 저장하지 않습니다.' };
