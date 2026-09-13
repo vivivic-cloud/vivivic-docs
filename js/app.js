@@ -1286,18 +1286,19 @@ function renderDrawer(id) {
   let diffs = new Map();
 
   /* 서류 한 장을 박스 하나로 — 박스 이름이 곧 그 서류의 이름입니다.
-     이름을 자르지 않고 다 보여 줍니다. 누르는 자리는 전과 같습니다. */
+     모양은 작업대(viggle)의 박스 값을 그대로 씁니다(.dhh-dbox).
+     이름은 자르지 않고 다 보여 줍니다. 누르는 자리는 전과 같습니다. */
   const docLink = (d) => `
-    <li class="border border-line rounded-xl bg-white px-3 py-2.5">
+    <li class="dhh-dbox">
       <div class="flex items-start gap-2">
-        <button data-doc="${esc(d.path)}" class="text-left text-[12.5px] font-semibold text-info hover:underline break-words" title="${esc(fileTitle(d))}">
+        <button data-doc="${esc(d.path)}" class="dnm text-left text-info hover:underline break-words" title="${esc(fileTitle(d))}">
           ${esc(d.display)}
         </button>
         ${linkBadge(d)}${copyBadge(d)}
         ${d.driveId ? `<a href="${driveOpen(d.driveId)}" target="_blank" rel="noopener"
              class="text-[11px] text-faint hover:text-ink shrink-0 ml-auto">↗</a>` : ''}
       </div>
-      <span class="text-[11px] text-faint">${[d.date, fmtSize(d.size)].filter(Boolean).join(' · ')}</span>
+      <span class="dmt">${[d.date, fmtSize(d.size)].filter(Boolean).join(' · ')}</span>
       ${diffs.has(d.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(d.path)}</div>` : ''}
       ${(() => {
         const c = ciplOf(d);

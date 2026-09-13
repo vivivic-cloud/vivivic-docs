@@ -98,6 +98,14 @@
     font-weight:500; color:var(--vg-muted); }
   .dhh-board .dhh-foot{ margin:22px 0 0; text-align:center; font-size:12px; color:var(--vg-muted); }
 
+  /* 서류 박스 — 작업대(viggle)의 .abox 를 값 그대로 가져왔습니다.
+     모서리 20px · 테두리 1px #E2E2DF · 안쪽 14px · 이름 15px/600, 아래 글 12px.
+     눈대중으로 비슷하게 지은 것이 아니라 그 값 그대로입니다. */
+  .dhh-dbox{ border:1px solid #E2E2DF; border-radius:20px; background:#fff; padding:14px;
+    text-align:left; display:flex; flex-direction:column; gap:10px; }
+  .dhh-dbox .dnm{ font-size:15px; font-weight:600; line-height:1.25; }
+  .dhh-dbox .dmt{ font-size:12px; color:#9C9C98; }
+
   /* 새 박스 — 작업대(viggle)의 떠 있는 단추와 아래에서 올라오는 칸을 그대로 따랐습니다 */
   #docs-fab{ display:none; position:fixed; right:16px; z-index:8100;
     bottom:calc(16px + env(safe-area-inset-bottom));
@@ -187,7 +195,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.28.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.29.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -215,7 +223,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.28.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.29.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -325,7 +333,7 @@
     <p class="dhh-hint" id="dhh-mk-hint"></p>
     <div class="dhh-go">
       <button type="button" class="dhh-no" onclick="docsMakeClose()">그만두기</button>
-      <button type="button" class="dhh-ok" onclick="docsMakeGo()">만들기</button>
+      <button type="button" class="dhh-ok" id="dhh-mk-go" onclick="docsMakeGo()">만들기</button>
     </div>
   </div>
 </div>
@@ -672,23 +680,53 @@
     if (w) { w.value = ''; w.placeholder = docsMakeIn ? '파일명에 든 말 — 예: 샘플' : '파일명에 든 말 — 예: 리나'; }
     docsMakeCount();
   }
-  function docsMakeClose() { document.documentElement.removeAttribute('data-docsmk'); }
+  function docsMakeClose() { document.documentElement.removeAttribute('data-docsmk'); docsMakeDisarm(); }
+
+  /* 지우는 길이 아직 없습니다. 그래서 만들기는 두 번 눌러야 합니다 —
+     한 번 눌러 무엇이 생기는지 보여 주고, 그래도 누르시면 만듭니다. */
+  let docsMakeArmed = false;
+  function docsMakeDisarm() {
+    docsMakeArmed = false;
+    const go = document.getElementById('dhh-mk-go');
+    if (go) go.textContent = '만들기';
+  }
   function docsMakeCount() {
     const w = document.getElementById('dhh-mk-word')?.value ?? '';
     const hint = document.getElementById('dhh-mk-hint');
     if (!hint) return;
+    docsMakeDisarm();
     if (!w.trim()) { hint.textContent = ''; return; }
     const n = docsMakeIn ? (window.docsCountInVendor?.(docsMakeIn, w) ?? 0)
                         : (window.docsCountKeyword?.(w) ?? 0);
     hint.textContent = n ? `이 말이 든 파일 ${n}건이 이 박스로 들어옵니다.` : '이 말이 든 파일이 없습니다.';
   }
   async function docsMakeGo() {
-    const name = document.getElementById('dhh-mk-name')?.value ?? '';
-    const word = document.getElementById('dhh-mk-word')?.value ?? '';
+    const name = (document.getElementById('dhh-mk-name')?.value ?? '').trim();
+    const word = (document.getElementById('dhh-mk-word')?.value ?? '').trim();
     const hint = document.getElementById('dhh-mk-hint');
+
+    // 한 번 더 묻습니다 — 만든 박스를 지우는 길이 아직 없습니다.
+    if (!docsMakeArmed) {
+      if (!name || !word) {
+        if (hint) hint.textContent = !name ? '이름을 넣어주세요.' : '파일명에 든 말을 하나 넣어주세요.';
+        return;
+      }
+      const n = docsMakeIn ? (window.docsCountInVendor?.(docsMakeIn, word) ?? 0)
+                           : (window.docsCountKeyword?.(word) ?? 0);
+      if (!n) { if (hint) hint.textContent = '이 말이 든 파일이 없습니다.'; return; }
+      docsMakeArmed = true;
+      const go = document.getElementById('dhh-mk-go');
+      if (go) go.textContent = '네, 만듭니다';
+      if (hint) hint.textContent =
+        `${docsMakeIn ? docsMakeIn + ' 안에 ' : ''}'${name}' 박스를 만들고 파일 ${n}건을 담습니다. ` +
+        '지우는 길은 아직 없습니다 — 그대로 만들까요?';
+      return;
+    }
+
     const r = docsMakeIn ? await window.docsAddVendorBox?.(docsMakeIn, name, word)
                          : await window.docsNewBox?.(name, word);
     if (!r) return;
+    docsMakeDisarm();
     if (hint) hint.textContent = r.msg;
     if (r.ok) { docsMakeClose(); docsMakeIn ? docsVendorRefresh() : docsHomeRefresh(); }
   }
