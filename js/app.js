@@ -9,6 +9,7 @@ const state = {
   files: [],
   batches: [],
   unassigned: [],
+  boxes: [],            // 거래처 안에 손으로 만든 박스
   overlay: {},
   rules: [],
   excluded: [],
@@ -118,7 +119,8 @@ async function enterApp(user) {
   state.unsub.push(
     DB.watchFiles((files) => { state.files = files; applyParse(); }),
     DB.watchOverlay((ov) => { state.overlay = ov; render(); }),
-    DB.watchRules((rules) => { state.rules = rules; applyParse(); })
+    DB.watchRules((rules) => { state.rules = rules; applyParse(); }),
+    DB.watchBoxes((boxes) => { state.boxes = boxes; window.docsBoxesChanged?.(); })
   );
 }
 
@@ -1577,15 +1579,65 @@ const BOX_CUTS = {
 const isDevDoc = (d) => d.stageKey === 'dev' || /샘플|sample/i.test(`${d.display ?? ''} ${d.name ?? ''}`);
 const slimDoc = (d) => ({ path: d.path, name: d.display, date: d.date ?? '', why: d.reason ?? '' });
 
+/* 손으로 만든 박스에 드는 파일인지 — 파일명이나 자리에 그 말이 들어 있으면. */
+const inBox = (box, d) =>
+  `${d.name ?? ''} ${d.path ?? ''}`.toLowerCase().includes(String(box.word ?? '').toLowerCase());
+
 window.docsVendorBoxes = (vendor) => {
   const mine = state.unassigned.filter((d) => d.vendor === vendor);
+  // 손으로 만든 박스가 먼저 가져갑니다. 가져간 것은 개발/샘플·미확인에서 빠집니다 —
+  // 그래야 한 파일이 두 박스에 겹쳐 보이지 않습니다.
+  const 손박스 = (state.boxes ?? []).filter((b) => b.vendor === vendor && b.word);
+  const 담김 = new Set();
+  const mine2 = 손박스.map((box) => {
+    const docs = mine.filter((d) => !담김.has(d.path) && inBox(box, d));
+    for (const d of docs) 담김.add(d.path);
+    return { name: box.name, word: box.word, docs: docs.map(slimDoc) };
+  });
+  const 남은것 = mine.filter((d) => !담김.has(d.path));
   return {
     vendor,
     batches: state.batches.filter((b) => b.vendor === vendor).length,
     active: state.batches.filter((b) => b.vendor === vendor && b.status === 'active').length,
-    dev: mine.filter(isDevDoc).map(slimDoc),
-    unsure: mine.filter((d) => !isDevDoc(d)).map(slimDoc),
+    dev: 남은것.filter(isDevDoc).map(slimDoc),
+    unsure: 남은것.filter((d) => !isDevDoc(d)).map(slimDoc),
+    mine: mine2,
   };
+};
+
+/* 거래처 안에 박스 하나를 더합니다. 드라이브에는 아무것도 만들지 않습니다 —
+   화면에서만 묶어 봅니다. 판정 규칙과 따로 두어 단계 판정은 흔들리지 않습니다. */
+window.docsAddVendorBox = async (vendor, name, word) => {
+  vendor = String(vendor ?? '').trim();
+  name = String(name ?? '').trim();
+  word = String(word ?? '').trim();
+  if (!vendor) return { ok: false, msg: '어느 거래처인지 모르겠습니다.' };
+  if (!name) return { ok: false, msg: '박스 이름을 넣어주세요.' };
+  if (!word) return { ok: false, msg: '어떤 파일을 넣을지 — 파일명에 든 말을 하나 넣어주세요.' };
+
+  const 있는것 = new Set([
+    '발주', '개발 / 샘플', '개발/샘플', '미확인',
+    ...(state.boxes ?? []).filter((b) => b.vendor === vendor).map((b) => String(b.name).trim()),
+  ]);
+  if (있는것.has(name)) return { ok: false, msg: `'${name}' 박스는 이미 있습니다. 다른 이름으로 해주세요.` };
+
+  const hit = state.unassigned.filter((d) => d.vendor === vendor && inBox({ word }, d));
+  if (!hit.length) return { ok: false, msg: `${vendor} 파일 가운데 '${word}' 가 든 것이 없습니다.` };
+  if (state.demo) return { ok: false, msg: '데모 모드라 저장하지 않습니다.' };
+
+  try {
+    await DB.saveBox({ vendor, name, word }, state.user?.email);
+    return { ok: true, msg: `'${name}' 박스를 만들었습니다 — 파일 ${hit.length}건.` };
+  } catch (e) {
+    return { ok: false, msg: `저장 실패: ${e.message}` };
+  }
+};
+
+/** 거래처 안에서 이 말이 든 파일이 몇 건인지 미리 세어 봅니다. */
+window.docsCountInVendor = (vendor, word) => {
+  const w = String(word ?? '').trim();
+  if (!w) return 0;
+  return state.unassigned.filter((d) => d.vendor === vendor && inBox({ word: w }, d)).length;
 };
 
 /* 새 박스 만들기.

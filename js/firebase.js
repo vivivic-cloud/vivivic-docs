@@ -172,6 +172,24 @@ export async function saveCipl(batchId, patch) {
   await ctx.f.setDoc(ctx.f.doc(col(OVERLAY), overlayKey(batchId)), { batchId, ...patch }, { merge: true });
 }
 
+/* ── 거래처 안에 손으로 만든 박스 ─────────────────────────
+   판정 규칙(docs_rules)과 따로 둡니다. 규칙에 넣으면 파일이 어느 단계인지
+   가리는 셈까지 흔들립니다 — 이건 화면에서 묶어 보는 것일 뿐입니다. */
+
+export function watchBoxes(cb) {
+  return ctx.f.onSnapshot(ctx.f.doc(col(CONFIG), 'boxes'), (s) =>
+    cb(s.exists() ? (s.data().list ?? []) : [])
+  );
+}
+
+/** 박스 하나를 더합니다. 목록 전체를 다시 씁니다 — 많아야 몇십 개입니다. */
+export async function saveBox(box, email) {
+  const snap = await ctx.f.getDoc(ctx.f.doc(col(CONFIG), 'boxes'));
+  const list = snap.exists() ? (snap.data().list ?? []) : [];
+  list.push({ ...box, createdBy: email ?? null, createdAt: new Date().toISOString() });
+  await ctx.f.setDoc(ctx.f.doc(col(CONFIG), 'boxes'), { list }, { merge: true });
+}
+
 /* ── 사용자 정의 규칙 ─────────────────────────────────── */
 
 export const RULES = 'docs_rules';
