@@ -381,10 +381,13 @@ function renderChips() {
   }
 }
 
+/* 일곱 단계를 동그란 점 일곱 개로 — 끝난 것은 찬 점, 아직은 빈 점.
+   에이엠티 공정관리의 그 점과 같은 크기(6px)로 맞췄습니다. 단계는 늘 일곱이라
+   줄을 넘지 않습니다. 무엇이 끝났는지는 원래 쓰던 판정을 그대로 씁니다. */
 function stageDots(b) {
   return STAGES.map((s) => {
     const filled = b.stages.find((x) => x.key === s.key).docs.length > 0;
-    return `<span title="${s.id}. ${esc(s.label)}" class="w-full h-[6px] rounded-full ${filled ? 'bg-ink' : 'bg-line'}"></span>`;
+    return `<span title="${s.id}. ${esc(s.label)}" class="w-1.5 h-1.5 rounded-full shrink-0 ${filled ? 'bg-ink' : 'bg-line'}"></span>`;
   }).join('');
 }
 
@@ -396,18 +399,17 @@ function renderGrid() {
       const warn = b.issues.filter((i) => i.level === 'warn').length;
       const info = b.issues.filter((i) => i.level === 'info').length;
       return `
-      <button class="card p-5 text-left hover:border-ink/25 hover:shadow transition-all" data-open="${esc(b.id)}">
-        <div class="flex items-start justify-between gap-3 mb-3">
+      <button class="card p-3.5 text-left hover:border-ink/25 hover:shadow transition-all" data-open="${esc(b.id)}">
+        <div class="flex items-start justify-between gap-3 mb-2">
           <div>
             <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
-            <div class="text-[19px] font-bold leading-tight">${esc(b.batch)}차</div>
+            <div class="text-[16px] font-bold leading-tight">${esc(b.batch)}차</div>
           </div>
           <div class="text-right shrink-0">
-            <div class="text-[19px] font-bold leading-tight">${b.done}<span class="text-faint text-[13px]">/7</span></div>
-            <div class="text-[11px] text-faint font-semibold">${b.percent}%</div>
+            <div class="text-[15px] font-bold leading-tight">${b.done}<span class="text-faint text-[12px]">/7</span></div>
           </div>
         </div>
-        <div class="grid grid-cols-7 gap-1 mb-3">${stageDots(b)}</div>
+        <div class="flex items-center gap-[3px] mb-2">${stageDots(b)}</div>
         <div class="flex items-center gap-2 flex-wrap text-[11px] font-semibold">
           ${b.lastDate ? `<span class="text-faint">최근 ${esc(b.lastDate)}</span>` : ''}
           <span class="text-faint">서류 ${b.docs.length}건</span>
