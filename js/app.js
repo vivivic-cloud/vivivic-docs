@@ -1133,6 +1133,7 @@ function openDrawer(id) {
   const b = state.batches.find((x) => x.id === id);
   if (b) loadCipl(b);
   $('#scrim').hidden = false;
+  document.documentElement.setAttribute('data-docsdrawer', '1');   // 서랍 위에 ＋ 가 뜨지 않게
   requestAnimationFrame(() => $('#drawer').classList.remove('translate-x-full'));
 }
 
@@ -1140,6 +1141,7 @@ function closeDrawer() {
   state.openId = null;
   $('#drawer').classList.add('translate-x-full');
   $('#scrim').hidden = true;
+  document.documentElement.removeAttribute('data-docsdrawer');
 }
 
 function renderDrawer(id) {

@@ -112,9 +112,15 @@
     width:56px; height:56px; border-radius:50%; background:#111110; color:#fff; border:0;
     place-items:center; cursor:pointer; font-size:28px; line-height:1; font-weight:400;
     box-shadow:0 6px 20px rgba(17,17,16,.26); transition:transform .12s; }
-  html[data-docshome="1"] #docs-fab,
-  html[data-docsvendor="1"] #docs-fab{ display:grid; }
-  html[data-docsmk="1"]   #docs-fab{ display:none; }
+  /* 박스가 있는 화면에는 어디에나 ＋ 가 있습니다 —
+     첫 판(거래처 박스) · 거래처 판(발주·개발/샘플·미확인) · 파일 목록 · 차수 목록. */
+  html[data-docshome="1"]  #docs-fab,
+  html[data-docsvendor="1"] #docs-fab,
+  html[data-docsfiles="1"] #docs-fab,
+  html[data-docsbox="batch"] #docs-fab{ display:grid; }
+  /* 칸이 올라와 있거나 서랍이 열려 있으면 가립니다 */
+  html[data-docsmk="1"]     #docs-fab,
+  html[data-docsdrawer="1"] #docs-fab{ display:none; }
   #docs-fab:active{ transform:scale(.94); }
 
   #docs-sheet{ display:none; position:fixed; inset:0; z-index:8200;
@@ -195,7 +201,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.29.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.30.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -223,7 +229,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.29.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.30.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -666,7 +672,9 @@
   // 첫 판에서 누르면 거래처 박스를, 거래처 판에서 누르면 그 거래처 안의 박스를 만듭니다.
   let docsMakeIn = null;           // null 이면 거래처 박스, 아니면 그 거래처 안
   function docsMakeOpen() {
-    docsMakeIn = (docsLevel === 'vendor') ? docsVendor : null;
+    // 거래처 안(거래처 판·파일 목록·그 거래처로 걸러 둔 차수 목록)이면 그 거래처 안에,
+    // 거래처를 가리지 않는 자리면 거래처 박스를 만듭니다.
+    docsMakeIn = docsVendor ?? null;
     document.documentElement.setAttribute('data-docsmk', '1');
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     put('dhh-mk-title', docsMakeIn ? `${docsMakeIn} 안에 새 박스` : '새 박스');
