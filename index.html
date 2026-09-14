@@ -41,7 +41,7 @@
      색 토큰·타일·알약을 그대로 가져왔고 새로 만든 색은 없습니다.
      이름은 전부 dhh- 로 시작합니다 — 짧은 이름은 텔윈드와 겹칩니다.
      이 블록과 #docs-home / #docs-back 두 덩어리만 빼면 그대로 되돌아갑니다. */
-  #docs-home, #docs-vendor, #docs-files, #docs-orders{
+  #docs-home, #docs-vendor, #docs-files, #docs-orders, #docs-kinds{
     --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19;
     --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-fill:#F4F4F2; --vg-red:#FF3B30;
     position:fixed; left:0; right:0; bottom:0; z-index:8000;
@@ -54,6 +54,7 @@
   html[data-docsvendor="1"] #docs-vendor{ display:block; }
   html[data-docsfiles="1"]  #docs-files{ display:block; }
   html[data-docsorders="1"] #docs-orders{ display:block; }
+  html[data-docskinds="1"]  #docs-kinds{ display:block; }
   .dhh-board *{ box-sizing:border-box; }
   .dhh-board .dhh-wrap{ max-width:430px; margin:0 auto;
     padding:14px 20px calc(28px + env(safe-area-inset-bottom)); }
@@ -174,6 +175,7 @@
   html[data-docsbox] #docs-back,
   html[data-docsvendor="1"] #docs-back,
   html[data-docsorders="1"] #docs-back,
+  html[data-docskinds="1"] #docs-back,
   html[data-docsfiles="1"] #docs-back{ display:block; }
   #docs-back button{ pointer-events:auto; background:#fff; border:1px solid #E2E2DF;
     border-radius:999px; padding:10px 18px; font-size:13px; font-weight:700; color:#111110;
@@ -181,6 +183,7 @@
   #docs-back button:active{ background:#F4F4F2; }
   html[data-docsvendor="1"] .dhh-wrap,
   html[data-docsorders="1"] .dhh-wrap,
+  html[data-docskinds="1"]  .dhh-wrap,
   html[data-docsfiles="1"]  .dhh-wrap{ padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
 
   /* ── 박스 안 — 그 박스가 맡은 구역만 남깁니다.
@@ -224,7 +227,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.32.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.33.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -252,7 +255,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.32.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.33.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -337,6 +340,18 @@
     </div>
     <div class="dhh-tiles" id="dvn-tiles"></div>
     <p class="dhh-foot">박스를 누르면 이 거래처 것만 나옵니다.</p>
+  </div>
+</div>
+
+<!-- 구분 박스 — 파일 종류로 다섯 갈래 -->
+<div id="docs-kinds" class="dhh-board">
+  <div class="dhh-wrap">
+    <div class="dhh-head">
+      <span class="dhh-day" id="dkd-name">—</span>
+      <span class="dhh-sub" id="dkd-sub">&nbsp;</span>
+    </div>
+    <div class="dhh-tiles" id="dkd-tiles"></div>
+    <p class="dhh-foot">파일 종류로 나눠 둡니다. 어디에도 안 드는 것은 기타로 갑니다.</p>
   </div>
 </div>
 
@@ -556,7 +571,7 @@
     const has = c ? c.has : true;          // 아직 못 읽었으면 첫 화면을 그대로 둡니다
     const on = (name, yes) => yes ? root.setAttribute(name, '1') : root.removeAttribute(name);
     if (!has) {                            // 올라간 목록이 없으면 원래 안내를 보여 줍니다
-      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docsorders']
+      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docsorders','data-docskinds']
         .forEach((n) => root.removeAttribute(n));
       return;
     }
@@ -564,11 +579,13 @@
     on('data-docsvendor', docsLevel === 'vendor');
     on('data-docsfiles',  docsLevel === 'files');
     on('data-docsorders', docsLevel === 'orders');
+    on('data-docskinds',  docsLevel === 'kinds');
     on('data-docsv',      !!docsVendor);
     if (docsLevel !== 'box') root.removeAttribute('data-docsbox');
     const back = document.getElementById('dhh-back');
     if (back) back.textContent = (docsLevel === 'box' && docsVendor) ? '← ' + docsVendor
-                               : (docsLevel === 'files') ? '← ' + (docsVendor ?? '거래처')
+                               : (docsLevel === 'files' && docsKindWhere) ? '← ' + docsKindWhere
+                               : (docsLevel === 'files' || docsLevel === 'kinds') ? '← ' + (docsVendor ?? '거래처')
                                : '← 박스판';
   }
 
@@ -618,7 +635,10 @@
   // 한 걸음 뒤로 — 안쪽 화면이면 거래처 판으로, 거래처 판이면 첫 판으로.
   function docsBack() {
     docsFitTop();
-    if (docsLevel === 'files') docsLevel = 'vendor';
+    // 파일 목록에서 구분 박스로 왔으면 구분 박스로 한 걸음만 물러납니다.
+    if (docsLevel === 'files' && docsKindWhere) { docsKindOpen(docsKindWhere, docsKindList); return; }
+    if (docsLevel === 'kinds') { docsKindWhere = ''; docsLevel = 'vendor'; }
+    else if (docsLevel === 'files') docsLevel = 'vendor';
     else if (docsLevel === 'box' && docsVendor) docsLevel = 'vendor';
     else { docsLevel = 'home'; docsVendor = null; }
     if (docsLevel === 'vendor') docsVendorRefresh();
@@ -718,6 +738,51 @@
     docsPaint();
   }
 
+  /* ── 구분 박스 ── 파일 종류로 다섯 갈래: cad · spread · ppt · pdf · 기타 ──
+     개발/샘플 과 미확인 둘 다 같은 방식입니다. 어느 갈래에도 안 드는 파일은
+     전부 기타로 갑니다 — 화면에서 사라지는 파일은 없습니다. */
+  let docsKindWhere = '';     // 어느 박스에서 들어왔나 (개발 / 샘플 · 미확인)
+  let docsKindList = [];      // 그 박스의 파일 전부
+
+  function docsKindOpen(name, docs) {
+    docsKindWhere = name;
+    docsKindList = docs ?? [];
+    const 갈래 = window.docsKindBoxes?.(docsKindList) ?? [];
+    const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    put('dkd-name', name);
+    put('dkd-sub', `${docsVendor} · ${docsKindList.length}건`);
+    const box = document.getElementById('dkd-tiles');
+    const tone = ['dhh-dark', 'dhh-light', 'dhh-white', 'dhh-light', 'dhh-white'];
+    if (box) box.innerHTML = 갈래.map((k, i) => `
+      <button type="button" class="dhh-tile ${tone[i % tone.length]}" onclick="docsKindFiles('${k.key}')">
+        <span class="dhh-ico">${DHH_ICO_FILE}</span>
+        <span><span class="dhh-nm">${dhhEsc(k.label)}</span>
+          <span class="dhh-pct">${k.docs.length}건</span></span>
+      </button>`).join('');
+    docsLevel = 'kinds';
+    docsPaint();
+    window.scrollTo(0, 0);
+  }
+
+  function docsKindFiles(key) {
+    const 갈래 = (window.docsKindBoxes?.(docsKindList) ?? []).find((k) => k.key === key);
+    if (!갈래) return;
+    docsFiles = 갈래.docs;
+    const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    put('dfl-name', `${docsKindWhere} · ${갈래.label}`);
+    put('dfl-sub', `${docsVendor} · ${docsFiles.length}건`);
+    const list = document.getElementById('dfl-list');
+    if (list) list.innerHTML = docsFiles.map((f) => `
+      <button type="button" class="dhh-row" onclick="window.docsOpenFile('${dhhEsc(f.path).replace(/'/g, "\\'")}')">
+        <span class="dhh-ico">${DHH_ICO_FILE}</span>
+        <span class="dhh-t">${dhhEsc(f.name)}<i>${dhhEsc([f.date, f.why].filter(Boolean).join(' · '))}</i></span>
+      </button>`).join('') ||
+      '<p style="margin:0;color:var(--vg-muted);font-size:13px">이 갈래에 든 파일이 없습니다.</p>';
+    docsLevel = 'files';
+    docsPaint();
+    window.scrollTo(0, 0);
+  }
+
   function docsVendorBox(kind) {
     const v = window.docsVendorBoxes?.(docsVendor);
     if (!v) return;
@@ -726,6 +791,12 @@
       window.docsFilterVendor?.(docsVendor);
       return;
     }
+    // 개발/샘플 과 미확인은 한 겹 더 — 파일 종류로 나눈 다섯 박스를 먼저 보여 줍니다.
+    if (kind === 'dev' || kind === 'unsure') {
+      docsKindOpen(kind === 'dev' ? '개발 / 샘플' : '미확인', kind === 'dev' ? v.dev : v.unsure);
+      return;
+    }
+    docsKindWhere = '';                    // 구분 박스를 거쳐 온 것이 아닙니다
     const 손 = kind.startsWith('mine:') ? (v.mine ?? [])[Number(kind.slice(5))] : null;
     docsFiles = 손 ? 손.docs : kind === 'dev' ? v.dev : v.unsure;
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };

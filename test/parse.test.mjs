@@ -453,3 +453,34 @@ test('readPdfItems — 글자가 없으면 null', () => {
   assert.equal(readPdfItems(''), null);
   assert.equal(readPdfItems('그냥 줄글입니다. 표가 없습니다.'), null);
 });
+
+/* ── 파일 종류 갈래 — cad · spread · ppt · pdf · 기타 ───────────── */
+import { kindOf, KINDS } from '../js/parse.js';
+
+test('kindOf — 다섯 갈래로만 간다', () => {
+  assert.equal(KINDS.length, 5);
+  const keys = new Set(KINDS.map((k) => k.key));
+  for (const n of ['a.dwg', 'b.xlsx', 'c.pptx', 'd.pdf', 'e.zip', '확장자없음'])
+    assert.ok(keys.has(kindOf(n)), `${n} 이 다섯 갈래 밖으로 샜다`);
+});
+
+test('kindOf — 확장자로 가른다', () => {
+  assert.equal(kindOf('그로브침대-0713.dwg'), 'cad');
+  assert.equal(kindOf('의자.dxf'), 'cad');
+  assert.equal(kindOf('견적.xlsx'), 'spread');
+  assert.equal(kindOf('단가표.xls'), 'spread');
+  assert.equal(kindOf('목록.csv'), 'spread');
+  assert.equal(kindOf('제안서.pptx'), 'ppt');
+  assert.equal(kindOf('발주서.pdf'), 'pdf');
+});
+
+test('kindOf — 카카오톡이 붙인 겹친 확장자도 읽는다', () => {
+  assert.equal(kindOf('TalkFile_그로브침대-0713.dwg.dwg'), 'cad');
+  assert.equal(kindOf('TalkFile_bed-0713.xlsx.xlsx'), 'spread');
+});
+
+test('kindOf — 애매한 것은 억지로 끼우지 않고 기타로', () => {
+  for (const n of ['상차사진.jpg', '메모.txt', '계약서.docx', '설명.hwp',
+                   '자료.zip', 'TalkMedia_i_46729f9035b8.png', '이름만있는파일'])
+    assert.equal(kindOf(n), 'etc', `${n} 이 기타가 아니다`);
+});

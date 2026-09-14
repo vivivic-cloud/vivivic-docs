@@ -184,6 +184,25 @@ export function watchOrders(cb) {
   );
 }
 
+/* ── 파일 갈래(cad·spread·ppt·pdf·기타) 구분저장 ──────────
+   어느 갈래에 넣었는지를 적어 둡니다. 다시 들어와도 그대로입니다.
+   드라이브는 건드리지 않습니다 — 우리 쪽 기록일 뿐입니다. */
+
+export function watchKinds(cb) {
+  return ctx.f.onSnapshot(ctx.f.doc(col(CONFIG), 'kinds'), (s) => {
+    const list = s.exists() ? (s.data().list ?? []) : [];
+    cb(Object.fromEntries(list.map((x) => [x.p, x.k])));
+  });
+}
+
+/** 갈래 표를 통째로 적습니다. 달라진 것이 없으면 부르지 않습니다(비용). */
+export async function saveKinds(map, email) {
+  const list = Object.entries(map).map(([p, k]) => ({ p, k }));
+  await ctx.f.setDoc(ctx.f.doc(col(CONFIG), 'kinds'), {
+    list, updatedBy: email ?? null, updatedAt: new Date().toISOString(),
+  });
+}
+
 /* ── 거래처 안에 손으로 만든 박스 ─────────────────────────
    판정 규칙(docs_rules)과 따로 둡니다. 규칙에 넣으면 파일이 어느 단계인지
    가리는 셈까지 흔들립니다 — 이건 화면에서 묶어 보는 것일 뿐입니다. */

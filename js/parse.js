@@ -40,6 +40,34 @@ export function extOf(name) {
 
 const IMAGE_EXT = new Set(['jpg', 'jpeg', 'png', 'heic', 'webp', 'gif']);
 
+/* 파일 종류 갈래 — 사장님이 대신 다섯 그대로입니다.
+   cad · spread · ppt · pdf · 기타. 확장자만 봅니다.
+   애매한 것(그림·글·한글문서·압축·확장자 없는 것)은 억지로 끼우지 않고 기타로 둡니다. */
+export const KINDS = [
+  { key: 'cad', label: 'cad' },
+  { key: 'spread', label: 'spread' },
+  { key: 'ppt', label: 'ppt' },
+  { key: 'pdf', label: 'pdf' },
+  { key: 'etc', label: '기타' },
+];
+
+const KIND_EXT = {
+  cad: ['dwg', 'dxf', 'dwf', 'dwt', 'stp', 'step', 'igs', 'iges', 'skp', '3dm',
+        'sldprt', 'sldasm', 'ipt', 'iam', 'catpart', 'prt'],
+  spread: ['xls', 'xlsx', 'xlsm', 'xlsb', 'csv', 'tsv', 'ods', 'numbers'],
+  ppt: ['ppt', 'pptx', 'pps', 'ppsx', 'odp', 'key'],
+  pdf: ['pdf'],
+};
+
+const EXT_KIND = new Map(
+  Object.entries(KIND_EXT).flatMap(([k, list]) => list.map((e) => [e, k]))
+);
+
+/** 파일 이름 → 갈래. 어디에도 안 맞으면 'etc'(기타) 입니다. 빠지는 파일은 없습니다. */
+export function kindOf(rawName) {
+  return EXT_KIND.get(extOf(normalizeName(rawName))) ?? 'etc';
+}
+
 /**
  * 파일명에 나오는 거래처 코드.
  * 폴더는 사람이 잘못 넣을 수 있으니, 파일명에 근거가 있으면 그쪽을 믿습니다.

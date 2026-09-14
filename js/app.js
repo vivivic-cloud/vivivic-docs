@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch } from './parse.js';
+import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf } from './parse.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -10,6 +10,7 @@ const state = {
   batches: [],
   unassigned: [],
   boxes: [],            // 거래처 안에 손으로 만든 박스
+  kinds: {},            // 파일 갈래 구분저장 — 경로 → cad/spread/ppt/pdf/etc
   orders: [],           // 작업대에 오간 지시와 답 — 읽기만 합니다
   overlay: {},
   rules: [],
@@ -122,7 +123,8 @@ async function enterApp(user) {
     DB.watchOverlay((ov) => { state.overlay = ov; render(); }),
     DB.watchRules((rules) => { state.rules = rules; applyParse(); }),
     DB.watchBoxes((boxes) => { state.boxes = boxes; window.docsBoxesChanged?.(); }),
-    DB.watchOrders((msgs) => { state.orders = msgs; window.docsOrdersChanged?.(); })
+    DB.watchOrders((msgs) => { state.orders = msgs; window.docsOrdersChanged?.(); }),
+    DB.watchKinds((map) => { state.kinds = map; window.docsBoxesChanged?.(); })
   );
 }
 
@@ -173,6 +175,27 @@ function applyParse() {
   $('#dash').hidden = !has;
   render();
   window.docsHomeRefresh?.();
+  saveKindsIfNew();
+}
+
+/* 갈래를 적어 둡니다 — 새로 들어온 파일 것만. 이미 적힌 것은 그대로 둡니다
+   (사람이 옮겨 놓은 것을 확장자로 되돌리면 안 됩니다).
+   달라진 것이 없으면 아예 쓰지 않습니다 — 매번 다 쓰면 무료 한도를 넘습니다. */
+let 갈래쓴적 = '';     // 같은 것을 두 번 쓰지 않게 — 실패해도 매번 다시 쓰지 않습니다
+async function saveKindsIfNew() {
+  if (state.demo || !state.user) return;
+  const 적힌것 = state.kinds ?? {};
+  const 새것 = {};
+  for (const d of state.unassigned)
+    if (!(d.path in 적힌것)) 새것[d.path] = kindOf(d.name ?? d.display ?? '');
+  const 열쇠 = Object.keys(새것).sort().join('|');
+  if (!열쇠 || 열쇠 === 갈래쓴적) return;
+  갈래쓴적 = 열쇠;
+  try {
+    await DB.saveKinds({ ...적힌것, ...새것 }, state.user?.email);
+  } catch (e) {
+    console.warn('갈래 저장 실패:', e.message);
+  }
 }
 
 /* ── 켤 때 드라이브 한 번 확인 ────────────────────────── */
@@ -1589,6 +1612,18 @@ const BOX_CUTS = {
    미확인    : 그 거래처 것으로는 보이는데 위에 안 드는 나머지 전부. 흘리지 않습니다. */
 const isDevDoc = (d) => d.stageKey === 'dev' || /샘플|sample/i.test(`${d.display ?? ''} ${d.name ?? ''}`);
 const slimDoc = (d) => ({ path: d.path, name: d.display, date: d.date ?? '', why: d.reason ?? '' });
+
+/* 파일을 다섯 갈래로 나눕니다 — cad · spread · ppt · pdf · 기타.
+   저장해 둔 갈래가 있으면 그것을 먼저 씁니다(구분저장). 없으면 확장자로 가릅니다.
+   어느 갈래에도 안 드는 파일은 없습니다 — 나머지는 전부 기타입니다. */
+const kindNow = (d) => state.kinds?.[d.path] ?? kindOf(d.name ?? d.display ?? '');
+
+window.docsKindBoxes = (docs) =>
+  KINDS.map((k) => ({
+    key: k.key,
+    label: k.label,
+    docs: docs.filter((d) => kindNow(d) === k.key),
+  }));
 
 /* 손으로 만든 박스에 드는 파일인지 — 파일명이나 자리에 그 말이 들어 있으면. */
 const inBox = (box, d) =>
