@@ -122,11 +122,13 @@
 
   /* 판 안에 서는 '＋ 새 박스' 칸 — 작업대(viggle)의 .newbox 값 그대로입니다.
      떠 있는 단추는 폰에서 아래 주소창에 가릴 수 있어, 박스 줄 끝에도 둡니다. */
-  .dhh-board .dhh-newbox{ border:1px dashed #E2E2DF; background:#fff; display:grid;
+  .dhh-newbox{ border:1px dashed #E2E2DF; background:#fff; display:grid;
     place-items:center; min-height:104px; border-radius:20px; cursor:pointer;
-    color:#6E6E6A; gap:6px; font:inherit; }
-  .dhh-board .dhh-newbox span{ font-size:13px; font-weight:600; }
-  .dhh-board .dhh-newbox b{ font-size:22px; font-weight:400; line-height:1; }
+    color:#6E6E6A; gap:6px; font:inherit; width:100%;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif; }
+  .dhh-newbox span{ font-size:13px; font-weight:600; }
+  .dhh-newbox b{ font-size:22px; font-weight:400; line-height:1; }
+  .dhh-newbox:active{ background:#F4F4F2; }
 
   /* 새 박스 — 작업대(viggle)의 떠 있는 단추와 아래에서 올라오는 칸을 그대로 따랐습니다 */
   #docs-fab{ display:none; position:fixed; right:16px; z-index:8100;
@@ -224,7 +226,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.31.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.32.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -252,7 +254,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.31.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.32.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -736,8 +738,9 @@
       <button type="button" class="dhh-row" onclick="window.docsOpenFile('${dhhEsc(f.path).replace(/'/g, "\\'")}')">
         <span class="dhh-ico">${DHH_ICO_FILE}</span>
         <span class="dhh-t">${dhhEsc(f.name)}<i>${dhhEsc([f.date, f.why].filter(Boolean).join(' · '))}</i></span>
-      </button>`).join('') ||
-      '<p style="margin:0;color:var(--vg-muted);font-size:13px">이 박스에 든 파일이 없습니다.</p>';
+      </button>`).join('') +
+      `<button type="button" class="dhh-newbox" onclick="docsMakeOpen()">
+         <b>＋</b><span>새 박스</span></button>`;
     docsLevel = 'files';
     docsPaint();
     window.scrollTo(0, 0);
@@ -2693,7 +2696,11 @@ function renderGrid() {
         </div>
       </button>`;
     })
-    .join('');
+    .join('') +
+    // 차수 목록도 박스가 있는 화면입니다 — 줄 끝에 '＋ 새 박스' 를 같이 둡니다.
+    // 떠 있는 단추는 폰에서 아래 주소창에 가릴 수 있어 이것이 있어야 보입니다.
+    `<button type="button" class="dhh-newbox" onclick="docsMakeOpen()">
+       <b>＋</b><span>새 박스</span></button>`;
 
   for (const el of document.querySelectorAll('[data-open]')) el.onclick = () => openDrawer(el.dataset.open);
 }

@@ -422,7 +422,11 @@ function renderGrid() {
         </div>
       </button>`;
     })
-    .join('');
+    .join('') +
+    // 차수 목록도 박스가 있는 화면입니다 — 줄 끝에 '＋ 새 박스' 를 같이 둡니다.
+    // 떠 있는 단추는 폰에서 아래 주소창에 가릴 수 있어 이것이 있어야 보입니다.
+    `<button type="button" class="dhh-newbox" onclick="docsMakeOpen()">
+       <b>＋</b><span>새 박스</span></button>`;
 
   for (const el of document.querySelectorAll('[data-open]')) el.onclick = () => openDrawer(el.dataset.open);
 }
