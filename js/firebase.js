@@ -172,6 +172,18 @@ export async function saveCipl(batchId, patch) {
   await ctx.f.setDoc(ctx.f.doc(col(OVERLAY), overlayKey(batchId)), { batchId, ...patch }, { merge: true });
 }
 
+/* ── 작업대에 오간 지시와 답 ───────────────────────────────
+   작업대(viggle)가 쓰는 그 자리를 그대로 읽습니다. 읽기만 합니다 —
+   여기서는 아무것도 쓰지 않습니다. */
+
+export const WT = 'wt_dev';
+
+export function watchOrders(cb) {
+  return ctx.f.onSnapshot(ctx.f.doc(col(WT), 'box~3Adocs'), (s) =>
+    cb(s.exists() ? (s.data().msgs ?? []) : [])
+  );
+}
+
 /* ── 거래처 안에 손으로 만든 박스 ─────────────────────────
    판정 규칙(docs_rules)과 따로 둡니다. 규칙에 넣으면 파일이 어느 단계인지
    가리는 셈까지 흔들립니다 — 이건 화면에서 묶어 보는 것일 뿐입니다. */

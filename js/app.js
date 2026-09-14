@@ -10,6 +10,7 @@ const state = {
   batches: [],
   unassigned: [],
   boxes: [],            // 거래처 안에 손으로 만든 박스
+  orders: [],           // 작업대에 오간 지시와 답 — 읽기만 합니다
   overlay: {},
   rules: [],
   excluded: [],
@@ -120,7 +121,8 @@ async function enterApp(user) {
     DB.watchFiles((files) => { state.files = files; applyParse(); }),
     DB.watchOverlay((ov) => { state.overlay = ov; render(); }),
     DB.watchRules((rules) => { state.rules = rules; applyParse(); }),
-    DB.watchBoxes((boxes) => { state.boxes = boxes; window.docsBoxesChanged?.(); })
+    DB.watchBoxes((boxes) => { state.boxes = boxes; window.docsBoxesChanged?.(); }),
+    DB.watchOrders((msgs) => { state.orders = msgs; window.docsOrdersChanged?.(); })
   );
 }
 
@@ -1690,6 +1692,19 @@ window.docsFilterVendor = (vendor) => {
   state.filter.vendor = vendor ?? null;
   state.filter.status = null;   // 그 거래처 차수를 다 보여 줍니다
   render();
+};
+
+/* 작업대에 오간 지시와 답. 사장님 말씀은 '나', 답은 작업자 이름으로 옵니다.
+   새것이 위로 오게 뒤집어 건넵니다. 여기서는 읽기만 합니다. */
+window.docsOrders = () => {
+  const ms = [...(state.orders ?? [])].sort((a, b) => (b.at ?? 0) - (a.at ?? 0));
+  return ms.map((m) => ({
+    말: m.who === '나',
+    누가: m.who === '나' ? '사장님' : (m.who ?? '작업자'),
+    글: String(m.text ?? ''),
+    때: m.at ? new Date(m.at * 1000).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+    답함: !!m.답한때,
+  }));
 };
 
 /** 박스 판에서 파일 한 장을 그대로 열어 봅니다 — 원래 쓰던 그 보기 창입니다. */
