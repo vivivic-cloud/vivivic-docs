@@ -1452,6 +1452,51 @@ function renderDrawer(id) {
       </div>`;
   };
 
+  /* 영수증 맞춤 — 계약금영수증 + 잔액영수증 이 잔액서류 금액과 맞는지 봅니다.
+     영수증은 스캔이라 금액을 읽을 수 없습니다(동기화가 일부러 건너뜁니다).
+     그래서 금액은 '직접 입력' 에서 받고, 더하고 맞춰 보는 것은 여기서 합니다. */
+  const 돈 = (v) => {
+    if (v === undefined || v === null || v === '') return null;
+    const n = Number(String(v).replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  function 영수증맞춤(d) {
+    if (d.stageKey !== 'balReceipt') return '';
+    const 계약금 = 돈(ov.piReceiptAmount);
+    const 잔금 = 돈(ov.balReceiptAmount);
+    const 잔액서류 = 돈(ov.ciAmount) ?? 돈(auto?.brief?.amount) ?? 돈(auto?.amount);
+
+    if (계약금 === null || 잔금 === null || 잔액서류 === null) {
+      const 빠진것 = [
+        계약금 === null ? '계약금영수증 금액' : '',
+        잔금 === null ? '잔액영수증 금액' : '',
+        잔액서류 === null ? '실출하 총액 (CI&PL)' : '',
+      ].filter(Boolean).join(' · ');
+      return `<div class="mt-2 border-t border-line pt-2 text-[11px] text-faint leading-relaxed">
+                영수증 합계를 맞춰 보려면 아래 <b>직접 입력</b> 에 ${esc(빠진것)} 을 넣어 주세요.
+              </div>`;
+    }
+
+    const 합 = Math.round((계약금 + 잔금) * 100) / 100;
+    const 차 = Math.round((합 - 잔액서류) * 100) / 100;
+    const 맞음 = Math.abs(차) < 0.01;
+    return `
+      <div class="mt-2 border-t border-line pt-2">
+        <div class="text-[11px] font-bold text-faint tracking-wide mb-1">영수증 합계 맞춤</div>
+        <div class="text-[11px] leading-relaxed tabular-nums">
+          <div>계약금영수증 <b>${fmtNum(계약금)}</b> + 잔액영수증 <b>${fmtNum(잔금)}</b>
+               = <b>${fmtNum(합)}</b></div>
+          <div>잔액서류(CI&PL) <b>${fmtNum(잔액서류)}</b></div>
+        </div>
+        <div class="mt-1.5 text-[12px] font-bold px-3 py-2 rounded-lg
+                    ${맞음 ? 'bg-chip text-ok' : 'bg-[#fdf3e3] text-[#8a5a00]'}">
+          ${맞음 ? '✓ 금액이 맞습니다.'
+                 : `맞지 않습니다 — 영수증 합계가 ${차 > 0 ? '더 많습니다' : '모자랍니다'} (차이 ${fmtNum(Math.abs(차))}).`}
+        </div>
+      </div>`;
+  }
+
   /* 잔액서류(CI&PL)를 확정 발주서와 견줍니다 — 같은 셈, 같은 표, 같은 상세보기 화면입니다.
      확정 발주서를 아직 안 고르셨으면 견주지 않고 고르시라고만 말합니다. */
   function 잔액대발주(d) {
@@ -1491,6 +1536,7 @@ function renderDrawer(id) {
       <span class="dmt">${[d.date, fmtSize(d.size)].filter(Boolean).join(' · ')}</span>
       ${diffs.has(d.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(d.path)}</div>` : ''}
       ${d.stageKey === 'cipl' ? 잔액대발주(d) : ''}
+      ${영수증맞춤(d)}
       ${(() => {
         const c = ciplOf(d);
         if (!c) return '';
@@ -1568,6 +1614,8 @@ function renderDrawer(id) {
         <div class="grid grid-cols-2 gap-3">
           ${field('piAmount', '계약 총액 (PI)', { placeholder: 'USD' })}
           ${field('ciAmount', '실출하 총액 (CI&PL)', { placeholder: 'USD' })}
+          ${field('piReceiptAmount', '계약금영수증 금액', { placeholder: 'USD' })}
+          ${field('balReceiptAmount', '잔액영수증 금액', { placeholder: 'USD' })}
           ${field('container', '컨테이너 번호')}
           ${field('grossKg', '총중량 (kg)', { placeholder: auto?.gross ? String(auto.gross) : '' })}
           ${field('cartons', '박스 수', { placeholder: auto?.cartons ? String(auto.cartons) : '' })}
