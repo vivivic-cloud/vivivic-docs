@@ -1463,16 +1463,9 @@ function renderDrawer(id) {
     const 발주 = 확정발주서;
     if (!발주?.cipl || !d.cipl) return '';
 
+    // 제품에 관한 것만 적습니다 — 품목이 더해졌는지·빠졌는지·수량이 달라졌는지.
+    // 합계(수량·금액·CBM·납기·발주일·컨테이너)는 여기에 넣지 않습니다.
     const rows = itemRows(발주.cipl.items, d.cipl.items);
-    for (const [key, label, isNum] of DIFF_FIELDS) {
-      const x = 발주.cipl.brief?.[key];
-      const y = d.cipl.brief?.[key];
-      if (x === undefined || y === undefined || x === y) continue;
-      const r = (n) => Math.round(Number(n) * 100) / 100;
-      rows.push(isNum
-        ? { kind: '합계', name: label, code: '', from: r(x), to: r(y) }
-        : { kind: '합계', name: label, code: '', from: String(x), to: String(y) });
-    }
 
     const key = `확정↔${d.path}`;
     diffPairs.set(key, { before: 발주, now: d, rows, label: `확정 발주서 ↔ 잔액서류` });
