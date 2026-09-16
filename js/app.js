@@ -1234,10 +1234,10 @@ function renderDrawer(id) {
 
   const KIND_TONE = { 추가: 'text-warn', 빠짐: 'text-info', 수량: 'text-faint', 합계: 'text-faint' };
 
-  /** 바뀐 것들을 표 한 장으로 만듭니다. 줄글로 이어 붙이면 뭐가 뭔지 안 보입니다. */
-  function diffTable(rows) {
+  /** 바뀐 것들을 표 한 장으로 만듭니다. 줄글로 이어 붙이면 뭐가 뭔지 안 보입니다.
+      key 를 주면 표 아래에 '상세보기' 를 답니다 — 접힌 것까지 다 보고, 두 판의 원본을 봅니다. */
+  function diffTable(rows, key = null, MAX = 12) {
     if (!rows.length) return '';
-    const MAX = 12;
     const shown = rows.slice(0, MAX);
     const num = (v) => (v === null || v === undefined ? '<span class="text-faint">—</span>' : fmtNum(v));
     const gap = (r) => {
@@ -1273,7 +1273,14 @@ function renderDrawer(id) {
             ${rows.length > MAX ? `<tr><td colspan="5" class="px-2 py-1 text-faint">외 ${rows.length - MAX}건</td></tr>` : ''}
           </tbody>
         </table>
-      </div>`;
+      </div>` +
+      (key ? `
+      <button type="button" data-diff="${esc(key)}"
+              class="mt-2 w-full min-h-[44px] rounded-lg border border-line bg-white
+                     text-[12px] font-bold text-ink flex items-center justify-center gap-1.5">
+        상세보기
+        <span class="font-semibold text-faint">${esc(diffPairs.get(key)?.label ?? '')}</span>
+      </button>` : '');
   }
 
   function diffNotes(docs) {
@@ -1306,15 +1313,83 @@ function renderDrawer(id) {
         );
       }
 
+      // 어느 두 판을 견준 것인지 함께 적어 둡니다 — 상세보기에서 그 둘을 나란히 봅니다.
+      diffPairs.set(line[i].path, {
+        before: line[i - 1], now: line[i], rows,
+        label: `${짧은판이름(line[i - 1])} ↔ ${짧은판이름(line[i])}`,
+      });
+
       notes.set(
         line[i].path,
-        rows.length ? diffTable(rows) : '<span class="text-faint">앞 판과 숫자가 같습니다</span>'
+        rows.length ? diffTable(rows, line[i].path) : '<span class="text-faint">앞 판과 숫자가 같습니다</span>'
       );
     }
     return notes;
   }
 
+  /* 두 판을 가려 부를 짧은 이름. 파일명에서 '1차 수정' 같은 꼬리를 뽑고,
+     없으면 날짜를, 그것도 없으면 '앞 판/이번 판' 으로 부릅니다. */
+  function 짧은판이름(d) {
+    const n = String(d.display ?? d.name ?? '');
+    const m = /(\d+\s*차\s*수정|재수정|수정본|최종본?|원본)/.exec(n);
+    if (m) return m[1].replace(/\s+/g, ' ').trim();
+    return d.date ?? '판';
+  }
+
   let diffs = new Map();
+  let diffPairs = new Map();
+
+  /* 상세보기 — 접힌 것 없이 전부 보여 주고, 견준 두 판의 원본을 위아래로 놓습니다.
+     폰에서는 옆으로 못 놓으니 위가 앞 판, 아래가 이번 판입니다.
+     드라이브 파일은 보기만 합니다 — 옮기거나 이름을 바꾸거나 지우지 않습니다. */
+  function openDiffDetail(pair) {
+    if (!pair) return;
+    const 원본 = (d, 자리) => {
+      const 이름 = esc(d.display ?? d.name ?? '');
+      const 때 = [d.date, fmtSize(d.size)].filter(Boolean).join(' · ');
+      return `
+        <section class="mb-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[11px] font-bold px-2 py-1 rounded ${자리 === '앞 판' ? 'bg-chip text-muted' : 'bg-ink text-white'}">${자리}</span>
+            <span class="text-[12px] font-semibold break-words flex-1 min-w-0">${이름}</span>
+          </div>
+          <div class="text-[11px] text-faint mb-1.5">${esc(때)}</div>
+          ${d.driveId
+            ? `<iframe src="${driveEmbed(d.driveId)}" title="${이름}"
+                       class="w-full h-[52vh] min-h-[280px] rounded-lg border border-line bg-hover"></iframe>
+               <a href="${driveOpen(d.driveId)}" target="_blank" rel="noopener"
+                  class="mt-1.5 inline-flex items-center min-h-[44px] text-[12px] font-bold text-info">
+                 드라이브에서 열기 ↗</a>`
+            : `<p class="text-[12px] text-faint">이 파일은 드라이브 주소가 없어 여기서 못 펼칩니다.</p>`}
+        </section>`;
+    };
+
+    $('#diffBody').innerHTML = `
+      <div class="p-5">
+        <div class="flex items-start justify-between gap-3 mb-4">
+          <div class="min-w-0">
+            <div class="text-[11px] font-bold text-faint tracking-wide">변동 상세</div>
+            <div class="text-[16px] font-bold leading-tight break-words">${esc(pair.label)}</div>
+          </div>
+          <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px]">닫기</button>
+        </div>
+
+        <h3 class="text-[12px] font-bold text-faint tracking-wide mb-1">바뀐 것 ${pair.rows.length}건</h3>
+        ${diffTable(pair.rows, null, Infinity)}
+
+        <h3 class="text-[12px] font-bold text-faint tracking-wide mt-6 mb-2">견준 두 판의 원본</h3>
+        ${원본(pair.before, '앞 판')}
+        ${원본(pair.now, '이번 판')}
+      </div>`;
+    $('#diffView').hidden = false;
+    $('#diffView').scrollTop = 0;
+    // 떠 있는 '← 박스판' 과 ＋ 가 이 화면 위에 겹칩니다 — 보는 동안 가립니다.
+    document.documentElement.setAttribute('data-docsdiff', '1');
+    $('#diffClose').onclick = () => {
+      $('#diffView').hidden = true;
+      document.documentElement.removeAttribute('data-docsdiff');
+    };
+  }
 
   /* 서류 한 장을 박스 하나로 — 박스 이름이 곧 그 서류의 이름입니다.
      모양은 작업대(viggle)의 박스 값을 그대로 씁니다(.dhh-dbox).
@@ -1442,6 +1517,9 @@ function renderDrawer(id) {
       });
   for (const el of $('#drawerBody').querySelectorAll('[data-doc]')) {
     el.onclick = () => openDoc(b.docs.find((d) => d.path === el.dataset.doc));
+  }
+  for (const el of $('#drawerBody').querySelectorAll('[data-diff]')) {
+    el.onclick = () => openDiffDetail(diffPairs.get(el.dataset.diff));
   }
   for (const el of $('#drawerBody').querySelectorAll('[data-photo]')) {
     el.onclick = () => {

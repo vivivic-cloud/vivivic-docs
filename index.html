@@ -142,7 +142,10 @@
   html[data-docsbox="batch"] #docs-fab{ display:grid; }
   /* 칸이 올라와 있거나 서랍이 열려 있으면 가립니다 */
   html[data-docsmk="1"]     #docs-fab,
-  html[data-docsdrawer="1"] #docs-fab{ display:none; }
+  html[data-docsdrawer="1"] #docs-fab,
+  html[data-docsdiff="1"]   #docs-fab{ display:none; }
+  /* 변동 상세를 보는 동안에는 돌아가는 알약도 가립니다 — 그 위에 겹칩니다 */
+  html[data-docsdiff="1"]   #docs-back{ display:none !important; }
   #docs-fab:active{ transform:scale(.94); }
 
   #docs-sheet{ display:none; position:fixed; inset:0; z-index:8200;
@@ -227,7 +230,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.33.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.34.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -255,7 +258,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.33.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.34.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -501,6 +504,11 @@
       <button id="asCancel" class="btn btn-ghost">미정으로 두기</button>
     </div>
   </div>
+</div>
+
+<!-- ── 변동 상세 — 접힌 것 없이 전부 + 견준 두 판의 원본 ── -->
+<div id="diffView" class="fixed inset-0 z-[260] bg-page overflow-y-auto" hidden>
+  <div id="diffBody" class="max-w-[720px] mx-auto"></div>
 </div>
 
 <!-- ── 파일 보기 ── -->
