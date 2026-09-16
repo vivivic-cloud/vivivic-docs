@@ -1369,13 +1369,20 @@ function renderDrawer(id) {
             <span class="text-[11px] font-bold px-2 py-1 rounded ${자리 === '앞 판' ? 'bg-chip text-muted' : 'bg-ink text-white'}">${자리}</span>
             <span class="text-[12px] font-semibold break-words flex-1 min-w-0">${이름}</span>
           </div>
-          <div class="text-[11px] text-faint mb-1.5">${esc(때)}</div>
+          <div class="text-[11px] text-faint mb-2">${esc(때)}</div>
           ${d.driveId
-            ? `<iframe src="${driveEmbed(d.driveId)}" title="${이름}"
-                       class="w-full h-[52vh] min-h-[280px] rounded-lg border border-line bg-hover"></iframe>
-               <a href="${driveOpen(d.driveId)}" target="_blank" rel="noopener"
-                  class="mt-1.5 inline-flex items-center min-h-[44px] text-[12px] font-bold text-info">
-                 드라이브에서 열기 ↗</a>`
+            ? `<a href="${driveOpen(d.driveId)}" target="_blank" rel="noopener"
+                  class="mb-2 w-full min-h-[44px] rounded-lg bg-ink text-white text-[13px] font-bold
+                         flex items-center justify-center gap-1.5">
+                 드라이브에서 열기 ↗</a>
+               <div class="relative rounded-lg border border-line bg-hover overflow-hidden">
+                 <div class="absolute inset-0 flex items-center justify-center p-5 text-center
+                             text-[12px] text-muted leading-relaxed">
+                   폰에서는 미리보기가 막힐 수 있습니다.<br />위 「드라이브에서 열기」 로 보십시오.
+                 </div>
+                 <iframe src="${driveEmbed(d.driveId)}" title="${이름}" data-preview
+                         class="relative w-full h-[52vh] min-h-[280px] border-0"></iframe>
+               </div>`
             : `<p class="text-[12px] text-faint">이 파일은 드라이브 주소가 없어 여기서 못 펼칩니다.</p>`}
         </section>`;
     };
@@ -1397,6 +1404,13 @@ function renderDrawer(id) {
         ${원본(pair.before, '앞 판')}
         ${원본(pair.now, '이번 판')}
       </div>`;
+    /* 폰(아이폰 사파리)은 남의 쿠키를 막아서 드라이브 미리보기가 빈칸이 되곤 합니다.
+       일정 시간 안에 안 그려지면 틀을 걷고, 뒤에 적어둔 안내 글이 보이게 합니다.
+       그려지더라도 안내 글은 틀 뒤에 있어 가려질 뿐입니다 — 지우지 않습니다. */
+    for (const fr of $('#diffBody').querySelectorAll('[data-preview]')) {
+      const 걷기 = setTimeout(() => { fr.style.display = 'none'; }, 6000);
+      fr.addEventListener('load', () => clearTimeout(걷기), { once: true });
+    }
     $('#diffView').hidden = false;
     $('#diffView').scrollTop = 0;
     // 떠 있는 '← 박스판' 과 ＋ 가 이 화면 위에 겹칩니다 — 보는 동안 가립니다.
