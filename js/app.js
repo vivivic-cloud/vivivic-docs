@@ -1455,10 +1455,32 @@ function renderDrawer(id) {
   /* 영수증 맞춤 — 계약금영수증 + 잔액영수증 이 잔액서류 금액과 맞는지 봅니다.
      영수증은 스캔이라 금액을 읽을 수 없습니다(동기화가 일부러 건너뜁니다).
      그래서 금액은 '직접 입력' 에서 받고, 더하고 맞춰 보는 것은 여기서 합니다. */
+  /* 돈은 어림잡지 않습니다. 소수 자리를 맞춰 정수로 바꿔 더하고 빼므로
+     0.1 + 0.2 같은 소수 오차가 나지 않고, 반올림도 하지 않습니다.
+     통화 표시가 서로 다르면 섞어서 더하지 않습니다. */
+  const 통화표 = [[/USD|\$/i, 'USD'], [/CNY|RMB|[¥￥]|元/i, 'CNY'],
+                  [/KRW|₩|원/, 'KRW'], [/EUR|€/i, 'EUR'], [/JPY/i, 'JPY']];
   const 돈 = (v) => {
-    if (v === undefined || v === null || v === '') return null;
-    const n = Number(String(v).replace(/[^0-9.-]/g, ''));
-    return Number.isFinite(n) ? n : null;
+    if (v === undefined || v === null) return null;
+    const s = String(v).trim();
+    if (!s) return null;
+    const m = /-?\d[\d,]*(\.\d+)?/.exec(s);
+    if (!m) return null;
+    return { 숫자: m[0].replace(/,/g, ''), 통화: (통화표.find(([re]) => re.test(s)) ?? [])[1] ?? null };
+  };
+  const 소수자리 = (n) => (n.split('.')[1] ?? '').length;
+  const 정수로 = (n, 자리) => {
+    const 음수 = n.startsWith('-');
+    const [앞, 뒤 = ''] = n.replace('-', '').split('.');
+    const v = BigInt((앞 || '0') + (뒤 + '0'.repeat(자리)).slice(0, 자리));
+    return 음수 ? -v : v;
+  };
+  const 돈적기 = (v, 자리) => {
+    const 음수 = v < 0n;
+    const s = (음수 ? -v : v).toString().padStart(자리 + 1, '0');
+    const 앞 = s.slice(0, s.length - 자리).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const 뒤 = 자리 ? s.slice(s.length - 자리).replace(/0+$/, '') : '';
+    return (음수 ? '-' : '') + 앞 + (뒤 ? '.' + 뒤 : '');
   };
 
   function 영수증맞춤(d) {
@@ -1467,32 +1489,51 @@ function renderDrawer(id) {
     const 잔금 = 돈(ov.balReceiptAmount);
     const 잔액서류 = 돈(ov.ciAmount) ?? 돈(auto?.brief?.amount) ?? 돈(auto?.amount);
 
-    if (계약금 === null || 잔금 === null || 잔액서류 === null) {
+    const 머리 = '<div class="text-[11px] font-bold text-faint tracking-wide mb-1">영수증 합계 맞춤</div>';
+
+    // 하나라도 숫자가 없으면 0 으로 치지 않고 아예 맞춰 보지 않습니다.
+    if (!계약금 || !잔금 || !잔액서류) {
       const 빠진것 = [
-        계약금 === null ? '계약금영수증 금액' : '',
-        잔금 === null ? '잔액영수증 금액' : '',
-        잔액서류 === null ? '실출하 총액 (CI&PL)' : '',
+        !계약금 ? '계약금영수증 금액' : '',
+        !잔금 ? '잔액영수증 금액' : '',
+        !잔액서류 ? '실출하 총액 (CI&PL)' : '',
       ].filter(Boolean).join(' · ');
-      return `<div class="mt-2 border-t border-line pt-2 text-[11px] text-faint leading-relaxed">
-                영수증 합계를 맞춰 보려면 아래 <b>직접 입력</b> 에 ${esc(빠진것)} 을 넣어 주세요.
-              </div>`;
+      return `<div class="mt-2 border-t border-line pt-2">${머리}
+                <div class="text-[11px] text-faint leading-relaxed">
+                  아직 못 맞춰 봤습니다 — 아래 <b>직접 입력</b> 에 ${esc(빠진것)} 을 넣어 주세요.
+                </div></div>`;
     }
 
-    const 합 = Math.round((계약금 + 잔금) * 100) / 100;
-    const 차 = Math.round((합 - 잔액서류) * 100) / 100;
-    const 맞음 = Math.abs(차) < 0.01;
+    // 통화가 섞이면 더하지 않습니다. 달러와 위안을 더한 숫자는 뜻이 없습니다.
+    const 통화들 = [...new Set([계약금.통화, 잔금.통화, 잔액서류.통화].filter(Boolean))];
+    const 줄 = (이름, m) => `<div>${이름} <b>${esc(m.숫자.replace(/\B(?=(\d{3})+(?!\d))/g, ','))}</b>${m.통화 ? ` <span class="text-faint">${m.통화}</span>` : ''}</div>`;
+    if (통화들.length > 1)
+      return `<div class="mt-2 border-t border-line pt-2">${머리}
+                <div class="text-[11px] leading-relaxed tabular-nums">
+                  ${줄('계약금영수증', 계약금)}${줄('잔액영수증', 잔금)}${줄('잔액서류(CI&PL)', 잔액서류)}
+                </div>
+                <div class="mt-1.5 text-[12px] font-bold px-3 py-2 rounded-lg bg-[#fdf3e3] text-[#8a5a00]">
+                  통화가 다릅니다 (${esc(통화들.join(' · '))}) — 섞어서 더하지 않았습니다.
+                </div></div>`;
+
+    const 자리 = Math.max(소수자리(계약금.숫자), 소수자리(잔금.숫자), 소수자리(잔액서류.숫자));
+    const 합 = 정수로(계약금.숫자, 자리) + 정수로(잔금.숫자, 자리);
+    const 차 = 합 - 정수로(잔액서류.숫자, 자리);
+    const 맞음 = 차 === 0n;
+    const 통화 = 통화들[0] ? ` <span class="text-faint">${통화들[0]}</span>` : '';
     return `
       <div class="mt-2 border-t border-line pt-2">
-        <div class="text-[11px] font-bold text-faint tracking-wide mb-1">영수증 합계 맞춤</div>
+        ${머리}
         <div class="text-[11px] leading-relaxed tabular-nums">
-          <div>계약금영수증 <b>${fmtNum(계약금)}</b> + 잔액영수증 <b>${fmtNum(잔금)}</b>
-               = <b>${fmtNum(합)}</b></div>
-          <div>잔액서류(CI&PL) <b>${fmtNum(잔액서류)}</b></div>
+          <div>계약금영수증 <b>${esc(돈적기(정수로(계약금.숫자, 자리), 자리))}</b>
+               + 잔액영수증 <b>${esc(돈적기(정수로(잔금.숫자, 자리), 자리))}</b>
+               = <b>${esc(돈적기(합, 자리))}</b>${통화}</div>
+          <div>잔액서류(CI&PL) <b>${esc(돈적기(정수로(잔액서류.숫자, 자리), 자리))}</b>${통화}</div>
         </div>
         <div class="mt-1.5 text-[12px] font-bold px-3 py-2 rounded-lg
                     ${맞음 ? 'bg-chip text-ok' : 'bg-[#fdf3e3] text-[#8a5a00]'}">
           ${맞음 ? '✓ 금액이 맞습니다.'
-                 : `맞지 않습니다 — 영수증 합계가 ${차 > 0 ? '더 많습니다' : '모자랍니다'} (차이 ${fmtNum(Math.abs(차))}).`}
+                 : `맞지 않습니다 — 영수증 합계가 ${차 > 0n ? '더 많습니다' : '모자랍니다'} (차이 ${esc(돈적기(차 < 0n ? -차 : 차, 자리))}).`}
         </div>
       </div>`;
   }
