@@ -1432,17 +1432,24 @@ function renderDrawer(id) {
     발주서들.find((d) => d.path === 고른것) ?? (발주서들.length === 1 ? 발주서들[0] : null);
   const 고르셔야하나 = 발주서들.length > 1 && !발주서들.some((d) => d.path === 고른것);
 
+  /* 확정 표시 — 칸 아래쪽에 작게 답니다. 보이는 알약은 작아도
+     누르는 자리는 44px 로 넓혀 둡니다(폰에서 눌려야 합니다). */
   const 확정줄 = (d) => {
     if (!발주서들.length || d.stageKey !== 'order') return '';
     const 이것이확정 = 확정발주서?.path === d.path;
+    const 알약 = (글, 켜짐) =>
+      `<span class="text-[11px] font-bold px-2.5 py-1 rounded-md border
+                    ${켜짐 ? 'bg-ink text-white border-ink' : 'bg-white text-faint border-line'}">${글}</span>`;
     if (발주서들.length === 1)
-      return `<span class="inline-flex items-center text-[11px] font-bold text-muted bg-chip rounded px-2 py-1">확정 발주서 · 한 장뿐입니다</span>`;
+      return `<div class="flex justify-end">${알약('✓ 확정 · 한 장뿐', true)}</div>`;
     return `
-      <button type="button" data-confirm="${esc(d.path)}" data-on="${이것이확정 ? '1' : ''}"
-              class="min-h-[44px] px-3 rounded-lg text-[12px] font-bold border
-                     ${이것이확정 ? 'bg-ink text-white border-ink' : 'bg-white text-muted border-line'}">
-        ${이것이확정 ? '✓ 확정 발주서' : '이것을 확정으로'}
-      </button>`;
+      <div class="flex justify-end">
+        <button type="button" data-confirm="${esc(d.path)}" data-on="${이것이확정 ? '1' : ''}"
+                title="${이것이확정 ? '다시 누르면 확정을 무릅니다' : '이 발주서를 확정으로'}"
+                class="min-h-[44px] min-w-[44px] px-1 flex items-center justify-center">
+          ${알약(이것이확정 ? '✓ 확정' : '확정', 이것이확정)}
+        </button>
+      </div>`;
   };
 
   /* 잔액서류(CI&PL)를 확정 발주서와 견줍니다 — 같은 셈, 같은 표, 같은 상세보기 화면입니다.
@@ -1489,7 +1496,6 @@ function renderDrawer(id) {
              class="text-[11px] text-faint hover:text-ink shrink-0 ml-auto">↗</a>` : ''}
       </div>
       <span class="dmt">${[d.date, fmtSize(d.size)].filter(Boolean).join(' · ')}</span>
-      ${확정줄(d)}
       ${diffs.has(d.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(d.path)}</div>` : ''}
       ${d.stageKey === 'cipl' ? 잔액대발주(d) : ''}
       ${(() => {
@@ -1506,6 +1512,7 @@ function renderDrawer(id) {
             ${c.swapped ? '<span class="text-warn font-semibold" title="서류에 G.W. 와 N.W. 가 뒤바뀌어 있어 큰 값을 총중량으로 봤습니다">G.W./N.W. 뒤바뀜</span>' : ''}
           </div>`;
       })()}
+      ${확정줄(d)}
     </li>`;
 
   $('#drawerBody').innerHTML = `
