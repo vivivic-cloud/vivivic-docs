@@ -1154,6 +1154,22 @@ function shipSummary(b, ov) {
     </section>`;
 }
 
+/* 확정 발주서를 고르거나 물립니다. 차수별 입력값(docs_overlay)에 경로만 적습니다 —
+   드라이브 파일은 건드리지 않습니다. 다시 열어도 그대로이고, 언제든 바꾸실 수 있습니다. */
+async function setConfirmedOrder(batchId, path) {
+  if (state.demo) {
+    state.overlay[batchId] = { ...(state.overlay[batchId] ?? {}), confirmedOrder: path };
+    renderDrawer(batchId);
+    return toast('데모 모드라 저장하지 않습니다.');
+  }
+  try {
+    await DB.saveOverlay(batchId, { confirmedOrder: path }, state.user?.email);
+    toast(path ? '확정 발주서로 정했습니다.' : '확정을 물렸습니다.');
+  } catch (e) {
+    toast(`저장 실패: ${e.message}`);
+  }
+}
+
 /* ── 상세 서랍 ────────────────────────────────────────── */
 
 function openDrawer(id) {
@@ -1394,8 +1410,62 @@ function renderDrawer(id) {
   /* 서류 한 장을 박스 하나로 — 박스 이름이 곧 그 서류의 이름입니다.
      모양은 작업대(viggle)의 박스 값을 그대로 씁니다(.dhh-dbox).
      이름은 자르지 않고 다 보여 줍니다. 누르는 자리는 전과 같습니다. */
+  /* 확정 발주서 — 여러 장일 때 어느 것이 확정인지 고르십니다.
+     한 장뿐이면 고를 것이 없으니 그것으로 봅니다(화면에 그렇게 적습니다). */
+  const 발주서들 = b.stages.find((s) => s.key === 'order')?.docs ?? [];
+  const 고른것 = ov.confirmedOrder ?? null;
+  const 확정발주서 =
+    발주서들.find((d) => d.path === 고른것) ?? (발주서들.length === 1 ? 발주서들[0] : null);
+  const 고르셔야하나 = 발주서들.length > 1 && !발주서들.some((d) => d.path === 고른것);
+
+  const 확정줄 = (d) => {
+    if (!발주서들.length || d.stageKey !== 'order') return '';
+    const 이것이확정 = 확정발주서?.path === d.path;
+    if (발주서들.length === 1)
+      return `<span class="inline-flex items-center text-[11px] font-bold text-muted bg-chip rounded px-2 py-1">확정 발주서 · 한 장뿐입니다</span>`;
+    return `
+      <button type="button" data-confirm="${esc(d.path)}" data-on="${이것이확정 ? '1' : ''}"
+              class="min-h-[44px] px-3 rounded-lg text-[12px] font-bold border
+                     ${이것이확정 ? 'bg-ink text-white border-ink' : 'bg-white text-muted border-line'}">
+        ${이것이확정 ? '✓ 확정 발주서' : '이것을 확정으로'}
+      </button>`;
+  };
+
+  /* 잔액서류(CI&PL)를 확정 발주서와 견줍니다 — 같은 셈, 같은 표, 같은 상세보기 화면입니다.
+     확정 발주서를 아직 안 고르셨으면 견주지 않고 고르시라고만 말합니다. */
+  function 잔액대발주(d) {
+    if (!발주서들.length) return '';
+    if (고르셔야하나)
+      return `<div class="mt-1 text-[11px] text-[#8a5a00] bg-[#fdf3e3] rounded-lg px-3 py-2 leading-relaxed">
+                발주서가 ${발주서들.length}장입니다. 위에서 <b>확정 발주서를 먼저 골라</b> 주세요 —
+                고르시면 그것과 무엇이 다른지 여기에 보여 드립니다.</div>`;
+    const 발주 = 확정발주서;
+    if (!발주?.cipl || !d.cipl) return '';
+
+    const rows = itemRows(발주.cipl.items, d.cipl.items);
+    for (const [key, label, isNum] of DIFF_FIELDS) {
+      const x = 발주.cipl.brief?.[key];
+      const y = d.cipl.brief?.[key];
+      if (x === undefined || y === undefined || x === y) continue;
+      const r = (n) => Math.round(Number(n) * 100) / 100;
+      rows.push(isNum
+        ? { kind: '합계', name: label, code: '', from: r(x), to: r(y) }
+        : { kind: '합계', name: label, code: '', from: String(x), to: String(y) });
+    }
+
+    const key = `확정↔${d.path}`;
+    diffPairs.set(key, { before: 발주, now: d, rows, label: `확정 발주서 ↔ 잔액서류` });
+    return `
+      <div class="mt-2 border-t border-line pt-2">
+        <div class="text-[11px] font-bold text-faint tracking-wide mb-1">확정 발주서와 다른 곳</div>
+        ${rows.length
+          ? diffTable(rows, key)
+          : '<span class="text-[11px] text-faint">확정 발주서와 숫자가 같습니다.</span>'}
+      </div>`;
+  }
+
   const docLink = (d) => `
-    <li class="dhh-dbox">
+    <li class="dhh-dbox${확정발주서?.path === d.path && 발주서들.length > 1 ? ' ring-1 ring-ink' : ''}">
       <div class="flex items-start gap-2">
         <button data-doc="${esc(d.path)}" class="dnm text-left text-info hover:underline break-words" title="${esc(fileTitle(d))}">
           ${esc(d.display)}
@@ -1405,7 +1475,9 @@ function renderDrawer(id) {
              class="text-[11px] text-faint hover:text-ink shrink-0 ml-auto">↗</a>` : ''}
       </div>
       <span class="dmt">${[d.date, fmtSize(d.size)].filter(Boolean).join(' · ')}</span>
+      ${확정줄(d)}
       ${diffs.has(d.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(d.path)}</div>` : ''}
+      ${d.stageKey === 'cipl' ? 잔액대발주(d) : ''}
       ${(() => {
         const c = ciplOf(d);
         if (!c) return '';
@@ -1521,6 +1593,10 @@ function renderDrawer(id) {
   for (const el of $('#drawerBody').querySelectorAll('[data-diff]')) {
     el.onclick = () => openDiffDetail(diffPairs.get(el.dataset.diff));
   }
+  for (const el of $('#drawerBody').querySelectorAll('[data-confirm]')) {
+    // 이미 확정인 것을 다시 누르면 물립니다 — 잘못 고르셨을 때 되돌리는 길입니다.
+    el.onclick = () => setConfirmedOrder(id, el.dataset.on ? '' : el.dataset.confirm);
+  }
   for (const el of $('#drawerBody').querySelectorAll('[data-photo]')) {
     el.onclick = () => {
       const list = b.stages.find((s) => s.key === el.dataset.photo).docs;
@@ -1612,6 +1688,8 @@ async function saveOverlay(id) {
   const data = {};
   if (prev.cipl) data.cipl = prev.cipl;
   if (prev.ciplFiles) data.ciplFiles = prev.ciplFiles;
+  // 고르신 확정 발주서도 들고 갑니다 — 안 그러면 저장할 때 같이 지워집니다.
+  if (prev.confirmedOrder) data.confirmedOrder = prev.confirmedOrder;
   for (const el of $('#drawerBody').querySelectorAll('[data-ov]')) {
     const v = el.value.trim();
     if (v) data[el.dataset.ov] = v;
