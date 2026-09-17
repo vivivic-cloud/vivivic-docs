@@ -65,9 +65,11 @@
   .dhh-board .dhh-sub{ margin-left:auto; font-size:12px; color:var(--vg-muted); }
 
   .dhh-board .dhh-tiles{ display:grid; grid-template-columns:1.02fr 1fr; gap:12px; }
+  /* 작업대(viggle)의 .tile 값 그대로입니다. color/font 만 단추라서 물려받게 둡니다.
+     gap 은 작업대에 없습니다 — 그것이 있으면 최소높이 150px 이 먹지 않습니다. */
   .dhh-board .dhh-tile{ position:relative; border-radius:26px; padding:17px; display:flex;
-    flex-direction:column; justify-content:space-between; gap:14px; min-height:132px;
-    border:1px solid transparent; text-align:left; cursor:pointer;
+    flex-direction:column; justify-content:space-between; overflow:hidden; cursor:pointer;
+    border:1px solid transparent; text-align:left; min-height:150px;
     color:inherit; font:inherit; transition:transform .12s; }
   .dhh-board .dhh-tile:active{ transform:scale(.975); }
   .dhh-board .dhh-tile.dhh-light{ background:var(--vg-fill); }
@@ -79,7 +81,7 @@
   .dhh-board .dhh-tile.dhh-white .dhh-ico{ background:var(--vg-fill); }
   .dhh-board .dhh-tile .dhh-nm{ display:block; font-size:20px; line-height:1.22;
     letter-spacing:-.5px; font-weight:700; }
-  .dhh-board .dhh-tile .dhh-pct{ display:block; margin-top:5px; font-size:12.5px; color:var(--vg-muted); }
+  .dhh-board .dhh-tile .dhh-pct{ display:block; margin:5px 0 0; font-size:12.5px; color:var(--vg-muted); }
   .dhh-board .dhh-tile.dhh-dark .dhh-pct{ color:rgba(255,255,255,.5); }
   .dhh-board .dhh-red{ position:absolute; right:13px; top:13px; width:9px; height:9px;
     border-radius:50%; background:var(--vg-red); box-shadow:0 0 0 3px var(--vg-ink); }
@@ -230,7 +232,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.36.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.36.2</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -258,7 +260,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.36.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.36.2</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
