@@ -727,6 +727,40 @@ const INLINE_KIND = {
   xlsx: 'sheet', xls: 'sheet', xlsm: 'sheet',
 };
 
+/** 브라우저가 못 그리는 형식인지 — 도면(dxf·dwg) 처럼 INLINE_KIND 에 없는 것들입니다. */
+const 못그리는형식 = (doc) =>
+  !INLINE_KIND[(String(doc?.name ?? doc?.display ?? '').split('.').pop() ?? '').toLowerCase()];
+
+/* 원본을 그대로 엽니다 — 판을 한 번 더 누르게 하지 않습니다.
+   드라이브 파일은 새 창으로(틀에 넣으면 로그인이 막힙니다),
+   이 기기에서 읽은 파일은 내려받아 기본 프로그램으로 넘깁니다.
+   ⚠ 새 창은 손가락이 닿은 그 순간에 열어야 사파리가 막지 않습니다. */
+function 원본열기(doc, url = null) {
+  const 드라이브 = !url && doc?.driveId;
+  if (!드라이브 && !url) return false;
+  try {
+    // 링크를 만들어 누릅니다. window.open 보다 사파리가 덜 막고,
+    // noopener 를 붙인 window.open 은 규칙상 늘 null 을 돌려줘 성공 여부를 알 수 없습니다.
+    const a = document.createElement('a');
+    if (드라이브) {
+      a.href = driveOpen(doc.driveId);
+      a.target = '_blank';
+      a.rel = 'noopener';
+    } else {
+      a.href = url;
+      a.download = doc?.display ?? doc?.name ?? '파일';
+    }
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // 막혀서 아무 일도 안 일어나도 사장님이 아시게 한 줄 띄웁니다.
+    toast(드라이브 ? '원본을 새 창에서 엽니다.' : '원본을 내려받아 엽니다.');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** 미리보기용 blob URL을 칸별로 하나씩만 들고 있다가 반납합니다. */
 const blobUrls = new Map();
 function keepBlob(ns, url) {
@@ -860,20 +894,28 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
         sheetError = e;
       }
       if (sheetError) {
+        // 표를 못 읽으면 판을 내밀지 않고 원본을 그대로 엽니다.
         box.className += ' flex items-center justify-center p-6';
+        const 열었나 = 원본열기(doc, url);
         box.innerHTML = `
           <div class="text-center">
-            <p class="text-[13px] text-muted mb-3">이 표를 읽지 못했습니다: ${esc(sheetError.message)}</p>
-            <a href="${url}" download="${esc(doc.display)}" class="btn btn-ghost inline-block">내려받아서 열기</a>
+            <p class="text-[13px] text-muted mb-3">${열었나
+              ? `표를 읽지 못해 원본을 엽니다 (${esc(sheetError.message)}).`
+              : `이 표를 읽지 못했습니다: ${esc(sheetError.message)}`}</p>
+            <a href="${url}" download="${esc(doc.display)}" class="btn btn-ghost inline-block">원본 열기</a>
           </div>`;
       }
     } else {
+      // 못 그리는 형식 — 판을 내밀지 않고 원본을 그대로 엽니다.
       box.className += ' flex items-center justify-center p-6';
+      const 열었나 = 원본열기(doc, url);
       box.innerHTML = `
         <div class="text-center">
-          <p class="text-[13px] text-muted mb-3">도면(dxf/dwg)처럼 브라우저가 못 그리는 형식입니다.</p>
+          <p class="text-[13px] text-muted mb-3">${열었나
+            ? '브라우저가 못 그리는 형식이라 원본을 엽니다.'
+            : '도면(dxf/dwg)처럼 브라우저가 못 그리는 형식입니다.'}</p>
           <a href="${url}" download="${esc(doc.display)}"
-             class="btn btn-ghost inline-block">내려받아서 열기</a>
+             class="btn btn-ghost inline-block">원본 열기</a>
         </div>`;
     }
     if (note)
@@ -1751,6 +1793,9 @@ function renderConnectState() {
  */
 function openDoc(doc, list = null) {
   if (!doc) return;
+  // 못 그리는 형식은 보기판을 띄우지 않고 이 자리에서 원본을 엽니다.
+  // 새 창이 막히면(사파리) 그냥 지나가서 아래 보기판을 띄웁니다 — 조용히 끝나지 않게.
+  if (못그리는형식(doc) && doc.driveId && 원본열기(doc)) return;
   state.viewer = list ? { list, idx: Math.max(0, list.indexOf(doc)) } : { list: [], idx: 0 };
   $('#viewerScrim').hidden = false;
   showViewer(doc);
