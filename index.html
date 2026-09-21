@@ -232,7 +232,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.36.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.36.3</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -260,7 +260,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.36.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.36.3</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -514,7 +514,9 @@
 </div>
 
 <!-- ── 파일 보기 ── -->
-<div id="viewerScrim" class="fixed inset-0 bg-black/35 z-[240] flex items-center justify-center px-6 py-8" hidden>
+<!-- 보기창은 박스 판(z 8000)·＋(8100)·새 박스 칸(8200) 보다 위에 있어야 합니다.
+     z-240 이던 때는 박스 판 파일 목록에서 파일을 열면 판 뒤에 깔려 안 보였습니다. -->
+<div id="viewerScrim" class="fixed inset-0 bg-black/35 z-[8300] flex items-center justify-center px-6 py-8" hidden>
   <div class="w-full max-w-[900px] h-full flex flex-col bg-white border border-line rounded-2xl shadow-lg">
     <div class="border-b border-line px-7 py-3 flex items-center gap-3 shrink-0">
       <div class="min-w-0">
