@@ -58,14 +58,22 @@ css = css_file.read_text(encoding='utf-8')
 demo = json.loads((ROOT / 'data' / 'demo.json').read_text(encoding='utf-8'))
 
 # 순서가 중요합니다: hoisted 를 채운 뒤에 이어붙입니다.
-mods = module('js/parse.js', 'PARSE') + module('js/fsaccess.js', 'FS') + module('js/firebase.js', 'DB')
+mods = (module('js/parse.js', 'PARSE') + module('js/progress.js', 'PROGRESS')
+        + module('js/fsaccess.js', 'FS') + module('js/firebase.js', 'DB'))
 
 app = (ROOT / 'js' / 'app.js').read_text(encoding='utf-8')
 # app.js 가 parse.js 에서 가져오는 이름들을 그대로 PARSE 에서 꺼내 씁니다.
-named = re.search(r"import\s*\{([^}]*)\}\s*from\s*'\./parse\.js';", app)
-picks = named.group(1).strip() if named else 'STAGES, buildBatches'
+# app.js 가 로컬 모듈에서 가져오는 이름을 그 모듈의 네임스페이스에서 꺼내 씁니다.
+LOCAL_NS = {'./parse.js': 'PARSE', './progress.js': 'PROGRESS'}
+lines = []
+for src, ns in LOCAL_NS.items():
+    m = re.search(r"import\s*\{([^}]*)\}\s*from\s*'" + re.escape(src) + r"';", app)
+    if m:
+        lines.append(f'const {{ {m.group(1).strip()} }} = {ns};')
+    elif ns == 'PARSE':
+        lines.append('const { STAGES, buildBatches } = PARSE;')
 app = strip_imports(app)
-app = f'const {{ {picks} }} = PARSE;\n' + app
+app = '\n'.join(lines) + '\n' + app
 
 bundle = (
     '\n'.join(dict.fromkeys(hoisted))

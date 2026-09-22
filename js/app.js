@@ -1,4 +1,5 @@
 import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf } from './parse.js';
+import { progressWord } from './progress.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -28,6 +29,13 @@ const state = {
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtNum = (n) => (n == null ? '' : Number(n).toLocaleString('ko-KR'));
+/* 차수가 어디까지 왔는지 한 마디 — 차수 카드와 차수 서랍 머리, 두 자리에 같은 것을 답니다.
+   넷 가운데 하나도 없으면 아무것도 안 답니다(빈 글자). */
+const 진행알약 = (b) => {
+  const 말 = progressWord(b);
+  return 말 ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-ink text-white shrink-0">${말}</span>` : '';
+};
+
 const fmtSize = (b) => (b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(1)} MB`);
 
 /* ── 부팅 ─────────────────────────────────────────────── */
@@ -441,6 +449,7 @@ function renderGrid() {
         </div>
         <div class="flex items-center gap-[3px] mb-2">${stageDots(b)}</div>
         <div class="flex items-center gap-2 flex-wrap text-[11px] font-semibold">
+          ${진행알약(b)}
           ${b.lastDate ? `<span class="text-faint">최근 ${esc(b.lastDate)}</span>` : ''}
           <span class="text-faint">서류 ${b.docs.length}건</span>
           ${warn ? `<span class="text-warn">이상 ${warn}</span>` : ''}
@@ -1800,6 +1809,7 @@ function renderDrawer(id) {
         <div class="text-[17px] font-bold leading-tight">${esc(b.batch)}차</div>
       </div>
       <div class="ml-auto flex items-center gap-2">
+        ${진행알약(b)}
         <span class="text-[13px] font-bold">${b.done}<span class="text-faint">/7</span></span>
         <button id="drawerClose" class="btn btn-ghost">닫기</button>
       </div>
