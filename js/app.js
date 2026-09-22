@@ -341,7 +341,7 @@ function renderFileHits() {
       <span class="text-[11px] font-bold shrink-0 w-[64px] text-right ${d.off ? 'text-faint' : ''}">${esc(d.where)}</span>
       <span class="text-[11px] text-faint shrink-0 w-[80px] text-right">${esc(STAGE_LABEL[d.stageKey] ?? '')}</span>
       <span class="text-[11px] text-faint shrink-0 w-[74px] text-right leading-tight">${esc(d.date ?? '')}${
-        (() => { const o = 올린날(d); return o ? `<br /><span class="text-[10px]">올린 ${esc(o)}</span>` : ''; })()}</span>
+        (() => { const o = 올린날(d); return o ? `<br /><span class="text-[10px]">${esc(o)}</span>` : ''; })()}</span>
     </li>`;
 
   box.innerHTML = `
@@ -732,13 +732,27 @@ const INLINE_KIND = {
 
 /* 드라이브에 올린 날 — 가장 최근 파일을 찾으시라고 함께 적습니다.
    ⚠ 보여 주기에만 씁니다. 차수 묶기·정렬은 예전대로 d.date(파일 이름에서 읽은 날)입니다.
-   아직 ctime 이 안 올라온 파일은 mtime(드라이브가 마지막으로 고친 때)으로 갈음합니다. */
+   ⚠ 날은 한국 기준으로 자릅니다. UTC 로 자르면 아침 9시 전에 올린 것이 전날로
+     밀려서, 가장 최근 파일을 찾으시는 데 되레 방해가 됩니다. */
+const 한국날 = (ms) => {
+  const t = new Date(ms + 9 * 60 * 60 * 1000);   // +9 를 더하고 UTC 로 읽으면 한국 날입니다
+  return { 해: t.getUTCFullYear(), 달: t.getUTCMonth() + 1, 날: t.getUTCDate() };
+};
+const 날적기 = (ms) => {
+  const { 해, 달, 날 } = 한국날(ms);
+  const 짧게 = String(달).padStart(2, '0') + '-' + String(날).padStart(2, '0');
+  // 올해 것은 MM-DD 로 짧게, 지난해 것은 해까지 적습니다 — 여러 해가 섞여도 헷갈리지 않습니다.
+  return 해 === 한국날(Date.now()).해 ? 짧게 : `${해}-${짧게}`;
+};
+
+/* ctime 이 있으면 '올린', 아직 안 올라왔으면 mtime 으로 갈음해 '고친' 이라 적습니다.
+   드라이브가 마지막으로 고친 날을 올린 날이라고 단정하지 않습니다.
+   ctime 이 다 차면 '고친' 은 저절로 사라집니다. */
 function 올린날(d) {
-  const ms = Number(d?.ctime) || 0;
-  if (ms) return new Date(ms).toISOString().slice(5, 10);
+  const c = Number(d?.ctime) || 0;
+  if (c) return `올린 ${날적기(c)}`;
   const m = Number(d?.mtime) || 0;
-  if (!m) return '';
-  return new Date(m).toISOString().slice(5, 10);
+  return m ? `고친 ${날적기(m)}` : '';
 }
 
 /* 상차확정일을 사람 말로 — 2026-09-22 → 2026/9월/22일.
@@ -751,8 +765,7 @@ function 보일날(iso) {
 
 /** 파일 한 줄에 붙는 '날짜 · 올린날 · 크기'. 네 자리가 같은 말을 쓰게 한 군데서 만듭니다. */
 function 파일메타(d) {
-  const 올림 = 올린날(d);
-  return [d.date, 올림 ? `올린 ${올림}` : '', fmtSize(d.size)].filter(Boolean).join(' · ');
+  return [d.date, 올린날(d), fmtSize(d.size)].filter(Boolean).join(' · ');
 }
 
 /** 브라우저가 못 그리는 형식인지 — 도면(dxf·dwg) 처럼 INLINE_KIND 에 없는 것들입니다. */
