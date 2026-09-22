@@ -11,6 +11,7 @@ const state = {
   unassigned: [],
   boxes: [],            // 거래처 안에 손으로 만든 박스
   kinds: {},            // 파일 갈래 구분저장 — 경로 → cad/spread/ppt/pdf/etc
+  loading: {},          // 차수별 상차일 — 고른 날(pick) · 확정한 날(fixed)
   orders: [],           // 작업대에 오간 지시와 답 — 읽기만 합니다
   overlay: {},
   rules: [],
@@ -124,7 +125,8 @@ async function enterApp(user) {
     DB.watchRules((rules) => { state.rules = rules; applyParse(); }),
     DB.watchBoxes((boxes) => { state.boxes = boxes; window.docsBoxesChanged?.(); }),
     DB.watchOrders((msgs) => { state.orders = msgs; window.docsOrdersChanged?.(); }),
-    DB.watchKinds((map) => { state.kinds = map; window.docsBoxesChanged?.(); })
+    DB.watchKinds((map) => { state.kinds = map; window.docsBoxesChanged?.(); }),
+    DB.watchLoading((map) => { state.loading = map; if (state.openId) renderDrawer(state.openId); })
   );
 }
 
@@ -1196,6 +1198,25 @@ function shipSummary(b, ov) {
     </section>`;
 }
 
+/* 상차일 — 고르고(선택), 한 번 더 눌러 확정합니다. 차수마다 하나입니다.
+   있던 문서는 건드리지 않고 새 칸(docs_config/loading)에만 적습니다.
+   ⚠ 이 날짜는 '하기로 한 날' 입니다 — 4단계 상차이미지(진짜로 실은 증거)와 상관없습니다. */
+async function saveLoadDate(batchId, patch) {
+  if (state.demo) {
+    state.loading[batchId] = { ...(state.loading[batchId] ?? { b: batchId }), ...patch };
+    renderDrawer(batchId);
+    return toast('데모 모드라 저장하지 않습니다.');
+  }
+  try {
+    await DB.saveLoading(batchId, patch, state.user?.email);
+    toast(patch.fixed ? '상차일을 확정했습니다.'
+        : patch.fixed === null ? '상차일 확정을 물렸습니다.'
+        : '상차일을 골라 두었습니다 — 확정을 눌러야 정해집니다.');
+  } catch (e) {
+    toast(`저장 실패: ${e.message}`);
+  }
+}
+
 /* 확정 발주서를 고르거나 물립니다. 차수별 입력값(docs_overlay)에 경로만 적습니다 —
    드라이브 파일은 건드리지 않습니다. 다시 열어도 그대로이고, 언제든 바꾸실 수 있습니다. */
 async function setConfirmedOrder(batchId, path) {
@@ -1466,6 +1487,39 @@ function renderDrawer(id) {
   /* 서류 한 장을 박스 하나로 — 박스 이름이 곧 그 서류의 이름입니다.
      모양은 작업대(viggle)의 박스 값을 그대로 씁니다(.dhh-dbox).
      이름은 자르지 않고 다 보여 줍니다. 누르는 자리는 전과 같습니다. */
+  /* 상차일 칸 — 발주서 단계 아래에 답니다.
+     고른 날과 확정한 날을 따로 보여 줍니다. 확정 전에는 '아직 확정 전' 이라고 적습니다.
+     날짜 고르기는 폰이 제 달력을 띄우는 <input type="date"> 를 씁니다. */
+  function 상차일칸() {
+    const 값 = state.loading?.[id] ?? {};
+    const 고른날 = 값.pick ?? '';
+    const 확정날 = 값.fixed ?? '';
+    const 확정됨 = !!확정날;
+    const 고친것 = 고른날 && 확정날 && 고른날 !== 확정날;
+    return `
+      <div class="pl-[42px] pr-3 pb-3">
+        <div class="rounded-xl border ${확정됨 ? 'border-ink' : 'border-line'} bg-white p-3">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-[11px] font-bold text-faint tracking-wide">상차일</span>
+            ${확정됨
+              ? `<span class="text-[11px] font-bold px-2 py-1 rounded-md bg-ink text-white">✓ 확정 ${esc(확정날)}</span>`
+              : `<span class="text-[11px] font-bold px-2 py-1 rounded-md bg-chip text-muted">아직 확정 전</span>`}
+          </div>
+          <input type="date" data-loadpick value="${esc(고른날 || 확정날)}"
+                 class="field min-h-[44px] mb-2" />
+          <div class="flex items-center gap-2 flex-wrap">
+            <button type="button" data-loadfix class="btn btn-primary min-h-[44px]">
+              ${확정됨 ? (고친것 ? '이 날로 다시 확정' : '확정') : '확정'}
+            </button>
+            ${확정됨 ? `<button type="button" data-loadclear class="btn btn-ghost min-h-[44px]">확정 물리기</button>` : ''}
+          </div>
+          <p class="text-[11px] text-faint mt-2 leading-relaxed">
+            하기로 한 날입니다. 4단계 상차이미지(실제로 실은 증거)와는 따로입니다.
+          </p>
+        </div>
+      </div>`;
+  }
+
   /* 확정 발주서 — 여러 장일 때 어느 것이 확정인지 고르십니다.
      한 장뿐이면 고를 것이 없으니 그것으로 봅니다(화면에 그렇게 적습니다). */
   const 발주서들 = b.stages.find((s) => s.key === 'order')?.docs ?? [];
@@ -1675,6 +1729,7 @@ function renderDrawer(id) {
               ${!on ? '' : s.docs.length > 1 && s.docs.every((d) => PHOTO_EXT.test(d.name))
                 ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
                 : `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${((diffs = diffNotes(s.docs)), s.docs.map((d) => docLink(d)).join(''))}</ul>`}
+              ${s.key === 'order' ? 상차일칸() : ''}
             </li>`;
           }).join('')}
         </ol>
@@ -1738,6 +1793,20 @@ function renderDrawer(id) {
   for (const el of $('#drawerBody').querySelectorAll('[data-diff]')) {
     el.onclick = () => openDiffDetail(diffPairs.get(el.dataset.diff));
   }
+  // 상차일 — 고르기(선택)와 확정은 두 걸음입니다.
+  const 날짜칸 = $('#drawerBody').querySelector('[data-loadpick]');
+  if (날짜칸)
+    날짜칸.onchange = () => saveLoadDate(id, { pick: 날짜칸.value || null });
+  const 확정단추 = $('#drawerBody').querySelector('[data-loadfix]');
+  if (확정단추)
+    확정단추.onclick = () => {
+      const 날 = 날짜칸?.value;
+      if (!날) return toast('먼저 날짜를 골라 주세요.');
+      saveLoadDate(id, { pick: 날, fixed: 날 });
+    };
+  const 물리기 = $('#drawerBody').querySelector('[data-loadclear]');
+  if (물리기) 물리기.onclick = () => saveLoadDate(id, { fixed: null });
+
   for (const el of $('#drawerBody').querySelectorAll('[data-confirm]')) {
     // 이미 확정인 것을 다시 누르면 물립니다 — 잘못 고르셨을 때 되돌리는 길입니다.
     el.onclick = () => setConfirmedOrder(id, el.dataset.on ? '' : el.dataset.confirm);

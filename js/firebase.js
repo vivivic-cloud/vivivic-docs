@@ -184,6 +184,28 @@ export function watchOrders(cb) {
   );
 }
 
+/* ── 상차일(차수별) ───────────────────────────────────────
+   있던 문서(발주·차수별 입력값)는 건드리지 않고 이 칸에만 적습니다.
+   고른 날(pick)과 확정한 날(fixed)을 따로 둡니다 — 고르기와 확정은 두 걸음입니다. */
+
+export function watchLoading(cb) {
+  return ctx.f.onSnapshot(ctx.f.doc(col(CONFIG), 'loading'), (s) => {
+    const list = s.exists() ? (s.data().list ?? []) : [];
+    cb(Object.fromEntries(list.map((x) => [x.b, x])));
+  });
+}
+
+/** 한 차수의 상차일을 적습니다. 다른 차수 것은 그대로 둡니다. */
+export async function saveLoading(batchId, patch, email) {
+  const ref = ctx.f.doc(col(CONFIG), 'loading');
+  const snap = await ctx.f.getDoc(ref);
+  const list = snap.exists() ? (snap.data().list ?? []) : [];
+  const i = list.findIndex((x) => x.b === batchId);
+  const 하나 = { ...(i >= 0 ? list[i] : { b: batchId }), ...patch, by: email ?? null, at: new Date().toISOString() };
+  if (i >= 0) list[i] = 하나; else list.push(하나);
+  await ctx.f.setDoc(ref, { list }, { merge: true });
+}
+
 /* ── 파일 갈래(cad·spread·ppt·pdf·기타) 구분저장 ──────────
    어느 갈래에 넣었는지를 적어 둡니다. 다시 들어와도 그대로입니다.
    드라이브는 건드리지 않습니다 — 우리 쪽 기록일 뿐입니다. */
