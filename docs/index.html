@@ -234,7 +234,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.45.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.45.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -262,7 +262,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.45.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.45.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -4172,7 +4172,7 @@ function renderDrawer(id) {
       ].filter(Boolean).join(' · ');
       return `<div class="mt-2 border-t border-line pt-2">${머리}
                 <div class="text-[11px] text-faint leading-relaxed">
-                  아직 못 맞춰 봤습니다 — 아래 <b>직접 입력</b> 에 ${esc(빠진것)} 을 넣어 주세요.
+                  아직 비교하지 못했습니다 — 아래 <b>직접 입력</b> 에 ${esc(빠진것)} 을 넣어 주세요.
                 </div></div>`;
     }
 
@@ -4237,7 +4237,7 @@ function renderDrawer(id) {
       하나가다맞음: () => `<b>"${esc(다맞는것[0].o.display)}"</b> 가 이 잔액서류와 숫자가 다 맞습니다. 이것으로 확정하시겠습니까?`,
       여럿이다맞음: () => `숫자가 다 맞는 발주서가 ${다맞는것.length}장입니다. 어느 것인지 골라 주세요.`,
       하나도안맞음: () => `<b>맞는 발주서가 하나도 없습니다.</b> 추가·취소된 상차가 있었는지,
-             무슨 일이 있었는지 아래 <b>메모</b> 에 적어 두십시오 — 나중에 까닭을 찾을 길이 됩니다.`,
+             무슨 일이 있었는지 아래 <b>메모</b> 에 적어 두십시오 — 나중에 이유를 찾는 데 도움이 됩니다.`,
       못댐: () => `<b>비교할 숫자가 없습니다</b> — 발주서에서 수량·금액·부피를 못 읽었습니다.
              맞는지 틀리는지 모르는 것이지, 안 맞는다는 뜻이 아닙니다. 위에서 골라 주세요.`,
       골라야함: () => `발주서 ${발주서들.length}장을 이 잔액서류와 비교해 봤습니다. 맞는 것을 골라 주세요.`,
@@ -4289,7 +4289,7 @@ function renderDrawer(id) {
     const m = 맞춰보기(발주, d);
     return `
       <div class="mt-2 border-t border-line pt-2">
-        <div class="text-[11px] font-bold text-faint tracking-wide mb-1">확정 발주서와 맞춰 본 것</div>
+        <div class="text-[11px] font-bold text-faint tracking-wide mb-1">확정 발주서와 비교한 것</div>
         <div class="mb-1.5">${맞춤줄(m)}</div>
         ${rows.length
           ? diffTable(rows, key)
