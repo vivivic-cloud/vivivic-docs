@@ -1652,14 +1652,98 @@ function renderDrawer(id) {
       </div>`;
   }
 
+  /* 잔액서류와 발주서를 숫자로 맞춰 봅니다.
+     ⚠ 박스수량과 중량은 발주서에서 안 나옵니다 — 발주서 PDF 에 그 칸이 없습니다
+       (지금 읽힌 발주서 23장 모두 없습니다). 그래서 없는 것을 있는 척 견주지 않고
+       실제로 양쪽에 다 있는 것만 견줍니다: 수량 · 금액 · 부피(CBM) · 품목별 수량.
+     한쪽에 값이 없는 칸은 '못 견줌' 으로 두고 맞았다고도 틀렸다고도 하지 않습니다. */
+  const 숫 = (v) => { const n = Number(v); return Number.isFinite(n) && n ? n : 0; };
+  function 맞춰보기(발주, d) {
+    const a = 발주?.cipl ?? {}, z = d?.cipl ?? {};
+    const ab = a.brief ?? {}, zb = z.brief ?? {};
+    const 항 = [];
+    const 넣기 = (이름, x, y, 단위) => {
+      if (!x || !y) return;                    // 한쪽이 없으면 견주지 않습니다
+      // 부피는 서류마다 반올림이 달라, 1% 안이면 같은 것으로 봅니다. 수량·금액은 딱 맞아야 합니다.
+      const 결 = x === y ? '같음'
+               : (단위 === 'CBM' && Math.abs(x - y) / Math.max(x, y) <= 0.01) ? '가까움' : '다름';
+      항.push({ 이름, 발주: x, 잔액: y, 단위, 결 });
+    };
+    넣기('수량', 숫(ab.qty), 숫(zb.qty) || 숫(z.pcs), 'pcs');
+    넣기('금액', 숫(ab.amount), 숫(zb.amount), '');
+    넣기('부피', 숫(ab.cbm), 숫(zb.cbm) || 숫(z.cbm), 'CBM');
+    const 품목 = (a.items?.length && z.items?.length) ? itemRows(a.items, z.items) : null;
+    const 맞은수 = 항.filter((x) => x.결 !== '다름').length;
+    return {
+      항, 품목다른줄: 품목 ? 품목.length : null,
+      맞은수, 견준수: 항.length,
+      // 견줄 것이 하나도 없으면 '맞다'고 할 근거가 없습니다.
+      다맞음: 항.length > 0 && 맞은수 === 항.length && (품목 === null || 품목.length === 0),
+      하나도안맞음: 항.length > 0 && 맞은수 === 0,
+    };
+  }
+
+  const 맞춤줄 = (m) => {
+    if (!m.항.length && m.품목다른줄 === null)
+      return '<span class="text-[11px] text-faint">견줄 숫자가 없습니다.</span>';
+    const 표 = { 같음: '✓', 가까움: '≈', 다름: '✗' };
+    return `<span class="text-[11px] tabular-nums flex flex-wrap gap-x-2 gap-y-0.5">` +
+      m.항.map((x) => `<span class="${x.결 === '다름' ? 'text-warn font-semibold' : 'text-faint'}"
+              title="발주서 ${esc(fmtNum(x.발주))} · 잔액서류 ${esc(fmtNum(x.잔액))}">${표[x.결]} ${esc(x.이름)} ${
+        x.결 === '다름' ? `${esc(fmtNum(x.발주))}≠${esc(fmtNum(x.잔액))}` : esc(fmtNum(x.잔액))}${
+        x.단위 ? ' ' + esc(x.단위) : ''}</span>`).join('') +
+      (m.품목다른줄 === null ? '<span class="text-faint">품목 못 견줌</span>'
+       : m.품목다른줄 === 0 ? '<span class="text-faint">✓ 품목 같음</span>'
+       : `<span class="text-warn font-semibold">✗ 품목 ${m.품목다른줄}줄 다름</span>`) +
+      `</span>`;
+  };
+
+  /* 발주서가 여러 장일 때 — 어느 것이 이 잔액서류와 맞는지 대 보고 그 자리에서 확정합니다.
+     사람이 눈으로 세 장을 대조하지 않아도 되게 합니다. 고르는 것은 여전히 사람입니다. */
+  function 발주서고르기(d) {
+    const 잰것 = 발주서들.map((o) => ({ o, m: 맞춰보기(o, d) }));
+    const 다맞는것 = 잰것.filter((x) => x.m.다맞음);
+    // 숫자도 품목도 맞는 것이 한 장도 없을 때만 '하나도 없다'고 합니다.
+    // 품목이 맞는 장이 하나라도 있으면 실마리가 있는 것이니 그렇게 말하지 않습니다.
+    const 아무것도 = 잰것.every((x) => (x.m.하나도안맞음 || !x.m.항.length) && x.m.품목다른줄 !== 0);
+    const 머리 = 다맞는것.length === 1
+      ? `<b>"${esc(다맞는것[0].o.display)}"</b> 가 이 잔액서류와 숫자가 다 맞습니다. 이것으로 확정하시겠습니까?`
+      : 다맞는것.length > 1
+        ? `숫자가 다 맞는 발주서가 ${다맞는것.length}장입니다. 어느 것인지 골라 주세요.`
+        : 아무것도
+          ? `<b>맞는 발주서가 하나도 없습니다.</b> 추가·취소된 상차가 있었는지,
+             무슨 일이 있었는지 아래 <b>메모</b> 에 적어 두십시오 — 나중에 까닭을 찾을 길이 됩니다.`
+          : `발주서 ${발주서들.length}장을 이 잔액서류와 대 봤습니다. 맞는 것을 골라 주세요.`;
+    return `
+      <div class="mt-1 text-[11px] rounded-lg px-3 py-2 leading-relaxed
+                  ${아무것도 ? 'text-[#8a5a00] bg-[#fdf3e3]' : 'text-muted bg-chip'}">
+        <div class="mb-1.5">${머리}</div>
+        <div class="space-y-1.5">
+          ${잰것.map(({ o, m }) => `
+            <div class="bg-white rounded-lg px-2.5 py-1.5">
+              <div class="flex items-center gap-2">
+                <span class="font-bold break-words min-w-0 flex-1">${esc(o.display)}</span>
+                <button type="button" data-confirm="${esc(o.path)}" data-on=""
+                        title="이 발주서를 확정으로"
+                        class="min-h-[44px] min-w-[44px] px-1 flex items-center justify-center shrink-0">
+                  <span class="text-[11px] font-bold px-2.5 py-1 rounded-md border
+                               ${m.다맞음 ? 'bg-ink text-white border-ink' : 'bg-white text-faint border-line'}">확정</span>
+                </button>
+              </div>
+              ${맞춤줄(m)}
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+
   /* 잔액서류(CI&PL)를 확정 발주서와 견줍니다 — 같은 셈, 같은 표, 같은 상세보기 화면입니다.
-     확정 발주서를 아직 안 고르셨으면 견주지 않고 고르시라고만 말합니다. */
+     확정 발주서를 아직 안 고르셨으면, 어느 것이 맞는지 대 보고 그 자리에서 고르게 합니다. */
   function 잔액대발주(d) {
     if (!발주서들.length) return '';
-    if (고르셔야하나)
-      return `<div class="mt-1 text-[11px] text-[#8a5a00] bg-[#fdf3e3] rounded-lg px-3 py-2 leading-relaxed">
-                발주서가 ${발주서들.length}장입니다. 위에서 <b>확정 발주서를 먼저 골라</b> 주세요 —
-                고르시면 그것과 무엇이 다른지 여기에 보여 드립니다.</div>`;
+    if (고르셔야하나) return d.cipl ? 발주서고르기(d) : `
+      <div class="mt-1 text-[11px] text-[#8a5a00] bg-[#fdf3e3] rounded-lg px-3 py-2 leading-relaxed">
+        발주서가 ${발주서들.length}장입니다. 이 잔액서류에서는 숫자를 못 읽어 대 볼 수가 없습니다 —
+        위에서 <b>확정 발주서를 골라</b> 주세요.</div>`;
     const 발주 = 확정발주서;
     if (!발주?.cipl || !d.cipl) return '';
 
@@ -1669,12 +1753,14 @@ function renderDrawer(id) {
 
     const key = `확정↔${d.path}`;
     diffPairs.set(key, { before: 발주, now: d, rows, label: `확정 발주서 ↔ 잔액서류` });
+    const m = 맞춰보기(발주, d);
     return `
       <div class="mt-2 border-t border-line pt-2">
-        <div class="text-[11px] font-bold text-faint tracking-wide mb-1">확정 발주서와 다른 곳</div>
+        <div class="text-[11px] font-bold text-faint tracking-wide mb-1">확정 발주서와 맞춰 본 것</div>
+        <div class="mb-1.5">${맞춤줄(m)}</div>
         ${rows.length
           ? diffTable(rows, key)
-          : '<span class="text-[11px] text-faint">확정 발주서와 숫자가 같습니다.</span>'}
+          : '<span class="text-[11px] text-faint">품목도 수량도 확정 발주서와 같습니다.</span>'}
       </div>`;
   }
 
