@@ -755,14 +755,6 @@ function 올린날(d) {
   return m ? `고친 ${날적기(m)}` : '';
 }
 
-/* 상차확정일을 사람 말로 — 2026-09-22 → 2026/9월/22일.
-   보여 주기에만 씁니다. 저장은 예전대로 2026-09-22 그대로입니다. */
-function 보일날(iso) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? '').trim());
-  if (!m) return String(iso ?? '');
-  return `${m[1]}/${Number(m[2])}월/${Number(m[3])}일`;
-}
-
 /** 파일 한 줄에 붙는 '날짜 · 올린날 · 크기'. 네 자리가 같은 말을 쓰게 한 군데서 만듭니다. */
 function 파일메타(d) {
   return [d.date, 올린날(d), fmtSize(d.size)].filter(Boolean).join(' · ');
@@ -1237,7 +1229,7 @@ function shipSummary(b, ov) {
     </section>`;
 }
 
-/* 상차일 — 고르고(선택), 한 번 더 눌러 확정합니다. 차수마다 하나입니다.
+/* 상차일 — 달력에서 고르면 그것으로 정해집니다. 차수마다 하나입니다.
    있던 문서는 건드리지 않고 새 칸(docs_config/loading)에만 적습니다.
    ⚠ 이 날짜는 '하기로 한 날' 입니다 — 4단계 상차이미지(진짜로 실은 증거)와 상관없습니다. */
 async function saveLoadDate(batchId, patch) {
@@ -1527,35 +1519,23 @@ function renderDrawer(id) {
      모양은 작업대(viggle)의 박스 값을 그대로 씁니다(.dhh-dbox).
      이름은 자르지 않고 다 보여 줍니다. 누르는 자리는 전과 같습니다. */
   /* 상차일 칸 — 발주서 단계 아래에 답니다.
-     확정하고 나면 '상차확정일 : 2026/9월/22일' 한 줄만 남깁니다.
-     고칠 일이 있으면 물리기를 눌러 다시 고르십니다(고르기→확정 두 걸음은 그대로).
-     날짜 고르기는 폰이 제 달력을 띄우는 <input type="date"> 를 씁니다. */
+     달력 하나뿐입니다. 달력에서 날을 고르고 '확인' 을 누르면 그때 정해지고,
+     아무 때나 다시 열어 다른 날로 바꾸거나 비울 수 있습니다.
+     칸이 곧 고른 날을 보여 주므로 따로 풀어 쓰지 않습니다. */
   function 상차일칸() {
     const 값 = state.loading?.[id] ?? {};
-    const 고른날 = 값.pick ?? '';
-    const 확정날 = 값.fixed ?? '';
-    const 겉 = (속, 확정됨) =>
-      `<div class="pl-[42px] pr-3 pb-2">
-        <div class="rounded-xl border ${확정됨 ? 'border-ink' : 'border-line'} bg-white px-2.5 py-1.5">
-          ${속}
+    // 예전에 고르기만 하고 확정은 안 한 차수도 그 날이 그대로 보여야 합니다.
+    const 날 = 값.fixed ?? 값.pick ?? '';
+    return `
+      <div class="pl-[42px] pr-3 pb-2">
+        <div class="rounded-xl border ${날 ? 'border-ink' : 'border-line'} bg-white px-2.5 py-1.5">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-bold text-faint tracking-wide shrink-0">상차일</span>
+            <input type="date" data-loadpick value="${esc(날)}"
+                   class="field min-h-[44px] flex-1 min-w-0" />
+          </div>
         </div>
       </div>`;
-    if (확정날)
-      return 겉(`
-        <div class="flex items-center gap-2">
-          <span class="text-[12px] font-bold whitespace-nowrap">상차확정일 : ${esc(보일날(확정날))}</span>
-          <button type="button" data-loadclear title="확정을 물리고 다시 고릅니다"
-                  class="min-h-[44px] min-w-[44px] ml-auto px-1 flex items-center justify-center shrink-0">
-            <span class="text-[11px] font-bold px-2.5 py-1 rounded-md border bg-white text-faint border-line">물리기</span>
-          </button>
-        </div>`, true);
-    return 겉(`
-        <div class="flex items-center gap-2">
-          <span class="text-[11px] font-bold text-faint tracking-wide shrink-0">상차일</span>
-          <input type="date" data-loadpick value="${esc(고른날)}"
-                 class="field min-h-[44px] flex-1 min-w-0" />
-          <button type="button" data-loadfix class="btn btn-primary min-h-[44px] shrink-0">확정</button>
-        </div>`, false);
   }
 
   /* 확정 발주서 — 여러 장일 때 어느 것이 확정인지 고르십니다.
@@ -1831,19 +1811,16 @@ function renderDrawer(id) {
   for (const el of $('#drawerBody').querySelectorAll('[data-diff]')) {
     el.onclick = () => openDiffDetail(diffPairs.get(el.dataset.diff));
   }
-  // 상차일 — 고르기(선택)와 확정은 두 걸음입니다.
+  /* 상차일 — 달력에서 고르면 그것으로 끝입니다.
+     ⚠ change 로만 받습니다. 폰에서 굴림판을 돌리는 동안에는 input 이 계속 튀고,
+       change 는 '확인' 을 눌러야 옵니다 — 돌리다 그만두면 담기지 않습니다.
+     걸음이 하나이므로 고른 날을 fixed 와 pick 에 같이 적습니다. 비우면 둘 다 비웁니다. */
   const 날짜칸 = $('#drawerBody').querySelector('[data-loadpick]');
   if (날짜칸)
-    날짜칸.onchange = () => saveLoadDate(id, { pick: 날짜칸.value || null });
-  const 확정단추 = $('#drawerBody').querySelector('[data-loadfix]');
-  if (확정단추)
-    확정단추.onclick = () => {
-      const 날 = 날짜칸?.value;
-      if (!날) return toast('먼저 날짜를 골라 주세요.');
+    날짜칸.onchange = () => {
+      const 날 = 날짜칸.value || null;
       saveLoadDate(id, { pick: 날, fixed: 날 });
     };
-  const 물리기 = $('#drawerBody').querySelector('[data-loadclear]');
-  if (물리기) 물리기.onclick = () => saveLoadDate(id, { fixed: null });
 
   for (const el of $('#drawerBody').querySelectorAll('[data-confirm]')) {
     // 이미 확정인 것을 다시 누르면 물립니다 — 잘못 고르셨을 때 되돌리는 길입니다.
