@@ -741,6 +741,14 @@ function 올린날(d) {
   return new Date(m).toISOString().slice(5, 10);
 }
 
+/* 상차확정일을 사람 말로 — 2026-09-22 → 2026/9월/22일.
+   보여 주기에만 씁니다. 저장은 예전대로 2026-09-22 그대로입니다. */
+function 보일날(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? '').trim());
+  if (!m) return String(iso ?? '');
+  return `${m[1]}/${Number(m[2])}월/${Number(m[3])}일`;
+}
+
 /** 파일 한 줄에 붙는 '날짜 · 올린날 · 크기'. 네 자리가 같은 말을 쓰게 한 군데서 만듭니다. */
 function 파일메타(d) {
   const 올림 = 올린날(d);
@@ -1506,36 +1514,35 @@ function renderDrawer(id) {
      모양은 작업대(viggle)의 박스 값을 그대로 씁니다(.dhh-dbox).
      이름은 자르지 않고 다 보여 줍니다. 누르는 자리는 전과 같습니다. */
   /* 상차일 칸 — 발주서 단계 아래에 답니다.
-     고른 날과 확정한 날을 따로 보여 줍니다. 확정 전에는 '아직 확정 전' 이라고 적습니다.
+     확정하고 나면 '상차확정일 : 2026/9월/22일' 한 줄만 남깁니다.
+     고칠 일이 있으면 물리기를 눌러 다시 고르십니다(고르기→확정 두 걸음은 그대로).
      날짜 고르기는 폰이 제 달력을 띄우는 <input type="date"> 를 씁니다. */
   function 상차일칸() {
     const 값 = state.loading?.[id] ?? {};
     const 고른날 = 값.pick ?? '';
     const 확정날 = 값.fixed ?? '';
-    const 확정됨 = !!확정날;
-    const 고친것 = 고른날 && 확정날 && 고른날 !== 확정날;
-    return `
-      <div class="pl-[42px] pr-3 pb-3">
-        <div class="rounded-xl border ${확정됨 ? 'border-ink' : 'border-line'} bg-white p-3">
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-[11px] font-bold text-faint tracking-wide">상차일</span>
-            ${확정됨
-              ? `<span class="text-[11px] font-bold px-2 py-1 rounded-md bg-ink text-white">✓ 확정 ${esc(확정날)}</span>`
-              : `<span class="text-[11px] font-bold px-2 py-1 rounded-md bg-chip text-muted">아직 확정 전</span>`}
-          </div>
-          <input type="date" data-loadpick value="${esc(고른날 || 확정날)}"
-                 class="field min-h-[44px] mb-2" />
-          <div class="flex items-center gap-2 flex-wrap">
-            <button type="button" data-loadfix class="btn btn-primary min-h-[44px]">
-              ${확정됨 ? (고친것 ? '이 날로 다시 확정' : '확정') : '확정'}
-            </button>
-            ${확정됨 ? `<button type="button" data-loadclear class="btn btn-ghost min-h-[44px]">확정 물리기</button>` : ''}
-          </div>
-          <p class="text-[11px] text-faint mt-2 leading-relaxed">
-            하기로 한 날입니다. 4단계 상차이미지(실제로 실은 증거)와는 따로입니다.
-          </p>
+    const 겉 = (속, 확정됨) =>
+      `<div class="pl-[42px] pr-3 pb-2">
+        <div class="rounded-xl border ${확정됨 ? 'border-ink' : 'border-line'} bg-white px-2.5 py-1.5">
+          ${속}
         </div>
       </div>`;
+    if (확정날)
+      return 겉(`
+        <div class="flex items-center gap-2">
+          <span class="text-[12px] font-bold whitespace-nowrap">상차확정일 : ${esc(보일날(확정날))}</span>
+          <button type="button" data-loadclear title="확정을 물리고 다시 고릅니다"
+                  class="min-h-[44px] min-w-[44px] ml-auto px-1 flex items-center justify-center shrink-0">
+            <span class="text-[11px] font-bold px-2.5 py-1 rounded-md border bg-white text-faint border-line">물리기</span>
+          </button>
+        </div>`, true);
+    return 겉(`
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-bold text-faint tracking-wide shrink-0">상차일</span>
+          <input type="date" data-loadpick value="${esc(고른날)}"
+                 class="field min-h-[44px] flex-1 min-w-0" />
+          <button type="button" data-loadfix class="btn btn-primary min-h-[44px] shrink-0">확정</button>
+        </div>`, false);
   }
 
   /* 확정 발주서 — 여러 장일 때 어느 것이 확정인지 고르십니다.
