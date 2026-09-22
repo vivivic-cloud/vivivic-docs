@@ -205,7 +205,7 @@ async function saveKindsIfNew() {
   try {
     await DB.saveKinds({ ...적힌것, ...새것 }, state.user?.email);
   } catch (e) {
-    console.warn('갈래 저장 실패:', e.message);
+    console.warn('종류 저장 실패:', e.message);
   }
 }
 
@@ -294,7 +294,7 @@ function fileTitle(d) {
 function linkBadge(d) {
   if (d.joinedBy)
     return `<span class="text-[10px] font-bold text-info bg-chip rounded px-1.5 py-0.5 shrink-0"
-                  title="${esc(`문서번호 ${d.joinedBy} 가 같아 이 묶음에 넣었습니다`)}">번호</span>`;
+                  title="${esc(`문서번호 ${d.joinedBy} 가 같아 이 차수에 넣었습니다`)}">번호</span>`;
   if (d.guessed)
     return `<span class="text-[10px] font-bold text-warn bg-[#fdf3e3] rounded px-1.5 py-0.5 shrink-0"
                   title="${esc(`${d.guessed} — 추정입니다`)}">추정</span>`;
@@ -468,7 +468,7 @@ function renderGrid() {
 }
 
 const LOOSE_LABEL = {
-  ...Object.fromEntries(STAGES.map((x) => [x.key, `${x.label} · 차수 미상`])),
+  ...Object.fromEntries(STAGES.map((x) => [x.key, `${x.label} · 차수 모름`])),
   dev: '제품개발 자료',
   fta: 'FTA · 원산지',
   etc: '분류하지 못한 파일',
@@ -709,7 +709,7 @@ async function saveAssign() {
 
   if (state.demo) {
     closeAssign();
-    return toast('데모 모드라 저장하지 않습니다.');
+    return toast('데모 모드에서는 저장되지 않습니다.');
   }
   try {
     await DB.saveRules(rules, state.user?.email);
@@ -955,8 +955,8 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
       box.innerHTML = `
         <div class="text-center">
           <p class="text-[13px] text-muted mb-3">${열었나
-            ? '브라우저가 못 그리는 형식이라 원본을 엽니다.'
-            : '도면(dxf/dwg)처럼 브라우저가 못 그리는 형식입니다.'}</p>
+            ? '화면에 띄울 수 없는 형식이라 원본을 엽니다.'
+            : '도면(dxf/dwg)처럼 화면에 띄울 수 없는 형식입니다.'}</p>
           <a href="${url}" download="${esc(doc.display)}"
              class="btn btn-ghost inline-block">원본 열기</a>
         </div>`;
@@ -1246,7 +1246,7 @@ async function saveLoadDate(batchId, patch) {
   if (state.demo) {
     state.loading[batchId] = { ...(state.loading[batchId] ?? { b: batchId }), ...patch };
     renderDrawer(batchId);
-    return toast('데모 모드라 저장하지 않습니다.');
+    return toast('데모 모드에서는 저장되지 않습니다.');
   }
   try {
     await DB.saveLoading(batchId, patch, state.user?.email);
@@ -1262,7 +1262,7 @@ async function setConfirmedOrder(batchId, path) {
   if (state.demo) {
     state.overlay[batchId] = { ...(state.overlay[batchId] ?? {}), confirmedOrder: path };
     renderDrawer(batchId);
-    return toast('데모 모드라 저장하지 않습니다.');
+    return toast('데모 모드에서는 저장되지 않습니다.');
   }
   try {
     await DB.saveOverlay(batchId, { confirmedOrder: path }, state.user?.email);
@@ -1387,7 +1387,7 @@ function renderDrawer(id) {
       `${d.cipl.brief.orderDate ?? d.date ?? ''}|${String(d.mtime ?? 0).padStart(16, '0')}`;
     const line = [...has].sort((a, b) => when(a).localeCompare(when(b)));
 
-    notes.set(line[0].path, '<span class="text-faint">처음 판</span>');
+    notes.set(line[0].path, '<span class="text-faint">처음 서류</span>');
     const round = (n) => Math.round(Number(n) * 100) / 100;
 
     for (let i = 1; i < line.length; i++) {
@@ -1415,7 +1415,7 @@ function renderDrawer(id) {
 
       notes.set(
         line[i].path,
-        rows.length ? diffTable(rows, line[i].path) : '<span class="text-faint">앞 판과 숫자가 같습니다</span>'
+        rows.length ? diffTable(rows, line[i].path) : '<span class="text-faint">앞 서류와 숫자가 같습니다</span>'
       );
     }
     return notes;
@@ -1444,7 +1444,7 @@ function renderDrawer(id) {
       return `
         <section class="mb-4">
           <div class="flex items-center gap-2 mb-1.5">
-            <span class="text-[11px] font-bold px-2 py-1 rounded ${자리 === '앞 판' ? 'bg-chip text-muted' : 'bg-ink text-white'}">${자리}</span>
+            <span class="text-[11px] font-bold px-2 py-1 rounded ${자리 === '앞 서류' ? 'bg-chip text-muted' : 'bg-ink text-white'}">${자리}</span>
             <span class="text-[12px] font-semibold break-words flex-1 min-w-0">${이름}</span>
           </div>
           <div class="text-[11px] text-faint mb-2">${esc(때)}</div>
@@ -1478,9 +1478,9 @@ function renderDrawer(id) {
         <h3 class="text-[12px] font-bold text-faint tracking-wide mb-1">바뀐 것 ${pair.rows.length}건</h3>
         ${diffTable(pair.rows, null, Infinity)}
 
-        <h3 class="text-[12px] font-bold text-faint tracking-wide mt-6 mb-2">견준 두 판의 원본</h3>
-        ${원본(pair.before, '앞 판')}
-        ${원본(pair.now, '이번 판')}
+        <h3 class="text-[12px] font-bold text-faint tracking-wide mt-6 mb-2">비교한 두 서류의 원본</h3>
+        ${원본(pair.before, '앞 서류')}
+        ${원본(pair.now, '이번 서류')}
       </div>`;
     /* 폰(아이폰 사파리)은 남의 쿠키를 막아서 드라이브 미리보기가 빈칸이 되곤 합니다.
        일정 시간 안에 안 그려지면 틀을 걷고, 뒤에 적어둔 안내 글이 보이게 합니다.
@@ -1638,14 +1638,14 @@ function renderDrawer(id) {
 
   const 맞춤줄 = (m) => {
     if (m.못댐)
-      return '<span class="text-[11px] text-faint">이 발주서에서 댈 숫자를 못 읽었습니다.</span>';
+      return '<span class="text-[11px] text-faint">이 발주서에서 비교할 숫자를 못 읽었습니다.</span>';
     const 표 = { 같음: '✓', 가까움: '≈', 다름: '✗' };
     return `<span class="text-[11px] tabular-nums flex flex-wrap gap-x-2 gap-y-0.5">` +
       m.항.map((x) => `<span class="${x.결 === '다름' ? 'text-warn font-semibold' : 'text-faint'}"
               title="발주서 ${esc(fmtNum(x.발주))} · 잔액서류 ${esc(fmtNum(x.잔액))}">${표[x.결]} ${esc(x.이름)} ${
         x.결 === '다름' ? `${esc(fmtNum(x.발주))}≠${esc(fmtNum(x.잔액))}` : esc(fmtNum(x.잔액))}${
         x.단위 ? ' ' + esc(x.단위) : ''}</span>`).join('') +
-      (m.품목다른줄 === null ? '<span class="text-faint">품목 못 댐</span>'
+      (m.품목다른줄 === null ? '<span class="text-faint">품목 비교 못 함</span>'
        : m.품목다른줄 === 0 ? '<span class="text-faint">✓ 품목 같음</span>'
        : `<span class="text-warn font-semibold">✗ 품목 ${m.품목다른줄}줄 다름</span>`) +
       `</span>`;
@@ -1664,9 +1664,9 @@ function renderDrawer(id) {
       여럿이다맞음: () => `숫자가 다 맞는 발주서가 ${다맞는것.length}장입니다. 어느 것인지 골라 주세요.`,
       하나도안맞음: () => `<b>맞는 발주서가 하나도 없습니다.</b> 추가·취소된 상차가 있었는지,
              무슨 일이 있었는지 아래 <b>메모</b> 에 적어 두십시오 — 나중에 까닭을 찾을 길이 됩니다.`,
-      못댐: () => `<b>댈 숫자가 없습니다</b> — 발주서에서 수량·금액·부피를 못 읽었습니다.
+      못댐: () => `<b>비교할 숫자가 없습니다</b> — 발주서에서 수량·금액·부피를 못 읽었습니다.
              맞는지 틀리는지 모르는 것이지, 안 맞는다는 뜻이 아닙니다. 위에서 골라 주세요.`,
-      골라야함: () => `발주서 ${발주서들.length}장을 이 잔액서류와 맞춰 봤습니다. 맞는 것을 골라 주세요.`,
+      골라야함: () => `발주서 ${발주서들.length}장을 이 잔액서류와 비교해 봤습니다. 맞는 것을 골라 주세요.`,
     }[판정]();
     /* 잔액서류에는 있는데 발주서에 없어 못 댄 것 — 줄마다 붙이지 않고 여기 한 번만 적습니다.
        한 장이라도 댄 것은 빼야 합니다. 안 그러면 방금 '✓ 부피 58 CBM' 이라 적어 놓고
@@ -1676,7 +1676,7 @@ function renderDrawer(id) {
       <div class="mt-1 text-[11px] rounded-lg px-3 py-2 leading-relaxed
                   ${경고 ? 'text-[#8a5a00] bg-[#fdf3e3]' : 'text-muted bg-chip'}">
         <div class="mb-1.5">${머리}</div>
-        ${못댄것.length ? `<div class="mb-1.5 text-faint">발주서에 없어 댈 수 없는 것: ${esc(못댄것.join(' · '))}</div>` : ''}
+        ${못댄것.length ? `<div class="mb-1.5 text-faint">발주서에 없어 비교할 수 없는 것: ${esc(못댄것.join(' · '))}</div>` : ''}
         <div class="space-y-1.5">
           ${잰것.map(({ o, m }) => `
             <div class="bg-white rounded-lg px-2.5 py-1.5">
@@ -1701,7 +1701,7 @@ function renderDrawer(id) {
     if (!발주서들.length) return '';
     if (고르셔야하나) return d.cipl ? 발주서고르기(d) : `
       <div class="mt-1 text-[11px] text-[#8a5a00] bg-[#fdf3e3] rounded-lg px-3 py-2 leading-relaxed">
-        발주서가 ${발주서들.length}장입니다. 이 잔액서류에서는 숫자를 못 읽어 대 볼 수가 없습니다 —
+        발주서가 ${발주서들.length}장입니다. 이 잔액서류에서는 숫자를 못 읽어 비교할 수가 없습니다 —
         위에서 <b>확정 발주서를 골라</b> 주세요.</div>`;
     const 발주 = 확정발주서;
     if (!발주?.cipl || !d.cipl) return '';
@@ -1772,7 +1772,7 @@ function renderDrawer(id) {
         ${b.issues.map((i) => `
           <div class="flex gap-2 text-[12px] leading-relaxed px-3 py-2.5 rounded-lg
                       ${i.level === 'warn' ? 'bg-[#fdf3e3] text-[#8a5a00]' : 'bg-chip text-muted'}">
-            <span class="font-bold shrink-0">${i.level === 'warn' ? '확인' : '참고'}</span>
+            <span class="font-bold shrink-0">${i.level === 'warn' ? '주의' : '참고'}</span>
             <span>${esc(i.text)}</span>
           </div>`).join('')}
       </div>` : ''}
@@ -1898,7 +1898,7 @@ async function checkForUpdate() {
     btn.textContent = `새 버전 ${m[1]} · 새로고침`;
     btn.hidden = false;
     btn.onclick = () => location.replace(`${location.pathname}?r=${m[1]}`);
-    toast(`새 버전 ${m[1]} 이 나와 있습니다. 오른쪽 위에서 새로고침해 주세요.`);
+    toast(`새 버전 ${m[1]} 이 나와 있습니다. 위에 뜬 '새 버전 · 새로고침' 을 눌러 주세요.`);
   } catch {
     /* 오프라인이면 그냥 넘어갑니다 */
   }
@@ -1974,7 +1974,7 @@ async function saveOverlay(id) {
   }
   if (state.demo) {
     state.overlay[id] = data;
-    return toast('데모 모드라 저장하지 않습니다.');
+    return toast('데모 모드에서는 저장되지 않습니다.');
   }
   try {
     await DB.saveOverlay(id, data, state.user?.email);
@@ -2093,7 +2093,7 @@ window.docsAddVendorBox = async (vendor, name, word) => {
   word = String(word ?? '').trim();
   if (!vendor) return { ok: false, msg: '어느 거래처인지 모르겠습니다.' };
   if (!name) return { ok: false, msg: '박스 이름을 넣어주세요.' };
-  if (!word) return { ok: false, msg: '어떤 파일을 넣을지 — 파일명에 든 말을 하나 넣어주세요.' };
+  if (!word) return { ok: false, msg: '어떤 파일을 넣을지 — 파일 이름에 들어간 낱말을 하나 넣어주세요.' };
 
   const 있는것 = new Set([
     '발주', '개발 / 샘플', '개발/샘플', '미확인',
@@ -2103,7 +2103,7 @@ window.docsAddVendorBox = async (vendor, name, word) => {
 
   const hit = state.unassigned.filter((d) => d.vendor === vendor && inBox({ word }, d));
   if (!hit.length) return { ok: false, msg: `${vendor} 파일 가운데 '${word}' 가 든 것이 없습니다.` };
-  if (state.demo) return { ok: false, msg: '데모 모드라 저장하지 않습니다.' };
+  if (state.demo) return { ok: false, msg: '데모 모드에서는 저장되지 않습니다.' };
 
   try {
     await DB.saveBox({ vendor, name, word }, state.user?.email);
@@ -2129,7 +2129,7 @@ window.docsNewBox = async (name, keyword) => {
   name = String(name ?? '').trim();
   keyword = String(keyword ?? '').trim();
   if (!name) return { ok: false, msg: '거래처 이름을 넣어주세요.' };
-  if (!keyword) return { ok: false, msg: '어떤 파일을 넣을지 — 파일명에 든 말을 하나 넣어주세요.' };
+  if (!keyword) return { ok: false, msg: '어떤 파일을 넣을지 — 파일 이름에 들어간 낱말을 하나 넣어주세요.' };
 
   // 이름이 겹치면 두 거래처 자료가 한 박스에 섞입니다. 겹치면 만들지 않습니다.
   const 있는것 = new Set([
@@ -2140,7 +2140,7 @@ window.docsNewBox = async (name, keyword) => {
 
   const hit = state.files.filter((f) => `${f.name ?? ''} ${f.path ?? ''}`.toLowerCase().includes(keyword.toLowerCase()));
   if (!hit.length) return { ok: false, msg: `'${keyword}' 가 든 파일이 없습니다.` };
-  if (state.demo) return { ok: false, msg: '데모 모드라 저장하지 않습니다.' };
+  if (state.demo) return { ok: false, msg: '데모 모드에서는 저장되지 않습니다.' };
 
   try {
     await DB.saveRule({ action: 'assign', vendor: name, matchType: 'contains', match: keyword, note: '새 박스에서 만듦' },

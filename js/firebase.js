@@ -81,7 +81,7 @@ export function authMessage(code) {
       'auth/invalid-credential': '이메일 또는 비밀번호가 맞지 않습니다.',
       'auth/too-many-requests': '시도가 너무 많았습니다. 잠시 뒤에 다시 해주세요.',
       'auth/network-request-failed': '네트워크에 연결하지 못했습니다.',
-    }[code] ?? ('로그인하지 못했습니다. (' + (code || '까닭 모름') + ')')
+    }[code] ?? ('로그인하지 못했습니다. (' + (code || '이유 모름') + ')')
   );
 }
 

@@ -233,7 +233,7 @@ export const CJK_GLOSS = [
   ['形式发票', '프로포마 인보이스(PI)'],
   ['装箱单', '패킹리스트'],
   ['电放单', '전신방출 선하증권'],
-  ['立方数', '재화 부피'],
+  ['立方数', '제품 부피'],
   ['两种方案', '두 가지 안'],
   ['组合柜', '조합장'],
   ['转角柜', '코너장'],
@@ -873,7 +873,7 @@ export function buildBatches(files, rules = []) {
 
     if (clear && !taken) {
       d.batch = ranked[0].b.batch;
-      d.guessed = `${why} ${when} 이 이 차수 서류와 ${Math.round(ranked[0].gap)}일 차이`;
+      d.guessed = `${why} ${when} — 이 차수 서류와 ${Math.round(ranked[0].gap)}일 차이`;
       ranked[0].b.docs.push(d);
     } else {
       stillLoose.push(d);
