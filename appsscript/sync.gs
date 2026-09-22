@@ -10,7 +10,7 @@ const COLLECTION = 'artifacts/vivivic-4b7ef/public/data/docs_files';
 const CONFIG = 'artifacts/vivivic-4b7ef/public/data/docs_config';
 const MAX_DEPTH = 4;
 // 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 지문이 달라져 전체를 다시 훑습니다.
-const MARK_VERSION = 16;
+const MARK_VERSION = 17;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
 const READ_VERSION = 2;
@@ -66,6 +66,9 @@ function sync() {
     const needCipl = (isCipl_(f.name) || isOrderPdf_(f.name)) && before &&
       (!before.hasCipl || before.readV !== READ_VERSION);
     if (!before || changed_(before, f) || needCipl) writes.push(updateWrite_(f));
+    // 예전에 올라간 파일에는 ctime 이 없습니다. 그 칸 하나만 덧칠합니다 —
+    // 통째로 다시 쓰면 읽어둔 cipl 이 날아갑니다.
+    else if (f.ctime && !before.ctime) writes.push(ctimeWrite_(f));
   });
   Object.keys(existing).forEach(function (id) {
     if (!seen[id]) writes.push({ delete: NAME + '/' + COLLECTION + '/' + id });
@@ -137,7 +140,7 @@ function listChildren_(folderId) {
     const url =
       'https://www.googleapis.com/drive/v3/files' +
       '?q=' + encodeURIComponent("'" + folderId + "' in parents and trashed = false") +
-      '&fields=' + encodeURIComponent('nextPageToken,files(id,name,size,md5Checksum,modifiedTime,mimeType,shortcutDetails)') +
+      '&fields=' + encodeURIComponent('nextPageToken,files(id,name,size,md5Checksum,modifiedTime,createdTime,mimeType,shortcutDetails)') +
       '&pageSize=1000' +
       (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
     const res = UrlFetchApp.fetch(url, {
@@ -189,6 +192,8 @@ function walk_(folderId, vendor, prefix, depth, out) {
       vendor: prefix ? vendor : '(루트)',
       size: c.size ? Number(c.size) : 0,
       mtime: new Date(c.modifiedTime).getTime(),
+      // 드라이브에 올라온 날. 보여 주기에만 씁니다 — 차수 묶기는 파일 이름의 날짜를 그대로 씁니다.
+      ctime: c.createdTime ? new Date(c.createdTime).getTime() : 0,
       driveId: id,
       // 구글 문서·시트는 md5 가 없습니다. 그런 파일은 이름·크기로 갈음합니다.
       md5: c.md5Checksum || '',
@@ -210,7 +215,7 @@ function docId_(path) {
 function listExisting_() {
   const out = {};
   let pageToken = '';
-  const mask = ['name', 'path', 'vendor', 'size', 'mtime', 'md5', 'driveId', 'cipl']
+  const mask = ['name', 'path', 'vendor', 'size', 'mtime', 'ctime', 'md5', 'driveId', 'cipl']
     .map(function (f) { return 'mask.fieldPaths=' + f; })
     .join('&');
   do {
@@ -233,6 +238,7 @@ function listExisting_() {
         vendor: (fields.vendor || {}).stringValue,
         size: (fields.size || {}).integerValue,
         mtime: (fields.mtime || {}).integerValue,
+        ctime: (fields.ctime || {}).integerValue,
         md5: (fields.md5 || {}).stringValue,
         driveId: (fields.driveId || {}).stringValue,
         // 품목 칸까지 들어 있어야 다 읽은 것으로 봅니다. 규칙이 늘면 여기도 같이 늘립니다.
@@ -247,6 +253,17 @@ function listExisting_() {
   return out;
 }
 
+/** ctime 한 칸만 덧칠합니다. 다른 칸(cipl 포함)은 그대로 둡니다. */
+function ctimeWrite_(f) {
+  return {
+    update: {
+      name: NAME + '/' + COLLECTION + '/' + docId_(f.path),
+      fields: { ctime: { integerValue: String(f.ctime) } },
+    },
+    updateMask: { fieldPaths: ['ctime'] },
+  };
+}
+
 function updateWrite_(f) {
   const fields = {
     name: { stringValue: f.name },
@@ -254,6 +271,7 @@ function updateWrite_(f) {
     vendor: { stringValue: f.vendor },
     size: { integerValue: String(f.size) },
     mtime: { integerValue: String(f.mtime) },
+    ctime: { integerValue: String(f.ctime || 0) },
     driveId: { stringValue: f.driveId },
     md5: { stringValue: f.md5 },
   };

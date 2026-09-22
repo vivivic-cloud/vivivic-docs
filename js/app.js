@@ -340,7 +340,8 @@ function renderFileHits() {
       <span class="text-[11px] font-semibold text-faint shrink-0">${esc(d.vendor)}</span>
       <span class="text-[11px] font-bold shrink-0 w-[64px] text-right ${d.off ? 'text-faint' : ''}">${esc(d.where)}</span>
       <span class="text-[11px] text-faint shrink-0 w-[80px] text-right">${esc(STAGE_LABEL[d.stageKey] ?? '')}</span>
-      <span class="text-[11px] text-faint shrink-0 w-[74px] text-right">${esc(d.date ?? '')}</span>
+      <span class="text-[11px] text-faint shrink-0 w-[74px] text-right leading-tight">${esc(d.date ?? '')}${
+        (() => { const o = 올린날(d); return o ? `<br /><span class="text-[10px]">올린 ${esc(o)}</span>` : ''; })()}</span>
     </li>`;
 
   box.innerHTML = `
@@ -728,6 +729,23 @@ const INLINE_KIND = {
   // 거래처 발주서·인보이스 대부분이 엑셀입니다 — 표로 직접 그려서 보여줍니다.
   xlsx: 'sheet', xls: 'sheet', xlsm: 'sheet',
 };
+
+/* 드라이브에 올린 날 — 가장 최근 파일을 찾으시라고 함께 적습니다.
+   ⚠ 보여 주기에만 씁니다. 차수 묶기·정렬은 예전대로 d.date(파일 이름에서 읽은 날)입니다.
+   아직 ctime 이 안 올라온 파일은 mtime(드라이브가 마지막으로 고친 때)으로 갈음합니다. */
+function 올린날(d) {
+  const ms = Number(d?.ctime) || 0;
+  if (ms) return new Date(ms).toISOString().slice(5, 10);
+  const m = Number(d?.mtime) || 0;
+  if (!m) return '';
+  return new Date(m).toISOString().slice(5, 10);
+}
+
+/** 파일 한 줄에 붙는 '날짜 · 올린날 · 크기'. 네 자리가 같은 말을 쓰게 한 군데서 만듭니다. */
+function 파일메타(d) {
+  const 올림 = 올린날(d);
+  return [d.date, 올림 ? `올린 ${올림}` : '', fmtSize(d.size)].filter(Boolean).join(' · ');
+}
 
 /** 브라우저가 못 그리는 형식인지 — 도면(dxf·dwg) 처럼 INLINE_KIND 에 없는 것들입니다. */
 const 못그리는형식 = (doc) =>
@@ -1425,7 +1443,7 @@ function renderDrawer(id) {
     if (!pair) return;
     const 원본 = (d, 자리) => {
       const 이름 = esc(d.display ?? d.name ?? '');
-      const 때 = [d.date, fmtSize(d.size)].filter(Boolean).join(' · ');
+      const 때 = 파일메타(d);
       return `
         <section class="mb-4">
           <div class="flex items-center gap-2 mb-1.5">
@@ -1670,7 +1688,7 @@ function renderDrawer(id) {
         ${d.driveId ? `<a href="${driveOpen(d.driveId)}" target="_blank" rel="noopener"
              class="text-[11px] text-faint hover:text-ink shrink-0 ml-auto">↗</a>` : ''}
       </div>
-      <span class="dmt">${[d.date, fmtSize(d.size)].filter(Boolean).join(' · ')}</span>
+      <span class="dmt">${esc(파일메타(d))}</span>
       ${diffs.has(d.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(d.path)}</div>` : ''}
       ${d.stageKey === 'cipl' ? 잔액대발주(d) : ''}
       ${영수증맞춤(d)}
@@ -1873,7 +1891,7 @@ function openDoc(doc, list = null) {
 function showViewer(doc) {
   const { list, idx } = state.viewer;
   $('#viewerTitle').textContent = doc.display;
-  $('#viewerMeta').textContent = [doc.path, fmtSize(doc.size), doc.date, glossCJK(doc.name ?? doc.display)]
+  $('#viewerMeta').textContent = [doc.path, 파일메타(doc), glossCJK(doc.name ?? doc.display)]
     .filter(Boolean)
     .join(' · ');
   $('#viewerCount').textContent = list.length > 1 ? `${idx + 1} / ${list.length}` : '';
@@ -2135,6 +2153,8 @@ window.docsCounts = () => ({
   rules: state.rules.length,
   excluded: state.excluded.length,
   has: state.files.length > 0,
+  // 올린날이 아직 안 올라와 mtime 으로 갈음한 건수
+  올린날갈음: state.files.filter((f) => !f.ctime && f.mtime).length,
 });
 
 /* ── 토스트 ───────────────────────────────────────────── */
