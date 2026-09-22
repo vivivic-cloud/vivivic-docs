@@ -1248,7 +1248,7 @@ async function saveLoadDate(batchId, patch) {
   }
 }
 
-/* 확정 발주서를 고르거나 물립니다. 차수별 입력값(docs_overlay)에 경로만 적습니다 —
+/* 확정 발주서를 고르거나 풉니다. 차수별 입력값(docs_overlay)에 경로만 적습니다 —
    드라이브 파일은 건드리지 않습니다. 다시 열어도 그대로이고, 언제든 바꾸실 수 있습니다. */
 async function setConfirmedOrder(batchId, path) {
   if (state.demo) {
@@ -1559,7 +1559,7 @@ function renderDrawer(id) {
     return `
       <div class="flex justify-end">
         <button type="button" data-confirm="${esc(d.path)}" data-on="${이것이확정 ? '1' : ''}"
-                title="${이것이확정 ? '다시 누르면 확정을 무릅니다' : '이 발주서를 확정으로'}"
+                title="${이것이확정 ? '다시 누르면 확정이 풀립니다' : '이 발주서를 확정으로'}"
                 class="min-h-[44px] min-w-[44px] px-1 flex items-center justify-center">
           ${알약(이것이확정 ? '✓ 확정' : '확정', 이것이확정)}
         </button>
@@ -1823,7 +1823,7 @@ function renderDrawer(id) {
     };
 
   for (const el of $('#drawerBody').querySelectorAll('[data-confirm]')) {
-    // 이미 확정인 것을 다시 누르면 물립니다 — 잘못 고르셨을 때 되돌리는 길입니다.
+    // 이미 확정인 것을 다시 누르면 풀립니다 — 잘못 고르셨을 때 되돌리는 길입니다.
     el.onclick = () => setConfirmedOrder(id, el.dataset.on ? '' : el.dataset.confirm);
   }
   for (const el of $('#drawerBody').querySelectorAll('[data-photo]')) {
