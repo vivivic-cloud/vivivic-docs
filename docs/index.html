@@ -234,7 +234,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.42.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.42.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
@@ -262,7 +262,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.42.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.42.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -3673,9 +3673,7 @@ async function saveLoadDate(batchId, patch) {
   }
   try {
     await DB.saveLoading(batchId, patch, state.user?.email);
-    toast(patch.fixed ? '상차일을 확정했습니다.'
-        : patch.fixed === null ? '상차일 확정을 물렸습니다.'
-        : '상차일을 골라 두었습니다 — 확정을 눌러야 정해집니다.');
+    toast(patch.fixed ? `상차일 ${patch.fixed} 로 정했습니다.` : '상차일을 지웠습니다.');
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
   }
@@ -3691,7 +3689,7 @@ async function setConfirmedOrder(batchId, path) {
   }
   try {
     await DB.saveOverlay(batchId, { confirmedOrder: path }, state.user?.email);
-    toast(path ? '확정 발주서로 정했습니다.' : '확정을 물렸습니다.');
+    toast(path ? '확정 발주서로 정했습니다.' : '확정을 풀었습니다.');
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
   }

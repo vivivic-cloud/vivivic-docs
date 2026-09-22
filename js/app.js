@@ -1240,9 +1240,7 @@ async function saveLoadDate(batchId, patch) {
   }
   try {
     await DB.saveLoading(batchId, patch, state.user?.email);
-    toast(patch.fixed ? '상차일을 확정했습니다.'
-        : patch.fixed === null ? '상차일 확정을 물렸습니다.'
-        : '상차일을 골라 두었습니다 — 확정을 눌러야 정해집니다.');
+    toast(patch.fixed ? `상차일 ${patch.fixed} 로 정했습니다.` : '상차일을 지웠습니다.');
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
   }
@@ -1258,7 +1256,7 @@ async function setConfirmedOrder(batchId, path) {
   }
   try {
     await DB.saveOverlay(batchId, { confirmedOrder: path }, state.user?.email);
-    toast(path ? '확정 발주서로 정했습니다.' : '확정을 물렸습니다.');
+    toast(path ? '확정 발주서로 정했습니다.' : '확정을 풀었습니다.');
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
   }
