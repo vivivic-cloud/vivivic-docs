@@ -34,7 +34,9 @@ def strip_imports(src):
 def module(path, ns):
     """ESM 파일을 IIFE 네임스페이스로 바꿉니다."""
     src = (ROOT / path).read_text(encoding='utf-8')
-    names = re.findall(r'^export\s+(?:const|function|let|class|async function)\s+([A-Za-z_$][\w$]*)', src, re.M)
+    # 이름 첫 글자를 [A-Za-z_$] 로 묶으면 한글 이름(맞춰보기 같은)을 놓칩니다.
+    # 놓치면 네임스페이스에 안 담겨 배포본에서만 "… is not a function" 이 납니다.
+    names = re.findall(r'^export\s+(?:const|function|let|class|async function)\s+((?![0-9])[\w$]+)', src, re.M)
     src = strip_imports(src)
     src = re.sub(r'^export\s+', '', src, flags=re.M)
     return f'const {ns} = (() => {{\n{src}\nreturn {{ {", ".join(sorted(set(names)))} }};\n}})();\n'
@@ -59,12 +61,13 @@ demo = json.loads((ROOT / 'data' / 'demo.json').read_text(encoding='utf-8'))
 
 # 순서가 중요합니다: hoisted 를 채운 뒤에 이어붙입니다.
 mods = (module('js/parse.js', 'PARSE') + module('js/progress.js', 'PROGRESS')
+        + module('js/match.js', 'MATCH')
         + module('js/fsaccess.js', 'FS') + module('js/firebase.js', 'DB'))
 
 app = (ROOT / 'js' / 'app.js').read_text(encoding='utf-8')
 # app.js 가 parse.js 에서 가져오는 이름들을 그대로 PARSE 에서 꺼내 씁니다.
 # app.js 가 로컬 모듈에서 가져오는 이름을 그 모듈의 네임스페이스에서 꺼내 씁니다.
-LOCAL_NS = {'./parse.js': 'PARSE', './progress.js': 'PROGRESS'}
+LOCAL_NS = {'./parse.js': 'PARSE', './progress.js': 'PROGRESS', './match.js': 'MATCH'}
 lines = []
 for src, ns in LOCAL_NS.items():
     m = re.search(r"import\s*\{([^}]*)\}\s*from\s*'" + re.escape(src) + r"';", app)

@@ -1,5 +1,6 @@
 import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf } from './parse.js';
 import { progressWord } from './progress.js';
+import { itemRows, 맞춰보기, 맞춤판정 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -1324,30 +1325,6 @@ function renderDrawer(id) {
    * 두 서류의 품목을 코드로 맞춰 보고, 무엇이 새로 들어오고 빠지고 수량이 바뀌었는지 적습니다.
    * "수량 +51" 만으로는 어느 제품이 늘었는지 알 수 없습니다.
    */
-  /**
-   * 두 서류의 품목을 코드로 맞춰 보고, 무엇이 새로 들어오고 빠지고 수량이 바뀌었는지 줄로 만듭니다.
-   * "수량 +51" 만으로는 어느 제품이 늘었는지 알 수 없습니다.
-   */
-  function itemRows(before, now) {
-    if (!before?.length || !now?.length) return [];
-    const key = (list) => new Map(list.map((x) => [String(x.code), x]));
-    const A = key(before);
-    const B = key(now);
-    const rows = [];
-
-    for (const [code, x] of B) {
-      const was = A.get(code);
-      if (!was) rows.push({ kind: '추가', name: x.name || code, code, from: null, to: x.qty });
-      else if (was.qty !== x.qty)
-        rows.push({ kind: '수량', name: x.name || code, code, from: was.qty, to: x.qty });
-    }
-    for (const [code, x] of A)
-      if (!B.has(code)) rows.push({ kind: '빠짐', name: x.name || code, code, from: x.qty, to: null });
-
-    // 새로 들어온 것 → 수량이 바뀐 것 → 빠진 것 차례로 봅니다.
-    const rank = { 추가: 0, 수량: 1, 빠짐: 2 };
-    return rows.sort((a, b) => rank[a.kind] - rank[b.kind] || Math.abs(b.to - b.from) - Math.abs(a.to - a.from));
-  }
 
   const KIND_TONE = { 추가: 'text-warn', 빠짐: 'text-info', 수량: 'text-faint', 합계: 'text-faint' };
 
@@ -1659,47 +1636,16 @@ function renderDrawer(id) {
       </div>`;
   }
 
-  /* 잔액서류와 발주서를 숫자로 맞춰 봅니다.
-     ⚠ 박스수량과 중량은 발주서에서 안 나옵니다 — 발주서 PDF 에 그 칸이 없습니다
-       (지금 읽힌 발주서 23장 모두 없습니다). 그래서 없는 것을 있는 척 견주지 않고
-       실제로 양쪽에 다 있는 것만 견줍니다: 수량 · 금액 · 부피(CBM) · 품목별 수량.
-     한쪽에 값이 없는 칸은 '못 견줌' 으로 두고 맞았다고도 틀렸다고도 하지 않습니다. */
-  const 숫 = (v) => { const n = Number(v); return Number.isFinite(n) && n ? n : 0; };
-  function 맞춰보기(발주, d) {
-    const a = 발주?.cipl ?? {}, z = d?.cipl ?? {};
-    const ab = a.brief ?? {}, zb = z.brief ?? {};
-    const 항 = [];
-    const 넣기 = (이름, x, y, 단위) => {
-      if (!x || !y) return;                    // 한쪽이 없으면 견주지 않습니다
-      // 부피는 서류마다 반올림이 달라, 1% 안이면 같은 것으로 봅니다. 수량·금액은 딱 맞아야 합니다.
-      const 결 = x === y ? '같음'
-               : (단위 === 'CBM' && Math.abs(x - y) / Math.max(x, y) <= 0.01) ? '가까움' : '다름';
-      항.push({ 이름, 발주: x, 잔액: y, 단위, 결 });
-    };
-    넣기('수량', 숫(ab.qty), 숫(zb.qty) || 숫(z.pcs), 'pcs');
-    넣기('금액', 숫(ab.amount), 숫(zb.amount), '');
-    넣기('부피', 숫(ab.cbm), 숫(zb.cbm) || 숫(z.cbm), 'CBM');
-    const 품목 = (a.items?.length && z.items?.length) ? itemRows(a.items, z.items) : null;
-    const 맞은수 = 항.filter((x) => x.결 !== '다름').length;
-    return {
-      항, 품목다른줄: 품목 ? 품목.length : null,
-      맞은수, 견준수: 항.length,
-      // 견줄 것이 하나도 없으면 '맞다'고 할 근거가 없습니다.
-      다맞음: 항.length > 0 && 맞은수 === 항.length && (품목 === null || 품목.length === 0),
-      하나도안맞음: 항.length > 0 && 맞은수 === 0,
-    };
-  }
-
   const 맞춤줄 = (m) => {
-    if (!m.항.length && m.품목다른줄 === null)
-      return '<span class="text-[11px] text-faint">견줄 숫자가 없습니다.</span>';
+    if (m.못댐)
+      return '<span class="text-[11px] text-faint">이 발주서에서 댈 숫자를 못 읽었습니다.</span>';
     const 표 = { 같음: '✓', 가까움: '≈', 다름: '✗' };
     return `<span class="text-[11px] tabular-nums flex flex-wrap gap-x-2 gap-y-0.5">` +
       m.항.map((x) => `<span class="${x.결 === '다름' ? 'text-warn font-semibold' : 'text-faint'}"
               title="발주서 ${esc(fmtNum(x.발주))} · 잔액서류 ${esc(fmtNum(x.잔액))}">${표[x.결]} ${esc(x.이름)} ${
         x.결 === '다름' ? `${esc(fmtNum(x.발주))}≠${esc(fmtNum(x.잔액))}` : esc(fmtNum(x.잔액))}${
         x.단위 ? ' ' + esc(x.단위) : ''}</span>`).join('') +
-      (m.품목다른줄 === null ? '<span class="text-faint">품목 못 견줌</span>'
+      (m.품목다른줄 === null ? '<span class="text-faint">품목 못 댐</span>'
        : m.품목다른줄 === 0 ? '<span class="text-faint">✓ 품목 같음</span>'
        : `<span class="text-warn font-semibold">✗ 품목 ${m.품목다른줄}줄 다름</span>`) +
       `</span>`;
@@ -1709,22 +1655,28 @@ function renderDrawer(id) {
      사람이 눈으로 세 장을 대조하지 않아도 되게 합니다. 고르는 것은 여전히 사람입니다. */
   function 발주서고르기(d) {
     const 잰것 = 발주서들.map((o) => ({ o, m: 맞춰보기(o, d) }));
+    const 판정 = 맞춤판정(잰것.map((x) => x.m));
     const 다맞는것 = 잰것.filter((x) => x.m.다맞음);
-    // 숫자도 품목도 맞는 것이 한 장도 없을 때만 '하나도 없다'고 합니다.
-    // 품목이 맞는 장이 하나라도 있으면 실마리가 있는 것이니 그렇게 말하지 않습니다.
-    const 아무것도 = 잰것.every((x) => (x.m.하나도안맞음 || !x.m.항.length) && x.m.품목다른줄 !== 0);
-    const 머리 = 다맞는것.length === 1
-      ? `<b>"${esc(다맞는것[0].o.display)}"</b> 가 이 잔액서류와 숫자가 다 맞습니다. 이것으로 확정하시겠습니까?`
-      : 다맞는것.length > 1
-        ? `숫자가 다 맞는 발주서가 ${다맞는것.length}장입니다. 어느 것인지 골라 주세요.`
-        : 아무것도
-          ? `<b>맞는 발주서가 하나도 없습니다.</b> 추가·취소된 상차가 있었는지,
-             무슨 일이 있었는지 아래 <b>메모</b> 에 적어 두십시오 — 나중에 까닭을 찾을 길이 됩니다.`
-          : `발주서 ${발주서들.length}장을 이 잔액서류와 대 봤습니다. 맞는 것을 골라 주세요.`;
+    // 모르는 것과 틀린 것은 다릅니다. '못댐' 일 때는 노란 경고를 쓰지 않습니다.
+    const 경고 = 판정 === '하나도안맞음';
+    const 머리 = {
+      하나가다맞음: () => `<b>"${esc(다맞는것[0].o.display)}"</b> 가 이 잔액서류와 숫자가 다 맞습니다. 이것으로 확정하시겠습니까?`,
+      여럿이다맞음: () => `숫자가 다 맞는 발주서가 ${다맞는것.length}장입니다. 어느 것인지 골라 주세요.`,
+      하나도안맞음: () => `<b>맞는 발주서가 하나도 없습니다.</b> 추가·취소된 상차가 있었는지,
+             무슨 일이 있었는지 아래 <b>메모</b> 에 적어 두십시오 — 나중에 까닭을 찾을 길이 됩니다.`,
+      못댐: () => `<b>댈 숫자가 없습니다</b> — 발주서에서 수량·금액·부피를 못 읽었습니다.
+             맞는지 틀리는지 모르는 것이지, 안 맞는다는 뜻이 아닙니다. 위에서 골라 주세요.`,
+      골라야함: () => `발주서 ${발주서들.length}장을 이 잔액서류와 맞춰 봤습니다. 맞는 것을 골라 주세요.`,
+    }[판정]();
+    /* 잔액서류에는 있는데 발주서에 없어 못 댄 것 — 줄마다 붙이지 않고 여기 한 번만 적습니다.
+       한 장이라도 댄 것은 빼야 합니다. 안 그러면 방금 '✓ 부피 58 CBM' 이라 적어 놓고
+       바로 아래에서 '부피는 댈 수 없습니다' 라고 어긋나게 말합니다. */
+    const 못댄것 = (잰것[0]?.m.못댄것 ?? []).filter((이름) => 잰것.every((x) => x.m.못댄것.includes(이름)));
     return `
       <div class="mt-1 text-[11px] rounded-lg px-3 py-2 leading-relaxed
-                  ${아무것도 ? 'text-[#8a5a00] bg-[#fdf3e3]' : 'text-muted bg-chip'}">
+                  ${경고 ? 'text-[#8a5a00] bg-[#fdf3e3]' : 'text-muted bg-chip'}">
         <div class="mb-1.5">${머리}</div>
+        ${못댄것.length ? `<div class="mb-1.5 text-faint">발주서에 없어 댈 수 없는 것: ${esc(못댄것.join(' · '))}</div>` : ''}
         <div class="space-y-1.5">
           ${잰것.map(({ o, m }) => `
             <div class="bg-white rounded-lg px-2.5 py-1.5">
