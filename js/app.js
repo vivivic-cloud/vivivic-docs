@@ -1798,12 +1798,24 @@ function renderDrawer(id) {
       ${d.stageKey === 'cipl' ? 잔액대발주(d) : ''}
       ${영수증맞춤(d)}
       ${(() => {
-        // 총중량·박스·부피·수량은 아래 '선적 요약' 에 이미 있습니다 — 여기서 되읊지 않습니다.
-        // 뒤바뀜만 남깁니다. 그것은 실수를 막는 경고입니다.
+        /* 총중량·박스·부피는 아래 '선적 요약' 에 이미 있습니다 — 같으면 되읊지 않습니다.
+           다르면 새 소식입니다. 잔액서류 두 장의 숫자가 어긋난다는 것은 한 장이 틀렸다는
+           뜻이라, 못 보시면 틀린 숫자로 일이 굴러갑니다. 어긋난 숫자만 보입니다. */
         const c = ciplOf(d);
-        return c?.swapped
-          ? `<div class="mt-1 text-[11px] text-warn font-semibold" title="큰 값을 총중량으로 봄">G.W./N.W. 뒤바뀜</div>`
-          : '';
+        if (!c) return '';
+        const 대표 = (손, 자동) => (손 !== undefined && 손 !== '' ? Number(손) : 자동);
+        const 어긋난것 = [
+          [c.gross, 대표(ov.grossKg, auto?.gross), 'kg'],
+          [c.cartons, 대표(ov.cartons, auto?.cartons), '개'],
+          [c.cbm, 대표(ov.cbm, auto?.cbm), 'CBM'],
+        ].filter(([이것, 대표값]) => Number(이것) && Number(이것) !== Number(대표값))
+         .map(([이것, , 단위]) => `${fmtNum(이것)} ${단위}`);
+        if (!어긋난것.length && !c.swapped) return '';
+        return `
+          <div class="mt-1 flex flex-wrap items-center gap-x-3 text-[11px] text-warn font-semibold">
+            ${어긋난것.map((t) => `<span>${esc(t)}</span>`).join('')}
+            ${c.swapped ? '<span title="큰 값을 총중량으로 봄">G.W./N.W. 뒤바뀜</span>' : ''}
+          </div>`;
       })()}
       ${확정줄(d)}
     </li>`;
