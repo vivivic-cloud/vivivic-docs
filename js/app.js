@@ -98,7 +98,7 @@ async function boot() {
     });
   } catch {
     const err = $('#loginError');
-    err.textContent = '클라우드에 연결하지 못했습니다. 네트워크를 확인한 뒤 새로고침해 주세요.';
+    err.textContent = '연결 실패 · 새로고침';
     err.hidden = false;
     $('#loginBtn').disabled = true;
   }
@@ -242,10 +242,10 @@ async function askSync() {
 /* ── 드라이브 스캔 → 클라우드 업로드 ──────────────────── */
 
 async function syncFromFolder() {
-  if (state.demo) return toast('데모 모드에서는 올릴 수 없습니다.');
+  if (state.demo) return toast('데모 · 못 올림');
   try {
     const root = state.root ?? (await FS.pickFolder());
-    if (!(await FS.ensurePermission(root, { prompt: true }))) return toast('폴더 권한이 필요합니다.');
+    if (!(await FS.ensurePermission(root, { prompt: true }))) return toast('폴더 권한 필요');
     state.root = root;
 
     cloud('폴더 읽는 중…');
@@ -254,7 +254,7 @@ async function syncFromFolder() {
     cloud('올리는 중…');
     await DB.replaceFiles(files, (done, total) => cloud(`올리는 중 ${done}/${total}`));
     cloud('연결됨');
-    toast(`${files.length}개 파일을 올렸습니다.`);
+    toast(`${files.length}개 올림`);
   } catch (e) {
     cloud('연결됨');
     if (e?.name !== 'AbortError') toast(`실패: ${e.message}`);
@@ -294,10 +294,10 @@ function fileTitle(d) {
 function linkBadge(d) {
   if (d.joinedBy)
     return `<span class="text-[10px] font-bold text-info bg-chip rounded px-1.5 py-0.5 shrink-0"
-                  title="${esc(`문서번호 ${d.joinedBy} 가 같아 이 차수에 넣었습니다`)}">번호</span>`;
+                  title="${esc(`문서번호 ${d.joinedBy} 같음`)}">번호</span>`;
   if (d.guessed)
     return `<span class="text-[10px] font-bold text-warn bg-[#fdf3e3] rounded px-1.5 py-0.5 shrink-0"
-                  title="${esc(`${d.guessed} — 추정입니다`)}">추정</span>`;
+                  title="${esc(`${d.guessed} — 추정`)}">추정</span>`;
   return '';
 }
 
@@ -309,7 +309,7 @@ function copyBadge(d) {
   if (!d.copies?.length) return '';
   const where = d.copies.join('\n');
   return `<span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 shrink-0"
-                title="${esc(`같은 파일이 여기에도 있습니다:\n${where}`)}">${d.copies.length + 1}벌</span>`;
+                title="${esc(`같은 파일:\n${where}`)}">${d.copies.length + 1}벌</span>`;
 }
 
 /** 단계 키 → 짧은 이름. 검색 결과에 배지로 붙입니다. */
@@ -358,11 +358,11 @@ function renderFileHits() {
       <div class="flex items-center gap-2 mb-3">
         <h2 class="text-[13px] font-bold text-faint tracking-wide">파일 검색</h2>
         <span class="text-[12px] text-faint font-semibold">${hits.length}건</span>
-        ${hits.length > shown.length ? `<span class="text-[11px] text-faint">· 앞 ${shown.length}건만 보입니다</span>` : ''}
+        ${hits.length > shown.length ? `<span class="text-[11px] text-faint">· 앞 ${shown.length}건</span>` : ''}
       </div>
       ${hits.length
         ? `<ul class="divide-y divide-line">${shown.map(row).join('')}</ul>`
-        : '<p class="text-[13px] text-muted">이름에 걸리는 파일이 없습니다.</p>'}
+        : '<p class="text-[13px] text-muted">걸리는 파일 없음</p>'}
     </div>`;
 
   for (const el of box.querySelectorAll('[data-file]')) {
@@ -517,7 +517,7 @@ function renderDefine() {
           <span class="ml-auto text-[12px] text-faint font-semibold">${docs.length}건</span>
         </div>
         ${key === UNKNOWN
-          ? '<p class="text-[11px] text-muted mb-2 leading-relaxed">파일명·폴더·서류 안 어디에도 거래처를 가리키는 게 없습니다.</p>'
+          ? '<p class="text-[11px] text-muted mb-2 leading-relaxed">거래처 단서 없음</p>'
           : ''}
         <ul class="space-y-0.5 max-h-[280px] overflow-y-auto pr-1">
           ${docs.map((d) => row(d)).join('')}
@@ -660,7 +660,7 @@ function openAssign(mode) {
            ${docs.map((d) => `<li><button type="button" data-asdoc="${esc(d.path)}"
              class="text-left text-[12px] text-info hover:underline truncate w-full">${esc(d.display)}</button></li>`).join('')}
          </ul>`
-      : `<p class="text-[11px] text-faint">이 차수에는 아직 다른 파일이 없습니다.</p>`;
+      : `<p class="text-[11px] text-faint">다른 파일 없음</p>`;
     for (const el of $('#asBatchDocs').querySelectorAll('[data-asdoc]')) {
       el.onclick = () => openDoc(docs.find((d) => d.path === el.dataset.asdoc));
     }
@@ -687,7 +687,7 @@ async function saveAssign() {
   // 여기가 헐거워서 '99-99' 같은 없는 차수가 규칙으로 굳어, 카드로 떠 있었습니다.
   const 적은차수 = batchSel === '__new__' ? $('#asBatchNew').value.trim() : '';
   const batch = batchSel === '__new__' ? (parseBatch(`${적은차수}차`)?.label ?? '') : batchSel;
-  if (적은차수 && !batch) return toast(`'${적은차수}' 같은 차수는 없습니다. 26-18 처럼 적어 주세요.`);
+  if (적은차수 && !batch) return toast(`'${적은차수}' 차수 아님 · 26-18 처럼`);
 
   const body =
     mode === 'exclude'
@@ -700,8 +700,8 @@ async function saveAssign() {
         };
 
   if (mode === 'assign' && !body.batch && !body.stageKey && !body.vendor)
-    return toast('지정할 값을 하나는 넣어주세요.');
-  if (useRule && !keyword) return toast('규칙으로 쓸 키워드를 넣어주세요.');
+    return toast('값 없음');
+  if (useRule && !keyword) return toast('키워드 없음');
 
   const rules = useRule
     ? [{ ...body, matchType: 'contains', match: keyword, note: `${paths.length}건에서 만듦` }]
@@ -709,13 +709,13 @@ async function saveAssign() {
 
   if (state.demo) {
     closeAssign();
-    return toast('데모 모드에서는 저장되지 않습니다.');
+    return toast('데모 · 저장 안 됨');
   }
   try {
     await DB.saveRules(rules, state.user?.email);
     closeAssign();
     clearSelection();
-    toast(useRule ? `규칙 저장 — "${keyword}"` : `${rules.length}건 지정했습니다.`);
+    toast(useRule ? `규칙 저장 — "${keyword}"` : `${rules.length}건 지정`);
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
   }
@@ -793,7 +793,7 @@ async function 서류보내기(doc) {
       const file = await FS.getFileByPath(state.root, doc.path);
       if (navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: 이름 });
-        return toast('보냈습니다.');
+        return toast('보냄');
       }
     } catch (e) {
       if (e?.name === 'AbortError') return;        // 사장님이 그만두신 것입니다
@@ -816,7 +816,7 @@ async function 서류보내기(doc) {
     메일로(이름, 링크);
     return;
   }
-  toast('이 서류는 드라이브 주소가 없어 보낼 수 없습니다.');
+  toast('주소 없음');
 }
 
 /** 메일 쓰기 창을 엽니다. 링크는 본문에 넣습니다. */
@@ -826,7 +826,7 @@ function 메일로(이름, 링크) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  toast('메일 쓰기 창을 엽니다.');
+  toast('메일 쓰기');
 }
 
 /* 원본을 그대로 엽니다 — 판을 한 번 더 누르게 하지 않습니다.
@@ -852,7 +852,7 @@ function 원본열기(doc, url = null) {
     a.click();
     a.remove();
     // 막혀서 아무 일도 안 일어나도 사장님이 아시게 한 줄 띄웁니다.
-    toast(드라이브 ? '원본을 새 창에서 엽니다.' : '원본을 내려받아 엽니다.');
+    toast(드라이브 ? '새 창에서 엶' : '내려받음');
     return true;
   } catch {
     return false;
@@ -923,7 +923,7 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
       // 아이클라우드 미다운로드 파일 등으로 하염없이 걸리는 경우 10초면 포기합니다.
       file = await Promise.race([
         FS.getFileByPath(state.root, doc.path),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('10초 넘게 응답이 없습니다')), 10_000)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('10초 응답 없음')), 10_000)),
       ]);
     } catch (e) {
       readError = e;
@@ -998,8 +998,8 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
         box.innerHTML = `
           <div class="text-center">
             <p class="text-[13px] text-muted mb-3">${열었나
-              ? `표를 읽지 못해 원본을 엽니다 (${esc(sheetError.message)}).`
-              : `이 표를 읽지 못했습니다: ${esc(sheetError.message)}`}</p>
+              ? `표 못 읽음 · 원본을 엶 (${esc(sheetError.message)})`
+              : `표 못 읽음: ${esc(sheetError.message)}`}</p>
             <a href="${url}" download="${esc(doc.display)}" class="btn btn-ghost inline-block">원본 열기</a>
           </div>`;
       }
@@ -1010,8 +1010,8 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
       box.innerHTML = `
         <div class="text-center">
           <p class="text-[13px] text-muted mb-3">${열었나
-            ? '화면에 띄울 수 없는 형식이라 원본을 엽니다.'
-            : '도면(dxf/dwg)처럼 화면에 띄울 수 없는 형식입니다.'}</p>
+            ? '원본을 엶'
+            : '화면에 못 띄우는 형식'}</p>
           <a href="${url}" download="${esc(doc.display)}"
              class="btn btn-ghost inline-block">원본 열기</a>
         </div>`;
@@ -1019,19 +1019,19 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
     if (note)
       note.textContent =
         kind === 'tool'
-          ? `이 기기의 폴더에서 직접 읽었습니다 · ${fmtSize(file.size)} · 보기 전용입니다 (안의 버튼은 눌리지 않습니다)`
+          ? `이 기기 폴더 · ${fmtSize(file.size)} · 보기 전용`
           : kind === 'sheet'
-            ? `이 기기의 폴더에서 직접 읽었습니다 · ${fmtSize(file.size)} · 엑셀 표를 그대로 그렸습니다`
-            : `이 기기의 폴더에서 직접 읽었습니다 · ${fmtSize(file.size)}`;
+            ? `이 기기 폴더 · ${fmtSize(file.size)} · 엑셀 표`
+            : `이 기기 폴더 · ${fmtSize(file.size)}`;
     return;
   }
-  if (readError && note) note.textContent = `폴더에서 찾지 못했습니다: ${readError.message}`;
+  if (readError && note) note.textContent = `폴더에 없음: ${readError.message}`;
 
   // 사진은 iframe 대신 그림으로 바로 그립니다. 훨씬 빠르고 확실합니다.
   if (doc.driveId && PHOTO_EXT.test(doc.name)) {
     box.className = 'flex-1 min-h-[420px] rounded-lg border border-line bg-hover overflow-auto flex items-center justify-center';
     box.innerHTML = `<img src="${driveThumb(doc.driveId, 1600)}" alt="${esc(doc.display)}" class="max-w-full h-auto" />`;
-    if (note) note.textContent = '드라이브에서 가져온 그림입니다.';
+    if (note) note.textContent = '드라이브 그림';
     return;
   }
 
@@ -1041,17 +1041,16 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
                              class="w-full h-full min-h-[420px]"></iframe>`;
     if (note)
       note.innerHTML =
-        '칸이 비어 있으면 브라우저가 구글 쿠키를 막고 있는 것입니다. ' +
-        `위 <span class="font-bold">드라이브에서 열기 ↗</span> 를 누르거나, ` +
-        `<button id="${ns}Connect" class="font-bold text-info hover:underline">이 기기 폴더를 연결</button>하면 바로 보입니다.`;
+        '칸이 비면 구글 쿠키가 막힌 것 · ' +
+        `위 <span class="font-bold">드라이브에서 열기 ↗</span> 또는 ` +
+        `<button id="${ns}Connect" class="font-bold text-info hover:underline">이 기기 폴더 연결</button>`;
   } else {
     box.className =
       'flex-1 min-h-[420px] rounded-lg border border-line bg-hover overflow-hidden flex items-center justify-center p-6';
     box.innerHTML = `
       <div class="text-center">
-        <p class="text-[13px] text-muted mb-3">이 파일은 아직 미리보기 링크가 없습니다.</p>
+        <p class="text-[13px] text-muted mb-3">미리보기 없음</p>
         <button id="${ns}Connect" class="btn btn-ghost">이 기기의 중국 폴더 연결</button>
-        <p class="text-[11px] text-faint mt-3">한 번 연결해 두면 모든 파일을 여기서 바로 볼 수 있습니다.</p>
       </div>`;
     if (note) note.textContent = '';
   }
@@ -1068,20 +1067,20 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
 /** 폴더 권한을 새로 받습니다. 사용자가 누른 순간에만 불러야 창이 뜹니다. */
 async function connectFolder() {
   if (!FS.supported) {
-    toast('이 브라우저는 폴더 연결을 지원하지 않습니다. 크롬·엣지에서 열어주세요.');
+    toast('폴더 연결 안 됨 · 크롬·엣지');
     return false;
   }
   try {
     const root = await FS.pickFolder();
     if (!(await FS.ensurePermission(root, { prompt: true }))) {
-      toast('폴더 권한이 필요합니다.');
+      toast('폴더 권한 필요');
       return false;
     }
     state.root = root;
-    toast('폴더를 연결했습니다.');
+    toast('폴더 연결됨');
     return true;
   } catch (e) {
-    if (e?.name !== 'AbortError') toast(`연결하지 못했습니다: ${e.message}`);
+    if (e?.name !== 'AbortError') toast(`연결 실패: ${e.message}`);
     return false;
   }
 }
@@ -1133,14 +1132,14 @@ function renderPanel(tab) {
                 </li>`
                 )
                 .join('')}</ul>`
-            : '<p class="text-muted text-[13px]">아직 규칙이 없습니다. 아래 목록에서 파일을 골라 지정하면 여기에 쌓입니다.</p>'
+            : '<p class="text-muted text-[13px]">규칙 없음</p>'
           : state.excluded.length
             ? `<ul class="space-y-1">${state.excluded
                 .map(
                   (d) => `<li class="text-[12px] text-muted truncate px-2 py-1.5 rounded hover:bg-hover" title="${esc(d.path)}">${esc(d.display)}</li>`
                 )
                 .join('')}</ul>`
-            : '<p class="text-muted text-[13px]">제외한 파일이 없습니다.</p>'
+            : '<p class="text-muted text-[13px]">제외한 파일 없음</p>'
       }
     </div>`;
 
@@ -1149,9 +1148,9 @@ function renderPanel(tab) {
     el.onclick = async () => {
       try {
         await DB.deleteRule(el.dataset.del);
-        toast('규칙을 지웠습니다.');
+        toast('규칙 지움');
       } catch (e) {
-        toast(`지우지 못했습니다: ${e.message}`);
+        toast(`지우기 실패: ${e.message}`);
       }
     };
   }
@@ -1195,7 +1194,7 @@ async function loadCipl(b) {
         }
         if (best) files.push({ ...best, path: doc.path, size: doc.size ?? null, from: doc.display });
       } catch (e) {
-        console.warn('잔액서류를 읽지 못했습니다', doc.path, e);
+        console.warn('잔액서류 못 읽음', doc.path, e);
       }
     }
     if (!files.length) return;
@@ -1267,10 +1266,10 @@ function shipSummary(b, ov) {
       <section>
         <h3 class="text-[12px] font-bold text-faint tracking-wide mb-2">선적 요약</h3>
         <p class="text-[12px] text-muted leading-relaxed mb-2">
-          잔액서류에서 아직 수치를 읽지 못했습니다.
+          잔액서류 수치 없음
           ${state.root
-            ? '엑셀이 아니면(스캔 PDF 등) 자동으로 못 읽습니다 — 아래 직접 입력에 채워 주세요.'
-            : '이 기기에 폴더가 연결돼 있지 않습니다. 크롬은 새로고침하면 폴더 권한을 놓아서, 한 번 눌러 다시 열어줘야 합니다.'}
+            ? '· 직접 입력'
+            : '· 폴더 연결 안 됨'}
         </p>
         ${state.root ? '' : '<button id="ciplConnect" class="btn btn-ghost">폴더 연결하고 읽기</button>'}
       </section>`;
@@ -1288,8 +1287,8 @@ function shipSummary(b, ov) {
           </div>`).join('')}
       </div>
       ${auto ? `<p class="text-[11px] text-faint mt-2 leading-relaxed">
-        ${esc(auto.from)} 의 패킹리스트 ${auto.lines}줄을 더했습니다${auto.pcs ? ` · ${fmtNum(auto.pcs)} pcs` : ''}${auto.net ? ` · 순중량 ${fmtNum(auto.net)} kg` : ''}
-        ${auto.swapped ? '<br /><span class="text-warn font-semibold">서류에 G.W. 와 N.W. 가 뒤바뀌어 있어 큰 값을 총중량으로 봤습니다.</span>' : ''}
+        ${esc(auto.from)} · 패킹리스트 ${auto.lines}줄${auto.pcs ? ` · ${fmtNum(auto.pcs)} pcs` : ''}${auto.net ? ` · 순중량 ${fmtNum(auto.net)} kg` : ''}
+        ${auto.swapped ? '<br /><span class="text-warn font-semibold">G.W./N.W. 뒤바뀜 — 큰 값을 총중량으로</span>' : ''}
       </p>` : ''}
     </section>`;
 }
@@ -1301,11 +1300,11 @@ async function saveLoadDate(batchId, patch) {
   if (state.demo) {
     state.loading[batchId] = { ...(state.loading[batchId] ?? { b: batchId }), ...patch };
     renderDrawer(batchId);
-    return toast('데모 모드에서는 저장되지 않습니다.');
+    return toast('데모 · 저장 안 됨');
   }
   try {
     await DB.saveLoading(batchId, patch, state.user?.email);
-    toast(patch.fixed ? `상차일 ${patch.fixed} 로 정했습니다.` : '상차일을 지웠습니다.');
+    toast(patch.fixed ? `상차일 ${patch.fixed}` : '상차일 지움');
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
   }
@@ -1317,11 +1316,11 @@ async function setConfirmedOrder(batchId, path) {
   if (state.demo) {
     state.overlay[batchId] = { ...(state.overlay[batchId] ?? {}), confirmedOrder: path };
     renderDrawer(batchId);
-    return toast('데모 모드에서는 저장되지 않습니다.');
+    return toast('데모 · 저장 안 됨');
   }
   try {
     await DB.saveOverlay(batchId, { confirmedOrder: path }, state.user?.email);
-    toast(path ? '확정 발주서로 정했습니다.' : '확정을 풀었습니다.');
+    toast(path ? '확정함' : '확정 풂');
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
   }
@@ -1470,7 +1469,7 @@ function renderDrawer(id) {
 
       notes.set(
         line[i].path,
-        rows.length ? diffTable(rows, line[i].path) : '<span class="text-faint">앞 서류와 숫자가 같습니다</span>'
+        rows.length ? diffTable(rows, line[i].path) : '<span class="text-faint">앞 서류와 같음</span>'
       );
     }
     return notes;
@@ -1511,12 +1510,12 @@ function renderDrawer(id) {
                <div class="relative rounded-lg border border-line bg-hover overflow-hidden">
                  <div class="absolute inset-0 flex items-center justify-center p-5 text-center
                              text-[12px] text-muted leading-relaxed">
-                   폰에서는 미리보기가 막힐 수 있습니다.<br />위 「드라이브에서 열기」 로 보십시오.
+                   폰에서는 안 보일 때가 있음 · 위 「드라이브에서 열기」
                  </div>
                  <iframe src="${driveEmbed(d.driveId)}" title="${이름}" data-preview
                          class="relative w-full h-[52vh] min-h-[280px] border-0"></iframe>
                </div>`
-            : `<p class="text-[12px] text-faint">이 파일은 드라이브 주소가 없어 여기서 못 펼칩니다.</p>`}
+            : `<p class="text-[12px] text-faint">드라이브 주소 없음</p>`}
         </section>`;
     };
 
@@ -1598,7 +1597,7 @@ function renderDrawer(id) {
     return `
       <div class="flex justify-end">
         <button type="button" data-confirm="${esc(d.path)}" data-on="${이것이확정 ? '1' : ''}"
-                title="${이것이확정 ? '다시 누르면 확정이 풀립니다' : '이 발주서를 확정으로'}"
+                title="${이것이확정 ? '다시 누르면 확정 풂' : '이 발주서를 확정으로'}"
                 class="min-h-[44px] min-w-[44px] px-1 flex items-center justify-center">
           ${알약(이것이확정 ? '✓ 확정' : '확정', 이것이확정)}
         </button>
@@ -1653,7 +1652,7 @@ function renderDrawer(id) {
       ].filter(Boolean).join(' · ');
       return `<div class="mt-2 border-t border-line pt-2">${머리}
                 <div class="text-[11px] text-faint leading-relaxed">
-                  아직 비교하지 못했습니다 — 아래 <b>직접 입력</b> 에 ${esc(빠진것)} 을 넣어 주세요.
+                  아직 비교 못 함 · <b>직접 입력</b> 에 ${esc(빠진것)}
                 </div></div>`;
     }
 
@@ -1666,7 +1665,7 @@ function renderDrawer(id) {
                   ${줄('계약금영수증', 계약금)}${줄('잔액영수증', 잔금)}${줄('잔액서류(CI&PL)', 잔액서류)}
                 </div>
                 <div class="mt-1.5 text-[12px] font-bold px-3 py-2 rounded-lg bg-[#fdf3e3] text-[#8a5a00]">
-                  통화가 다릅니다 (${esc(통화들.join(' · '))}) — 섞어서 더하지 않았습니다.
+                  통화 다름 (${esc(통화들.join(' · '))}) · 안 더함
                 </div></div>`;
 
     const 자리 = Math.max(소수자리(계약금.숫자), 소수자리(잔금.숫자), 소수자리(잔액서류.숫자));
@@ -1685,15 +1684,15 @@ function renderDrawer(id) {
         </div>
         <div class="mt-1.5 text-[12px] font-bold px-3 py-2 rounded-lg
                     ${맞음 ? 'bg-chip text-ok' : 'bg-[#fdf3e3] text-[#8a5a00]'}">
-          ${맞음 ? '✓ 금액이 맞습니다.'
-                 : `맞지 않습니다 — 영수증 합계가 ${차 > 0n ? '더 많습니다' : '모자랍니다'} (차이 ${esc(돈적기(차 < 0n ? -차 : 차, 자리))}).`}
+          ${맞음 ? '✓ 금액 맞음'
+                 : `✗ 차이 ${esc(돈적기(차 < 0n ? -차 : 차, 자리))} · 영수증이 ${차 > 0n ? '더 많음' : '모자람'}`}
         </div>
       </div>`;
   }
 
   const 맞춤줄 = (m) => {
     if (m.못댐)
-      return '<span class="text-[11px] text-faint">이 발주서에서 비교할 숫자를 못 읽었습니다.</span>';
+      return '<span class="text-[11px] text-faint">비교할 숫자 없음</span>';
     const 표 = { 같음: '✓', 가까움: '≈', 다름: '✗' };
     return `<span class="text-[11px] tabular-nums flex flex-wrap gap-x-2 gap-y-0.5">` +
       m.항.map((x) => `<span class="${x.결 === '다름' ? 'text-warn font-semibold' : 'text-faint'}"
@@ -1715,13 +1714,11 @@ function renderDrawer(id) {
     // 모르는 것과 틀린 것은 다릅니다. '못댐' 일 때는 노란 경고를 쓰지 않습니다.
     const 경고 = 판정 === '하나도안맞음';
     const 머리 = {
-      하나가다맞음: () => `<b>"${esc(다맞는것[0].o.display)}"</b> 가 이 잔액서류와 숫자가 다 맞습니다. 이것으로 확정하시겠습니까?`,
-      여럿이다맞음: () => `숫자가 다 맞는 발주서가 ${다맞는것.length}장입니다. 어느 것인지 골라 주세요.`,
-      하나도안맞음: () => `<b>맞는 발주서가 하나도 없습니다.</b> 추가·취소된 상차가 있었는지,
-             무슨 일이 있었는지 아래 <b>메모</b> 에 적어 두십시오 — 나중에 이유를 찾는 데 도움이 됩니다.`,
-      못댐: () => `<b>비교할 숫자가 없습니다</b> — 발주서에서 수량·금액·부피를 못 읽었습니다.
-             맞는지 틀리는지 모르는 것이지, 안 맞는다는 뜻이 아닙니다. 위에서 골라 주세요.`,
-      골라야함: () => `발주서 ${발주서들.length}장을 이 잔액서류와 비교해 봤습니다. 맞는 것을 골라 주세요.`,
+      하나가다맞음: () => `<b>"${esc(다맞는것[0].o.display)}"</b> 다 맞음`,
+      여럿이다맞음: () => `다 맞는 발주서 ${다맞는것.length}장`,
+      하나도안맞음: () => `<b>맞는 발주서 없음</b> · 아래 <b>메모</b> 에 남기기`,
+      못댐: () => `<b>비교할 숫자 없음</b> · 안 맞는다는 뜻 아님`,
+      골라야함: () => `발주서 ${발주서들.length}장 비교함`,
     }[판정]();
     /* 잔액서류에는 있는데 발주서에 없어 못 댄 것 — 줄마다 붙이지 않고 여기 한 번만 적습니다.
        한 장이라도 댄 것은 빼야 합니다. 안 그러면 방금 '✓ 부피 58 CBM' 이라 적어 놓고
@@ -1756,8 +1753,7 @@ function renderDrawer(id) {
     if (!발주서들.length) return '';
     if (고르셔야하나) return d.cipl ? 발주서고르기(d) : `
       <div class="mt-1 text-[11px] text-[#8a5a00] bg-[#fdf3e3] rounded-lg px-3 py-2 leading-relaxed">
-        발주서가 ${발주서들.length}장입니다. 이 잔액서류에서는 숫자를 못 읽어 비교할 수가 없습니다 —
-        위에서 <b>확정 발주서를 골라</b> 주세요.</div>`;
+        발주서 ${발주서들.length}장 · 이 잔액서류에서 숫자 못 읽음</div>`;
     const 발주 = 확정발주서;
     if (!발주?.cipl || !d.cipl) return '';
 
@@ -1774,7 +1770,7 @@ function renderDrawer(id) {
         <div class="mb-1.5">${맞춤줄(m)}</div>
         ${rows.length
           ? diffTable(rows, key)
-          : '<span class="text-[11px] text-faint">품목도 수량도 확정 발주서와 같습니다.</span>'}
+          : '<span class="text-[11px] text-faint">확정 발주서와 같음</span>'}
       </div>`;
   }
 
@@ -1812,7 +1808,7 @@ function renderDrawer(id) {
               ['부피', `${fmtNum(c.cbm)} CBM`],
               ...(c.pcs ? [['수량', `${fmtNum(c.pcs)} pcs`]] : []),
             ].map(([k, v]) => `<span><span class="text-faint">${k}</span> <span class="font-bold">${esc(v)}</span></span>`).join('')}
-            ${c.swapped ? '<span class="text-warn font-semibold" title="서류에 G.W. 와 N.W. 가 뒤바뀌어 있어 큰 값을 총중량으로 봤습니다">G.W./N.W. 뒤바뀜</span>' : ''}
+            ${c.swapped ? '<span class="text-warn font-semibold" title="큰 값을 총중량으로 봄">G.W./N.W. 뒤바뀜</span>' : ''}
           </div>`;
       })()}
       ${확정줄(d)}
@@ -1897,9 +1893,9 @@ function renderDrawer(id) {
         <div class="flex items-center gap-2 mt-3">
           <button id="ovSave" class="btn btn-primary">저장</button>
           <span class="text-[11px] text-faint">
-            ${state.demo ? '데모 모드에서는 저장되지 않습니다.'
+            ${state.demo ? '데모 · 저장 안 됨'
               : ov.updatedBy ? `마지막 수정 ${esc(ov.updatedBy)} · ${esc((ov.updatedAt ?? '').slice(0, 10))}`
-              : '팀 전체에 실시간으로 반영됩니다.'}
+              : ''}
           </span>
         </div>
       </section>
@@ -1967,7 +1963,7 @@ async function checkForUpdate() {
     btn.textContent = `새 버전 ${m[1]} · 새로고침`;
     btn.hidden = false;
     btn.onclick = () => location.replace(`${location.pathname}?r=${m[1]}`);
-    toast(`새 버전 ${m[1]} 이 나와 있습니다. 위에 뜬 '새 버전 · 새로고침' 을 눌러 주세요.`);
+    toast(`새 버전 ${m[1]} · 새로고침`);
   } catch {
     /* 오프라인이면 그냥 넘어갑니다 */
   }
@@ -1982,8 +1978,8 @@ function renderConnectState() {
   btn.hidden = !FS.supported || state.demo;
   btn.textContent = state.root ? '폴더 연결됨' : '폴더 연결';
   btn.title = state.root
-    ? '이 기기의 중국 폴더가 연결돼 있어 모든 파일을 바로 볼 수 있습니다.'
-    : '중국 폴더를 연결하면 드라이브 링크가 없는 파일도 바로 볼 수 있습니다.';
+    ? '이 기기 중국 폴더 연결됨'
+    : '중국 폴더 연결';
 }
 
 /**
@@ -2043,11 +2039,11 @@ async function saveOverlay(id) {
   }
   if (state.demo) {
     state.overlay[id] = data;
-    return toast('데모 모드에서는 저장되지 않습니다.');
+    return toast('데모 · 저장 안 됨');
   }
   try {
     await DB.saveOverlay(id, data, state.user?.email);
-    toast('저장했습니다.');
+    toast('저장함');
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
   }
@@ -2160,23 +2156,23 @@ window.docsAddVendorBox = async (vendor, name, word) => {
   vendor = String(vendor ?? '').trim();
   name = String(name ?? '').trim();
   word = String(word ?? '').trim();
-  if (!vendor) return { ok: false, msg: '어느 거래처인지 모르겠습니다.' };
-  if (!name) return { ok: false, msg: '박스 이름을 넣어주세요.' };
-  if (!word) return { ok: false, msg: '어떤 파일을 넣을지 — 파일 이름에 들어간 낱말을 하나 넣어주세요.' };
+  if (!vendor) return { ok: false, msg: '거래처 모름' };
+  if (!name) return { ok: false, msg: '이름 없음' };
+  if (!word) return { ok: false, msg: '낱말 없음' };
 
   const 있는것 = new Set([
     '발주', '개발 / 샘플', '개발/샘플', '미확인',
     ...(state.boxes ?? []).filter((b) => b.vendor === vendor).map((b) => String(b.name).trim()),
   ]);
-  if (있는것.has(name)) return { ok: false, msg: `'${name}' 박스는 이미 있습니다. 다른 이름으로 해주세요.` };
+  if (있는것.has(name)) return { ok: false, msg: `'${name}' 이미 있음` };
 
   const hit = state.unassigned.filter((d) => d.vendor === vendor && inBox({ word }, d));
-  if (!hit.length) return { ok: false, msg: `${vendor} 파일 가운데 '${word}' 가 든 것이 없습니다.` };
-  if (state.demo) return { ok: false, msg: '데모 모드에서는 저장되지 않습니다.' };
+  if (!hit.length) return { ok: false, msg: `'${word}' 든 파일 없음` };
+  if (state.demo) return { ok: false, msg: '데모 · 저장 안 됨' };
 
   try {
     await DB.saveBox({ vendor, name, word }, state.user?.email);
-    return { ok: true, msg: `'${name}' 박스를 만들었습니다 — 파일 ${hit.length}건.` };
+    return { ok: true, msg: `'${name}' 만듦 · ${hit.length}건` };
   } catch (e) {
     return { ok: false, msg: `저장 실패: ${e.message}` };
   }
@@ -2197,24 +2193,24 @@ window.docsCountInVendor = (vendor, word) => {
 window.docsNewBox = async (name, keyword) => {
   name = String(name ?? '').trim();
   keyword = String(keyword ?? '').trim();
-  if (!name) return { ok: false, msg: '거래처 이름을 넣어주세요.' };
-  if (!keyword) return { ok: false, msg: '어떤 파일을 넣을지 — 파일 이름에 들어간 낱말을 하나 넣어주세요.' };
+  if (!name) return { ok: false, msg: '이름 없음' };
+  if (!keyword) return { ok: false, msg: '낱말 없음' };
 
   // 이름이 겹치면 두 거래처 자료가 한 박스에 섞입니다. 겹치면 만들지 않습니다.
   const 있는것 = new Set([
     ...state.batches.map((b) => b.vendor),
     ...state.unassigned.map((d) => d.vendor),
   ].filter(Boolean).map((v) => v.trim()));
-  if (있는것.has(name)) return { ok: false, msg: `'${name}' 박스는 이미 있습니다. 다른 이름으로 해주세요.` };
+  if (있는것.has(name)) return { ok: false, msg: `'${name}' 이미 있음` };
 
   const hit = state.files.filter((f) => `${f.name ?? ''} ${f.path ?? ''}`.toLowerCase().includes(keyword.toLowerCase()));
-  if (!hit.length) return { ok: false, msg: `'${keyword}' 가 든 파일이 없습니다.` };
-  if (state.demo) return { ok: false, msg: '데모 모드에서는 저장되지 않습니다.' };
+  if (!hit.length) return { ok: false, msg: `'${keyword}' 든 파일 없음` };
+  if (state.demo) return { ok: false, msg: '데모 · 저장 안 됨' };
 
   try {
     await DB.saveRule({ action: 'assign', vendor: name, matchType: 'contains', match: keyword, note: '새 박스에서 만듦' },
                       state.user?.email);
-    return { ok: true, msg: `'${name}' 박스를 만들었습니다 — 파일 ${hit.length}건.` };
+    return { ok: true, msg: `'${name}' 만듦 · ${hit.length}건` };
   } catch (e) {
     return { ok: false, msg: `저장 실패: ${e.message}` };
   }

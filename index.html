@@ -232,10 +232,10 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.46.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.47.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
-    <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정으로 들어갑니다.</p>
+    <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
 
     <label class="block mb-3">
       <span class="text-[11px] font-bold text-faint tracking-wide">이메일</span>
@@ -260,7 +260,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.46.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.47.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -330,7 +330,7 @@
 
     </div>
 
-    <p class="dhh-foot">박스를 누르면 지금 쓰던 그 화면이 그대로 나옵니다.<br><b id="dhh-ver"></b>
+    <p class="dhh-foot"><b id="dhh-ver"></b>
       <span id="dhh-ctime" style="display:block;margin-top:6px"></span></p>
   </div>
 </div>
@@ -345,7 +345,7 @@
       <span class="dhh-sub" id="dvn-sub">&nbsp;</span>
     </div>
     <div class="dhh-tiles" id="dvn-tiles"></div>
-    <p class="dhh-foot">박스를 누르면 이 거래처 것만 나옵니다.</p>
+    <p class="dhh-foot"></p>
   </div>
 </div>
 
@@ -357,7 +357,7 @@
       <span class="dhh-sub" id="dkd-sub">&nbsp;</span>
     </div>
     <div class="dhh-tiles" id="dkd-tiles"></div>
-    <p class="dhh-foot">파일 종류로 나눠 둡니다. 어디에도 속하지 않는 것은 기타로 갑니다.</p>
+    <p class="dhh-foot"></p>
   </div>
 </div>
 
@@ -369,7 +369,7 @@
       <span class="dhh-sub" id="dfl-sub">&nbsp;</span>
     </div>
     <div class="dhh-list" id="dfl-list"></div>
-    <p class="dhh-foot">파일을 누르면 그 자리에서 열어 봅니다.</p>
+    <p class="dhh-foot"></p>
   </div>
 </div>
 
@@ -382,7 +382,7 @@
       <span class="dhh-sub" id="dor-sub">&nbsp;</span>
     </div>
     <div class="dhh-list" id="dor-list"></div>
-    <p class="dhh-foot">작업대에 오간 말을 그대로 읽어 옵니다. 여기서는 고치지 않습니다.</p>
+    <p class="dhh-foot"></p>
   </div>
 </div>
 
@@ -392,9 +392,7 @@
   <div class="dhh-card">
     <div class="dhh-grip"></div>
     <h4 id="dhh-mk-title">새 박스</h4>
-    <p id="dhh-mk-say">이 앱에서 박스는 파일이 모여야 생깁니다. 거래처 이름과, 그 거래처 파일에
-       들어 있는 말을 하나 적어 주세요. 드라이브의 파일은 건드리지 않습니다 —
-       화면에서만 나뉩니다.</p>
+    <p id="dhh-mk-say">드라이브 안 건드림 · 화면에서만 나뉨</p>
     <input id="dhh-mk-name" type="text" placeholder="거래처 이름 — 예: 리나" />
     <input id="dhh-mk-word" type="text" placeholder="파일 이름에 들어간 낱말 — 예: 리나" oninput="docsMakeCount()" />
     <p class="dhh-hint" id="dhh-mk-hint"></p>
@@ -412,15 +410,12 @@
 
   <!-- 클라우드에 데이터가 없을 때 -->
   <section id="empty" class="card p-10 max-w-[680px] mx-auto mt-10" hidden>
-    <h1 class="text-[22px] font-bold mb-2">아직 올라간 서류 목록이 없습니다</h1>
+    <h1 class="text-[22px] font-bold mb-2">서류 목록 없음</h1>
     <p class="text-muted leading-relaxed mb-6">
-      맥에서 구글 드라이브 <span class="font-semibold text-ink">중국</span> 폴더를 한 번 스캔해 올리면,
-      그 뒤로는 폰이든 다른 PC든 로그인만 하면 바로 보입니다.
-      파일 본체는 올라가지 않고 <span class="font-semibold text-ink">목록만</span> 클라우드에 저장됩니다.
     </p>
     <button id="btnSync2" class="btn btn-primary">드라이브 폴더 스캔해서 올리기</button>
     <p id="unsupported" class="mt-5 text-[12px] text-muted" hidden>
-      이 브라우저는 폴더 접근을 지원하지 않습니다. 스캔은 맥·PC의 Chrome에서 한 번만 해주면 됩니다.
+      폴더 접근 안 됨 · 맥·PC 크롬
     </p>
   </section>
 
@@ -432,14 +427,14 @@
         <div id="vendorChips" class="flex flex-wrap items-center gap-1.5"></div>
         <span class="w-px h-5 bg-line mx-1"></span>
         <div id="statusChips" class="flex flex-wrap items-center gap-1.5"></div>
-        <input id="search" type="search" placeholder="차수 · 파일명 검색 — 전체 파일에서 찾습니다" class="field ml-auto w-[240px]" />
+        <input id="search" type="search" placeholder="차수 · 파일명 검색" class="field ml-auto w-[240px]" />
       </div>
     </div>
 
     <section id="fileHits" class="mb-6" hidden></section>
 
     <div id="grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
-    <div id="emptyState" class="card p-12 text-center text-muted" hidden>조건에 맞는 차수가 없습니다.</div>
+    <div id="emptyState" class="card p-12 text-center text-muted" hidden>차수 없음</div>
 
     <!-- ── 정의 안 된 파일 ── -->
     <section id="define" class="mt-10" hidden>
@@ -495,8 +490,7 @@
       <label class="flex items-start gap-2 cursor-pointer">
         <input id="asRule" type="checkbox" class="mt-0.5" />
         <span class="text-[12px] leading-relaxed">
-          <span class="font-semibold">앞으로도 같은 규칙 적용</span><br />
-          <span class="text-muted">이 키워드가 들어간 파일은 새로 들어와도 자동으로 이렇게 분류됩니다.</span>
+          <span class="font-semibold">앞으로도 같은 규칙 적용</span>
         </span>
       </label>
       <input id="asKeyword" class="field mt-2" placeholder="키워드" hidden />
@@ -631,7 +625,7 @@
         <span class="otx">${dhhEsc(m.글)}</span>
         <span class="owhen">${dhhEsc(m.때)}</span>
       </div>`).join('') ||
-      '<p style="margin:0;color:var(--vg-muted);font-size:13px">아직 오간 말이 없습니다.</p>';
+      '<p style="margin:0;color:var(--vg-muted);font-size:13px">오간 말 없음</p>';
     docsPaint();
   }
   // 늦게 와도 지시 판을 보고 있을 때만 다시 그립니다.
@@ -639,8 +633,8 @@
     const el = document.getElementById('dhh-c-orders');
     if (el) {
       const l = window.docsOrders?.() ?? [];
-      el.textContent = l.length ? `${l.filter((m) => m.말).length}건 시키셨고 ${l.length - l.filter((m) => m.말).length}건 답했습니다`
-                                : '아직 오간 말이 없습니다';
+      el.textContent = l.length ? `말씀 ${l.filter((m) => m.말).length} · 답 ${l.length - l.filter((m) => m.말).length}`
+                                : '오간 말 없음';
     }
     if (docsLevel === 'orders') docsOrdersRefresh();
   };
@@ -790,7 +784,7 @@
         <span class="dhh-ico">${DHH_ICO_FILE}</span>
         <span class="dhh-t">${dhhEsc(f.name)}<i>${dhhEsc([f.date, f.why].filter(Boolean).join(' · '))}</i></span>
       </button>`).join('') ||
-      '<p style="margin:0;color:var(--vg-muted);font-size:13px">이 종류에 해당하는 파일이 없습니다.</p>';
+      '<p style="margin:0;color:var(--vg-muted);font-size:13px">파일 없음</p>';
     docsLevel = 'files';
     docsPaint();
     window.scrollTo(0, 0);
@@ -843,8 +837,8 @@
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     put('dhh-mk-title', docsMakeIn ? `${docsMakeIn} 안에 새 박스` : '새 박스');
     put('dhh-mk-say', docsMakeIn
-      ? '이 거래처 파일 가운데 고른 것만 따로 묶어 둡니다. 박스 이름과, 그 파일들 이름에 들어간 낱말을 하나 적어 주세요. 드라이브는 건드리지 않습니다 — 화면에서만 나뉩니다.'
-      : '이 앱에서 박스는 파일이 모여야 생깁니다. 거래처 이름과, 그 거래처 파일 이름에 들어간 낱말을 하나 적어 주세요. 드라이브의 파일은 건드리지 않습니다 — 화면에서만 나뉩니다.');
+      ? '드라이브 안 건드림 · 화면에서만 나뉨'
+      : '드라이브 안 건드림 · 화면에서만 나뉨');
     const n = document.getElementById('dhh-mk-name');
     if (n) { n.value = ''; n.placeholder = docsMakeIn ? '박스 이름 — 예: 샘플요청' : '거래처 이름 — 예: 리나';
              setTimeout(() => n.focus(), 60); }
@@ -870,7 +864,7 @@
     if (!w.trim()) { hint.textContent = ''; return; }
     const n = docsMakeIn ? (window.docsCountInVendor?.(docsMakeIn, w) ?? 0)
                         : (window.docsCountKeyword?.(w) ?? 0);
-    hint.textContent = n ? `이 말이 든 파일 ${n}건이 이 박스로 들어옵니다.` : '이 말이 든 파일이 없습니다.';
+    hint.textContent = n ? `${n}건 들어옴` : '해당 파일 없음';
   }
   async function docsMakeGo() {
     const name = (document.getElementById('dhh-mk-name')?.value ?? '').trim();
@@ -880,18 +874,17 @@
     // 한 번 더 묻습니다 — 만든 박스를 지우는 길이 아직 없습니다.
     if (!docsMakeArmed) {
       if (!name || !word) {
-        if (hint) hint.textContent = !name ? '이름을 넣어주세요.' : '파일 이름에 들어간 낱말을 하나 넣어주세요.';
+        if (hint) hint.textContent = !name ? '이름 없음' : '낱말 없음';
         return;
       }
       const n = docsMakeIn ? (window.docsCountInVendor?.(docsMakeIn, word) ?? 0)
                            : (window.docsCountKeyword?.(word) ?? 0);
-      if (!n) { if (hint) hint.textContent = '이 말이 든 파일이 없습니다.'; return; }
+      if (!n) { if (hint) hint.textContent = '해당 파일 없음'; return; }
       docsMakeArmed = true;
       const go = document.getElementById('dhh-mk-go');
       if (go) go.textContent = '네, 만듭니다';
       if (hint) hint.textContent =
-        `${docsMakeIn ? docsMakeIn + ' 안에 ' : ''}'${name}' 박스를 만들고 파일 ${n}건을 담습니다. ` +
-        '지우는 방법은 아직 없습니다 — 그대로 만들까요?';
+        `${docsMakeIn ? docsMakeIn + ' · ' : ''}'${name}' · ${n}건 담김 · 지우기 없음`;
       return;
     }
 
@@ -922,7 +915,7 @@
     // 그것이 갈음이라는 것을 여기 한 군데에만 적습니다. 다 차면 저절로 사라집니다.
     const 갈음 = c.올린날갈음 ?? 0;
     put('dhh-ctime', 갈음
-      ? `파일 줄의 '고친 ○○' 는 드라이브가 마지막으로 고친 날입니다. 올린 날은 ${갈음}건이 아직 안 올라왔습니다.`
+      ? `고친 날로 갈음 ${갈음}건`
       : '');
     put('dhh-c-rules',    '파일을 자동으로 분류하는 기준 ' + c.rules + '개');
     put('dhh-c-excluded', '목록에서 뺀 파일 ' + c.excluded + '건');

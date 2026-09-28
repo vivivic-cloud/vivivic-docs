@@ -75,13 +75,13 @@ export async function signOut() {
 export function authMessage(code) {
   return (
     {
-      'auth/invalid-email': '이메일 형식이 올바르지 않습니다.',
-      'auth/user-not-found': '등록되지 않은 계정입니다.',
-      'auth/wrong-password': '비밀번호가 맞지 않습니다.',
-      'auth/invalid-credential': '이메일 또는 비밀번호가 맞지 않습니다.',
-      'auth/too-many-requests': '시도가 너무 많았습니다. 잠시 뒤에 다시 해주세요.',
-      'auth/network-request-failed': '네트워크에 연결하지 못했습니다.',
-    }[code] ?? ('로그인하지 못했습니다. (' + (code || '이유 모름') + ')')
+      'auth/invalid-email': '이메일 형식 오류',
+      'auth/user-not-found': '없는 계정',
+      'auth/wrong-password': '비밀번호 틀림',
+      'auth/invalid-credential': '이메일·비밀번호 틀림',
+      'auth/too-many-requests': '너무 잦음 · 잠시 뒤에',
+      'auth/network-request-failed': '네트워크 끊김',
+    }[code] ?? ('로그인 실패 (' + (code || '이유 모름') + ')')
   );
 }
 

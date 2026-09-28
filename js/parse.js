@@ -930,9 +930,9 @@ export function findIssues(b, stages) {
 
   // 영수증은 있는데 원본 서류가 없는 경우
   if (has('piReceipt') && !has('pi'))
-    out.push({ level: 'warn', text: '계약금 영수증은 있는데 PI 원본이 없습니다.' });
+    out.push({ level: 'warn', text: 'PI 원본 없음' });
   if (has('balReceipt') && !has('cipl'))
-    out.push({ level: 'warn', text: '잔금 영수증은 있는데 CI&PL이 없습니다.' });
+    out.push({ level: 'warn', text: 'CI&PL 없음' });
 
   // 뒷단계가 앞단계를 앞질러 간 경우
   const filled = stages.filter((s) => s.docs.length > 0).map((s) => s.id);
@@ -943,7 +943,7 @@ export function findIssues(b, stages) {
     if (gaps.length)
       out.push({
         level: 'warn',
-        text: `${max}단계까지 진행됐는데 ${gaps.map((g) => `${g}단계`).join(', ')}가 비어 있습니다.`,
+        text: `${max}단계 진행 · ${gaps.map((g) => `${g}단계`).join(', ')} 빔`,
       });
   }
 
@@ -951,7 +951,7 @@ export function findIssues(b, stages) {
   for (const d of b.docs.filter((x) => x.misfiled)) {
     out.push({
       level: 'warn',
-      text: `"${d.display}" 는 ${d.folderVendor} 폴더에 있습니다. 파일명을 보고 ${d.vendor} 로 넣었습니다.`,
+      text: `"${d.display}" · ${d.folderVendor} 폴더 → ${d.vendor}`,
     });
   }
 
@@ -959,7 +959,7 @@ export function findIssues(b, stages) {
   for (const dup of findDuplicates(b.docs)) {
     out.push({
       level: 'info',
-      text: `"${dup.display}" 가 ${dup.count}벌 있습니다${dup.byHash ? ' (내용이 같은 파일)' : ''}.`,
+      text: `"${dup.display}" ${dup.count}벌${dup.byHash ? ' · 내용 같음' : ''}`,
       files: dup.files,
     });
   }

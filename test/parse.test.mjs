@@ -92,7 +92,7 @@ test('buildBatches — 엉뚱한 폴더에 있어도 파일명 거래처로 넣�
   const { batches } = buildBatches(files);
   assert.equal(batches.length, 1, '두 파일이 같은 차수로 모인다');
   assert.equal(batches[0].vendor, '제헤우드');
-  assert.ok(batches[0].issues.some((i) => i.text.includes('베이지아 폴더에 있습니다')));
+  assert.ok(batches[0].issues.some((i) => i.text.includes('베이지아 폴더 →')));
 });
 
 test('classify — 중국어 파일명은 발주서가 될 수 없다', () => {
@@ -292,14 +292,14 @@ test('buildBatches — 26-18차가 3/7 단계로 잡힌다', () => {
   assert.equal(b.batch, '26-18');
   assert.equal(b.done, 3, '발주서 + 계약금서류(合同) + 계약금영수증 = 3단계');
   assert.equal(b.percent, 43);
-  assert.ok(!b.issues.some((i) => i.text.includes('PI 원본이 없습니다')), '合同 이 계약금서류라 PI 누락이 아니다');
+  assert.ok(!b.issues.some((i) => i.text.includes('PI 원본 없음')), '合同 이 계약금서류라 PI 누락이 아니다');
 });
 
 test('findDuplicates — md5가 없으면 이름·크기로 갈음한다', () => {
   const name = 'TalkFile_AMT(ZH)26-18 Ordersheet_1차 수정 20260813.pdf';
   const files = [1, 2, 3].map((i) => ({ name, path: `제헤우드/dup${i}/${name}`, size: 95586, vendor: '제헤우드' }));
   const { batches } = buildBatches(files);
-  assert.ok(batches[0].issues.some((i) => i.text.includes('3벌 있습니다')));
+  assert.ok(batches[0].issues.some((i) => i.text.includes('3벌')));
   assert.equal(batches[0].stages[0].docs.length, 1, '목록에는 한 건만 남는다');
   assert.equal(batches[0].stages[0].docs[0].copies.length, 2, '나머지 2벌은 경로로 남는다');
 });
@@ -314,7 +314,7 @@ test('findDuplicates — md5가 같으면 이름이 달라도 한 파일로 본�
   const order = batches[0].stages[0].docs;
   assert.equal(order.length, 1, '한 건으로 접힌다');
   assert.equal(order[0].copies.length, 1);
-  assert.ok(batches[0].issues.some((i) => i.text.includes('내용이 같은 파일')));
+  assert.ok(batches[0].issues.some((i) => i.text.includes('내용 같음')));
 });
 
 test('findDuplicates — md5가 다르면 이름이 같아도 따로 둔다', () => {
