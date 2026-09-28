@@ -375,6 +375,99 @@ function commit_(writes) {
   }
 }
 
+/* ── 파일 내주기 ─────────────────────────────────────────
+   폰이 파일 알맹이를 받아 카톡·위챗에 **파일째** 보낼 수 있게 합니다.
+   링크로는 안 됩니다 — 중국에서 구글 드라이브가 막혀 있습니다.
+
+   ⚠ 이 문은 아무나 두드릴 수 있습니다(웹앱이 ANYONE_ANONYMOUS).
+     그래서 로그인 표를 먼저 구글에 물어 확인하고, 허락한 이메일일 때만 내줍니다.
+     스크립트 속성이 하나라도 비어 있으면 **아무에게도 안 줍니다**(닫힌 채로 둡니다).
+       shareAllow — 허락할 이메일. 쉼표나 빈칸으로 여럿.
+       fbKey      — 파이어베이스 웹 열쇠. 저장소에 안 박으려고 여기서 읽습니다.
+   ⚠ 읽기만 합니다. 옮기거나 지우거나 이름을 바꾸는 코드는 한 줄도 없습니다.
+   ⚠ 「중국」 폴더 아래 파일만 내줍니다. 안 그러면 id 만 알면 아무 파일이나 빼갑니다. */
+
+const SHARE_MAX = 10 * 1024 * 1024;   // base64 는 1/3 커집니다. 여기서 끊습니다.
+
+/**
+ * 폰이 파일을 달라고 두드리는 자리.
+ * ⚠ 폰은 Content-Type: text/plain 으로 보내야 합니다. application/json 이면 브라우저가
+ *   먼저 OPTIONS 를 묻는데, Apps Script 는 그 물음에 답을 못 해 통째로 막힙니다.
+ */
+function doPost(e) {
+  let out;
+  try {
+    out = 파일내주기_(JSON.parse((e && e.postData && e.postData.contents) || '{}'));
+  } catch (err) {
+    out = { ok: false, why: 'bad' };
+  }
+  return ContentService.createTextOutput(JSON.stringify(out))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function 파일내주기_(req) {
+  const props = PropertiesService.getScriptProperties();
+  const allow = String(props.getProperty('shareAllow') || '')
+    .split(/[,\s]+/).filter(String).map(function (x) { return x.toLowerCase(); });
+  if (!allow.length) return { ok: false, why: 'off' };
+
+  const email = 표확인_(req && req.idToken, props);
+  if (!email || allow.indexOf(email.toLowerCase()) < 0) return { ok: false, why: 'who' };
+
+  const id = String((req && req.driveId) || '');
+  if (!/^[A-Za-z0-9_-]{10,}$/.test(id)) return { ok: false, why: 'bad' };
+
+  const file = DriveApp.getFileById(id);            // 읽기만
+  if (!중국아래인가_(file)) return { ok: false, why: 'out' };
+  if (file.getSize() > SHARE_MAX) return { ok: false, why: 'big' };
+
+  const blob = file.getBlob();
+  return {
+    ok: true,
+    name: file.getName(),
+    mime: blob.getContentType() || 'application/octet-stream',
+    b64: Utilities.base64Encode(blob.getBytes()),
+  };
+}
+
+/** 로그인 표가 진짜인지 구글에 물어봅니다. 맞으면 그 사람 이메일, 아니면 빈 글자. */
+function 표확인_(idToken, props) {
+  const key = props.getProperty('fbKey');
+  if (!idToken || !key) return '';
+  const res = UrlFetchApp.fetch(
+    'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + encodeURIComponent(key),
+    {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ idToken: String(idToken) }),
+      muteHttpExceptions: true,
+    });
+  if (res.getResponseCode() !== 200) return '';
+  const users = (JSON.parse(res.getContentText()) || {}).users || [];
+  return users.length ? String(users[0].email || '') : '';
+}
+
+/** 「중국」 폴더 아래에 있는 파일인지 위로 거슬러 봅니다. */
+function 중국아래인가_(file) {
+  const rootId = findRoot_().getId();
+  const 본것 = {};
+  let 층 = [file];
+  for (let d = 0; d <= MAX_DEPTH + 1 && 층.length; d++) {
+    const 다음 = [];
+    for (let i = 0; i < 층.length; i++) {
+      const ps = 층[i].getParents();
+      while (ps.hasNext()) {
+        const p = ps.next();
+        const pid = p.getId();
+        if (pid === rootId) return true;
+        if (!본것[pid]) { 본것[pid] = true; 다음.push(p); }
+      }
+    }
+    층 = 다음;
+  }
+  return false;
+}
+
 /* ── 웹앱 ─────────────────────────────────────────────── */
 
 /**

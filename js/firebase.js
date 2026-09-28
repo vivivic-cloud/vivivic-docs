@@ -66,6 +66,12 @@ export async function signIn(email, password) {
   return c.a.signInWithEmailAndPassword(c.auth, email, password);
 }
 
+/** 지금 로그인한 사람의 표. 웹앱이 이걸 구글에 물어 누구인지 가립니다. */
+export async function idToken() {
+  const c = await init();
+  return c.auth.currentUser ? c.auth.currentUser.getIdToken() : '';
+}
+
 export async function signOut() {
   const c = await init();
   return c.a.signOut(c.auth);

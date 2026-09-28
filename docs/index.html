@@ -234,7 +234,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.48.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.49.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -262,7 +262,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.48.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.49.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2338,6 +2338,12 @@ async function signIn(email, password) {
   return c.a.signInWithEmailAndPassword(c.auth, email, password);
 }
 
+/** 지금 로그인한 사람의 표. 웹앱이 이걸 구글에 물어 누구인지 가립니다. */
+async function idToken() {
+  const c = await init();
+  return c.auth.currentUser ? c.auth.currentUser.getIdToken() : '';
+}
+
 async function signOut() {
   const c = await init();
   return c.a.signOut(c.auth);
@@ -2552,7 +2558,7 @@ async function saveRules(rules, email) {
 
 const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
 
-return { APP_ID, CONFIG, FILES, OVERLAY, RULES, WT, authMessage, deleteRule, fileKey, init, overlayKey, replaceFiles, saveBox, saveCipl, saveKinds, saveLoading, saveOverlay, saveRule, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOrders, watchOverlay, watchRules };
+return { APP_ID, CONFIG, FILES, OVERLAY, RULES, WT, authMessage, deleteRule, fileKey, idToken, init, overlayKey, replaceFiles, saveBox, saveCipl, saveKinds, saveLoading, saveOverlay, saveRule, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOrders, watchOverlay, watchRules };
 })();
 const { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf } = PARSE;
 const { progressWord } = PROGRESS;
@@ -3332,20 +3338,34 @@ function 파일메타(d) {
 const 못그리는형식 = (doc) =>
   !INLINE_KIND[(String(doc?.name ?? doc?.display ?? '').split('.').pop() ?? '').toLowerCase()];
 
-/* 서류 보내기 — 카톡·메일로 넘깁니다.
-   ⚠ 아이폰에서는 **링크만** 갑니다. 파일 자체는 못 붙입니다.
-     드라이브 파일의 알맹이를 브라우저가 받아오려면 구글이 CORS 를 열어 줘야 하는데
-     안 열려 있고, 이 앱에는 드라이브 OAuth 도 없습니다. 이 기기 폴더에서 읽는 길은
-     아이폰 사파리에 showDirectoryPicker 가 없어 아예 못 씁니다.
-     그래서 폰에서는 드라이브 링크를 보냅니다 — 받는 쪽도 그 드라이브를 볼 수 있어야 합니다.
-   ⚠ navigator.share 는 손가락이 닿은 그 순간에 불러야 합니다.
-     그래서 링크 보내기 앞에는 await 를 하나도 두지 않습니다.
-     파일째 붙이는 길(폴더가 연결된 맥·PC)만 파일을 읽느라 기다립니다. */
+/* 서류 보내기 — 카톡·위챗·메일로 넘깁니다.
+   링크로는 중국 거래처가 못 엽니다(중국에서 구글 드라이브가 막혀 있습니다).
+   그래서 파일째 보냅니다 — 웹앱이 사장님 계정으로 파일 알맹이를 내주고, 폰이 그것을
+   공유판에 넘깁니다.
+
+   ⚠ 두 걸음입니다. navigator.share 는 손가락이 닿은 그 순간에 불러야 해서, 파일을
+     받아오는 동안 기다리면 아이폰이 막습니다.
+       첫 탭 — 받아 둡니다(단추가 '보내기 ✓' 로 바뀝니다).
+       둘째 탭 — 기다림 없이 바로 보냅니다.
+   ⚠ 웹앱에 그 자리가 아직 없으면(배포 전) 조용히 옛 길(링크)로 갑니다. 안 깨집니다. */
+const 받아둔파일 = new Map();      // 경로 → File. 서랍을 닫으면 비웁니다.
+
 async function 서류보내기(doc) {
   const 이름 = doc?.display ?? doc?.name ?? '서류';
   const 링크 = doc?.driveId ? driveOpen(doc.driveId) : null;
 
-  // ① 이 기기 폴더가 붙어 있으면 파일째 보냅니다 (맥·PC 크롬. 아이폰에는 이 길이 없습니다).
+  // ① 이미 받아 둔 파일이 있으면 기다림 없이 바로 보냅니다 (둘째 탭).
+  const 든것 = 받아둔파일.get(doc?.path);
+  if (든것 && navigator.canShare?.({ files: [든것] })) {
+    try {
+      await navigator.share({ files: [든것], title: 이름 });
+      return;
+    } catch (e) {
+      if (e?.name === 'AbortError') return;
+    }
+  }
+
+  // ② 이 기기 폴더가 붙어 있으면 파일째 보냅니다 (맥·PC 크롬. 아이폰에는 이 길이 없습니다).
   if (state.root && navigator.canShare) {
     try {
       const file = await FS.getFileByPath(state.root, doc.path);
@@ -3358,7 +3378,19 @@ async function 서류보내기(doc) {
     }
   }
 
-  // ② 공유판으로 링크를 보냅니다 — 카톡·메일·문자가 한 판에 뜹니다.
+  // ③ 웹앱에서 받아 둡니다 (첫 탭). 안 되면 아래 옛 길로 그냥 내려갑니다.
+  if (doc?.driveId && !든것 && navigator.canShare) {
+    단추글(doc.path, '받는 중…');
+    const 받은것 = await 웹앱에서받기(doc);
+    단추글(doc.path, 받은것 instanceof File ? '보내기 ✓' : '보내기');
+    if (받은것 === 'big') toast('너무 큼');
+    else if (받은것 instanceof File) {
+      받아둔파일.set(doc.path, 받은것);
+      return toast('받음');
+    }
+  }
+
+  // ④ 공유판으로 링크를 보냅니다 — 카톡·위챗·메일·문자가 한 판에 뜹니다.
   if (링크 && navigator.share) {
     try {
       await navigator.share({ title: 이름, text: 이름, url: 링크 });
@@ -3369,12 +3401,48 @@ async function 서류보내기(doc) {
     }
   }
 
-  // ③ 공유판이 없는 자리(맥·PC 브라우저 등) — 메일로 물러납니다.
+  // ⑤ 공유판이 없는 자리(맥·PC 브라우저 등) — 메일로 물러납니다.
   if (링크) {
     메일로(이름, 링크);
     return;
   }
   toast('주소 없음');
+}
+
+/* 웹앱에서 파일 알맹이를 받아 옵니다.
+   ⚠ Content-Type 은 text/plain 이어야 합니다. application/json 이면 브라우저가 먼저
+     OPTIONS 를 묻는데, Apps Script 는 그 물음에 답을 못 해 통째로 막힙니다.
+   돌려주는 것 — File(성공) · 'big'(너무 큼) · null(그 밖에 전부. 조용히 옛 길로). */
+async function 웹앱에서받기(doc) {
+  const 그만 = new AbortController();
+  const 시계 = setTimeout(() => 그만.abort(), 20_000);
+  try {
+    const [url, idToken] = await Promise.all([DB.syncUrl(), DB.idToken()]);
+    if (!url || !idToken) return null;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ idToken, driveId: doc.driveId }),
+      signal: 그만.signal,
+    });
+    if (!res.ok) return null;
+    const r = await res.json();            // 옛 배포는 글자만 돌려줘 여기서 걸립니다
+    if (!r?.ok) return r?.why === 'big' ? 'big' : null;
+    const 글 = atob(r.b64);
+    const 바이트 = new Uint8Array(글.length);
+    for (let i = 0; i < 글.length; i++) 바이트[i] = 글.charCodeAt(i);
+    return new File([바이트], r.name || doc.display, { type: r.mime });
+  } catch {
+    return null;                           // 아직 배포 전이면 조용히 옛 길로
+  } finally {
+    clearTimeout(시계);
+  }
+}
+
+/** 그 서류 줄의 보내기 단추 글자만 바꿉니다. */
+function 단추글(path, 글) {
+  const el = $('#drawerBody')?.querySelector(`[data-send="${CSS.escape(path)}"] span`);
+  if (el) el.textContent = 글;
 }
 
 /** 메일 쓰기 창을 엽니다. 링크는 본문에 넣습니다. */
@@ -3902,6 +3970,7 @@ function openDrawer(id) {
 }
 
 function closeDrawer() {
+  받아둔파일.clear();      // 들고 있던 파일은 메모리라 여기서 놓습니다
   state.openId = null;
   $('#drawer').classList.add('translate-x-full');
   $('#scrim').hidden = true;
