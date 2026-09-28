@@ -774,6 +774,61 @@ function 파일메타(d) {
 const 못그리는형식 = (doc) =>
   !INLINE_KIND[(String(doc?.name ?? doc?.display ?? '').split('.').pop() ?? '').toLowerCase()];
 
+/* 서류 보내기 — 카톡·메일로 넘깁니다.
+   ⚠ 아이폰에서는 **링크만** 갑니다. 파일 자체는 못 붙입니다.
+     드라이브 파일의 알맹이를 브라우저가 받아오려면 구글이 CORS 를 열어 줘야 하는데
+     안 열려 있고, 이 앱에는 드라이브 OAuth 도 없습니다. 이 기기 폴더에서 읽는 길은
+     아이폰 사파리에 showDirectoryPicker 가 없어 아예 못 씁니다.
+     그래서 폰에서는 드라이브 링크를 보냅니다 — 받는 쪽도 그 드라이브를 볼 수 있어야 합니다.
+   ⚠ navigator.share 는 손가락이 닿은 그 순간에 불러야 합니다.
+     그래서 링크 보내기 앞에는 await 를 하나도 두지 않습니다.
+     파일째 붙이는 길(폴더가 연결된 맥·PC)만 파일을 읽느라 기다립니다. */
+async function 서류보내기(doc) {
+  const 이름 = doc?.display ?? doc?.name ?? '서류';
+  const 링크 = doc?.driveId ? driveOpen(doc.driveId) : null;
+
+  // ① 이 기기 폴더가 붙어 있으면 파일째 보냅니다 (맥·PC 크롬. 아이폰에는 이 길이 없습니다).
+  if (state.root && navigator.canShare) {
+    try {
+      const file = await FS.getFileByPath(state.root, doc.path);
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 이름 });
+        return toast('보냈습니다.');
+      }
+    } catch (e) {
+      if (e?.name === 'AbortError') return;        // 사장님이 그만두신 것입니다
+    }
+  }
+
+  // ② 공유판으로 링크를 보냅니다 — 카톡·메일·문자가 한 판에 뜹니다.
+  if (링크 && navigator.share) {
+    try {
+      await navigator.share({ title: 이름, text: 이름, url: 링크 });
+      return;
+    } catch (e) {
+      if (e?.name === 'AbortError') return;
+      // 공유판이 막히면 아래 메일로 물러납니다.
+    }
+  }
+
+  // ③ 공유판이 없는 자리(맥·PC 브라우저 등) — 메일로 물러납니다.
+  if (링크) {
+    메일로(이름, 링크);
+    return;
+  }
+  toast('이 서류는 드라이브 주소가 없어 보낼 수 없습니다.');
+}
+
+/** 메일 쓰기 창을 엽니다. 링크는 본문에 넣습니다. */
+function 메일로(이름, 링크) {
+  const a = document.createElement('a');
+  a.href = `mailto:?subject=${encodeURIComponent(이름)}&body=${encodeURIComponent(`${이름}\n${링크}`)}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast('메일 쓰기 창을 엽니다.');
+}
+
 /* 원본을 그대로 엽니다 — 판을 한 번 더 누르게 하지 않습니다.
    드라이브 파일은 새 창으로(틀에 넣으면 로그인이 막힙니다),
    이 기기에서 읽은 파일은 내려받아 기본 프로그램으로 넘깁니다.
@@ -1733,7 +1788,16 @@ function renderDrawer(id) {
         ${d.driveId ? `<a href="${driveOpen(d.driveId)}" target="_blank" rel="noopener"
              class="text-[11px] text-faint hover:text-ink shrink-0 ml-auto">↗</a>` : ''}
       </div>
-      <span class="dmt">${esc(파일메타(d))}</span>
+      <!-- 보내기는 날짜 줄 오른쪽에 둡니다. 이름 줄에 두면 가로를 먹어 이름이 더 접히고
+           줄이 38px 씩 길어집니다(재 봤습니다). 날짜 줄은 짧아 자리가 남습니다.
+           알약은 작아도 -my 로 당겨 손가락 닿는 자리는 44px 로 둡니다. -->
+      <div class="flex items-center gap-2">
+        <span class="dmt min-w-0 flex-1">${esc(파일메타(d))}</span>
+        <button type="button" data-send="${esc(d.path)}" title="카톡·메일로 보내기"
+                class="min-h-[44px] min-w-[44px] -my-3 px-1 shrink-0 flex items-center justify-center">
+          <span class="text-[11px] font-bold px-2 py-1 rounded-md border bg-white text-faint border-line">보내기</span>
+        </button>
+      </div>
       ${diffs.has(d.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(d.path)}</div>` : ''}
       ${d.stageKey === 'cipl' ? 잔액대발주(d) : ''}
       ${영수증맞춤(d)}
@@ -1867,6 +1931,11 @@ function renderDrawer(id) {
       const 날 = 날짜칸.value || null;
       saveLoadDate(id, { pick: 날, fixed: 날 });
     };
+
+  for (const el of $('#drawerBody').querySelectorAll('[data-send]')) {
+    // 공유판은 손가락이 닿은 그 순간에 떠야 합니다 — 여기서 바로 부릅니다.
+    el.onclick = () => 서류보내기(b.docs.find((d) => d.path === el.dataset.send));
+  }
 
   for (const el of $('#drawerBody').querySelectorAll('[data-confirm]')) {
     // 이미 확정인 것을 다시 누르면 풀립니다 — 잘못 고르셨을 때 되돌리는 길입니다.
