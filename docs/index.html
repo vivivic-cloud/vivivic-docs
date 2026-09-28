@@ -234,7 +234,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.47.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.48.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -262,7 +262,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.47.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.48.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -3781,10 +3781,12 @@ function photoGrid(docs, key) {
         <button data-photo="${esc(key)}" data-idx="${i}" title="${esc(fileTitle(d))}"
                 class="relative aspect-square rounded-lg overflow-hidden bg-hover border border-line
                        hover:border-ink/30 transition-all">
+          <span class="absolute inset-0 flex items-center justify-center text-[11px] text-faint">사진</span>
           ${d.driveId
             ? `<img src="${driveThumb(d.driveId, 400)}" alt="" loading="lazy"
-                    class="w-full h-full object-cover" data-path="${esc(d.path)}" />`
-            : `<span class="absolute inset-0 flex items-center justify-center text-[11px] text-faint">사진</span>`}
+                    class="relative w-full h-full object-cover bg-hover" data-path="${esc(d.path)}"
+                    onerror="this.remove()" />`
+            : ''}
         </button>`).join('')}
     </div>`;
 }
@@ -4380,9 +4382,10 @@ function renderDrawer(id) {
 
   $('#drawerBody').innerHTML = `
     <div class="sticky top-0 bg-white border-b border-line px-6 h-[65px] flex items-center gap-3 z-10">
-      <div>
+      <div class="min-w-0">
         <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
         <div class="text-[17px] font-bold leading-tight">${esc(b.batch)}차</div>
+        <div class="flex items-center gap-[3px] mt-1">${stageDots(b)}</div>
       </div>
       <div class="ml-auto flex items-center gap-2">
         ${진행알약(b)}

@@ -1223,10 +1223,12 @@ function photoGrid(docs, key) {
         <button data-photo="${esc(key)}" data-idx="${i}" title="${esc(fileTitle(d))}"
                 class="relative aspect-square rounded-lg overflow-hidden bg-hover border border-line
                        hover:border-ink/30 transition-all">
+          <span class="absolute inset-0 flex items-center justify-center text-[11px] text-faint">사진</span>
           ${d.driveId
             ? `<img src="${driveThumb(d.driveId, 400)}" alt="" loading="lazy"
-                    class="w-full h-full object-cover" data-path="${esc(d.path)}" />`
-            : `<span class="absolute inset-0 flex items-center justify-center text-[11px] text-faint">사진</span>`}
+                    class="relative w-full h-full object-cover bg-hover" data-path="${esc(d.path)}"
+                    onerror="this.remove()" />`
+            : ''}
         </button>`).join('')}
     </div>`;
 }
@@ -1822,9 +1824,10 @@ function renderDrawer(id) {
 
   $('#drawerBody').innerHTML = `
     <div class="sticky top-0 bg-white border-b border-line px-6 h-[65px] flex items-center gap-3 z-10">
-      <div>
+      <div class="min-w-0">
         <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
         <div class="text-[17px] font-bold leading-tight">${esc(b.batch)}차</div>
+        <div class="flex items-center gap-[3px] mt-1">${stageDots(b)}</div>
       </div>
       <div class="ml-auto flex items-center gap-2">
         ${진행알약(b)}
