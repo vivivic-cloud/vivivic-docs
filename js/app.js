@@ -1217,16 +1217,19 @@ const PHOTO_EXT = /\.(jpe?g|png|heic|webp|gif|bmp)$/i;
  * 작은 그림으로 늘어놓고, 누르면 한 장씩 크게 넘겨 봅니다.
  */
 function photoGrid(docs, key) {
+  /* 그림이 안 뜰 때 칸마다 '사진' 이라고 적으면 그 글자가 열여섯 줄 늘어섭니다.
+     칸은 빈 자리로 두고, 못 뜨는 까닭은 격자 위에 딱지 하나로만 적습니다. */
+  const 주소없음 = docs.filter((d) => !d.driveId).length;
   return `
+    ${주소없음 ? `<div class="mb-1.5 text-[11px] text-faint">주소 없음 ${주소없음}</div>` : ''}
     <div class="grid grid-cols-4 gap-2">
       ${docs.map((d, i) => `
         <button data-photo="${esc(key)}" data-idx="${i}" title="${esc(fileTitle(d))}"
                 class="relative aspect-square rounded-lg overflow-hidden bg-hover border border-line
                        hover:border-ink/30 transition-all">
-          <span class="absolute inset-0 flex items-center justify-center text-[11px] text-faint">사진</span>
           ${d.driveId
             ? `<img src="${driveThumb(d.driveId, 400)}" alt="" loading="lazy"
-                    class="relative w-full h-full object-cover bg-hover" data-path="${esc(d.path)}"
+                    class="w-full h-full object-cover" data-path="${esc(d.path)}"
                     onerror="this.remove()" />`
             : ''}
         </button>`).join('')}
