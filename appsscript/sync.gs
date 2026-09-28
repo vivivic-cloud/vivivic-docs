@@ -10,7 +10,7 @@ const COLLECTION = 'artifacts/vivivic-4b7ef/public/data/docs_files';
 const CONFIG = 'artifacts/vivivic-4b7ef/public/data/docs_config';
 const MAX_DEPTH = 4;
 // 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 지문이 달라져 전체를 다시 훑습니다.
-const MARK_VERSION = 17;
+const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
 const READ_VERSION = 2;
@@ -264,6 +264,18 @@ function ctimeWrite_(f) {
   };
 }
 
+/* 시간이 모자라 서류 안을 못 읽었을 때 — cipl 은 건드리지 않고 나머지 칸만 덧칠합니다.
+   ⚠ 마스크 없이 쓰면 Firestore 가 문서를 통째로 갈아 끼워, 읽어둔 cipl 이 날아갑니다.
+     MARK_VERSION 을 올려 전체를 다시 훑을 때 4분을 넘기면 그 일이 실제로 납니다. */
+function baseWrite_(f, fields) {
+  const keys = [];
+  for (const k in fields) keys.push(k);
+  return {
+    update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields },
+    updateMask: { fieldPaths: keys },
+  };
+}
+
 function updateWrite_(f) {
   const fields = {
     name: { stringValue: f.name },
@@ -280,7 +292,7 @@ function updateWrite_(f) {
   if (isOrderPdf_(f.name)) {
     if (new Date() - runStart > 4 * 60 * 1000) {
       ciplCut++;
-      return { update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields } };
+      return baseWrite_(f, fields);
     }
     const text = pdfText_(f.driveId);
     const pb = readPdfBrief_(text);
@@ -299,7 +311,7 @@ function updateWrite_(f) {
     // 이때만 cipl 을 안 붙입니다 — 그래야 다음번에 다시 시도합니다.
     if (new Date() - runStart > 4 * 60 * 1000) {
       ciplCut++;
-      return { update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields } };
+      return baseWrite_(f, fields);
     }
 
     // 읽어봤는데 표가 없는 서류도 있습니다(스캔을 엑셀로 감싼 것 등).
