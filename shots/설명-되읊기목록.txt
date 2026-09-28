@@ -1,0 +1,40 @@
+
+━━ 지움 9곳 ━━
+  1. index.html
+     옛 | <b id="dhh-ver"></b>
+  2. index.html
+     옛 | put('dhh-ver', document.querySelector('#app .tracking-wider')?.textContent?.trim() ?? '…
+  3. index.html
+     옛 | <span class="dhh-role">서류관리</span>
+  4. index.html
+     옛 | <span class="dhh-sub" id="dvn-sub">&nbsp;</span>
+  5. index.html
+     옛 | put('dvn-sub', `차수 ${v.batches}개 · 진행 중 ${v.active}`);
+  6. index.html
+     옛 | <p id="dhh-mk-say">드라이브 안 건드림 · 화면에서만 나뉨</p>
+  7. index.html
+     옛 | put('dhh-mk-say', docsMakeIn ? '드라이브 안 건드림 · 화면에서만 나뉨' : '드라이브 안 건드림 · 화면에서만 나뉨');
+  8. index.html
+     옛 | (지시 내용 줄 밑) 오간 말 없음 — 판 안에 같은 말이 또 있습니다
+  9. js/app.js
+     옛 | (잔액서류 줄) 총중량 6,200 kg · 박스 395 개 · 부피 58 CBM · 수량 297 pcs — 아래 선적 요약에 같은 숫자가 또 있습니다
+
+━━ 줄임 6곳 ━━
+  1. index.html
+     옛 | <i id="dhh-c-all">거래처를 가리지 않고 전부</i>
+     새 | <i id="dhh-c-all"></i>
+  2. index.html
+     옛 | put('dhh-c-all', '거래처를 가리지 않고 ' + c.batches + '개');
+     새 | put('dhh-c-all', c.batches + '개');
+  3. index.html
+     옛 | put('dhh-c-status', '진행 중 ' + c.active + '개');
+     새 | put('dhh-c-status', c.active + '개');
+  4. index.html
+     옛 | put('dhh-c-rules', '파일을 자동으로 분류하는 기준 ' + c.rules + '개');
+     새 | put('dhh-c-rules', c.rules + '개');
+  5. index.html
+     옛 | put('dhh-c-excluded', '목록에서 뺀 파일 ' + c.excluded + '건');
+     새 | put('dhh-c-excluded', c.excluded + '건');
+  6. js/app.js
+     옛 | : '<span class="text-[11px] text-faint">확정 발주서와 같음</span>'}
+     새 | : ''}

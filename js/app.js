@@ -1770,7 +1770,7 @@ function renderDrawer(id) {
         <div class="mb-1.5">${맞춤줄(m)}</div>
         ${rows.length
           ? diffTable(rows, key)
-          : '<span class="text-[11px] text-faint">확정 발주서와 같음</span>'}
+          : ''}
       </div>`;
   }
 
@@ -1798,18 +1798,12 @@ function renderDrawer(id) {
       ${d.stageKey === 'cipl' ? 잔액대발주(d) : ''}
       ${영수증맞춤(d)}
       ${(() => {
+        // 총중량·박스·부피·수량은 아래 '선적 요약' 에 이미 있습니다 — 여기서 되읊지 않습니다.
+        // 뒤바뀜만 남깁니다. 그것은 실수를 막는 경고입니다.
         const c = ciplOf(d);
-        if (!c) return '';
-        return `
-          <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-            ${[
-              ['총중량', `${fmtNum(c.gross)} kg`],
-              ['박스', `${fmtNum(c.cartons)} 개`],
-              ['부피', `${fmtNum(c.cbm)} CBM`],
-              ...(c.pcs ? [['수량', `${fmtNum(c.pcs)} pcs`]] : []),
-            ].map(([k, v]) => `<span><span class="text-faint">${k}</span> <span class="font-bold">${esc(v)}</span></span>`).join('')}
-            ${c.swapped ? '<span class="text-warn font-semibold" title="큰 값을 총중량으로 봄">G.W./N.W. 뒤바뀜</span>' : ''}
-          </div>`;
+        return c?.swapped
+          ? `<div class="mt-1 text-[11px] text-warn font-semibold" title="큰 값을 총중량으로 봄">G.W./N.W. 뒤바뀜</div>`
+          : '';
       })()}
       ${확정줄(d)}
     </li>`;

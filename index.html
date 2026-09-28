@@ -232,7 +232,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.47.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.47.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -260,7 +260,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.47.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.47.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -287,7 +287,6 @@
 
     <div class="dhh-head">
       <span class="dhh-day" id="dhh-day">—</span>
-      <span class="dhh-role">서류관리</span>
       <span class="dhh-sub" id="dhh-sub">&nbsp;</span>
     </div>
 
@@ -300,7 +299,7 @@
 
       <button type="button" class="dhh-row" onclick="docsOpenAll()">
         <span class="dhh-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></span>
-        <span class="dhh-t">모든 차수<i id="dhh-c-all">거래처를 가리지 않고 전부</i></span>
+        <span class="dhh-t">모든 차수<i id="dhh-c-all"></i></span>
       </button>
 
       <button type="button" class="dhh-row" onclick="docsOpenRest('status')">
@@ -330,8 +329,7 @@
 
     </div>
 
-    <p class="dhh-foot"><b id="dhh-ver"></b>
-      <span id="dhh-ctime" style="display:block;margin-top:6px"></span></p>
+    <p class="dhh-foot"><span id="dhh-ctime" style="display:block;margin-top:6px"></span></p>
   </div>
 </div>
 
@@ -342,7 +340,6 @@
     <div class="dhh-head">
       <span class="dhh-day" id="dvn-name">—</span>
       <span class="dhh-role">거래처</span>
-      <span class="dhh-sub" id="dvn-sub">&nbsp;</span>
     </div>
     <div class="dhh-tiles" id="dvn-tiles"></div>
     <p class="dhh-foot"></p>
@@ -392,7 +389,6 @@
   <div class="dhh-card">
     <div class="dhh-grip"></div>
     <h4 id="dhh-mk-title">새 박스</h4>
-    <p id="dhh-mk-say">드라이브 안 건드림 · 화면에서만 나뉨</p>
     <input id="dhh-mk-name" type="text" placeholder="거래처 이름 — 예: 리나" />
     <input id="dhh-mk-word" type="text" placeholder="파일 이름에 들어간 낱말 — 예: 리나" oninput="docsMakeCount()" />
     <p class="dhh-hint" id="dhh-mk-hint"></p>
@@ -634,7 +630,7 @@
     if (el) {
       const l = window.docsOrders?.() ?? [];
       el.textContent = l.length ? `말씀 ${l.filter((m) => m.말).length} · 답 ${l.length - l.filter((m) => m.말).length}`
-                                : '오간 말 없음';
+                                : '';
     }
     if (docsLevel === 'orders') docsOrdersRefresh();
   };
@@ -714,7 +710,6 @@
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     put('dvn-name', docsVendor);
     if (v) {
-      put('dvn-sub', `차수 ${v.batches}개 · 진행 중 ${v.active}`);
       const box = document.getElementById('dvn-tiles');
       if (box) box.innerHTML = `
         <button type="button" class="dhh-tile dhh-dark" onclick="docsVendorBox('batch')">
@@ -836,9 +831,6 @@
     document.documentElement.setAttribute('data-docsmk', '1');
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     put('dhh-mk-title', docsMakeIn ? `${docsMakeIn} 안에 새 박스` : '새 박스');
-    put('dhh-mk-say', docsMakeIn
-      ? '드라이브 안 건드림 · 화면에서만 나뉨'
-      : '드라이브 안 건드림 · 화면에서만 나뉨');
     const n = document.getElementById('dhh-mk-name');
     if (n) { n.value = ''; n.placeholder = docsMakeIn ? '박스 이름 — 예: 샘플요청' : '거래처 이름 — 예: 리나';
              setTimeout(() => n.focus(), 60); }
@@ -902,13 +894,12 @@
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     const D = new Date();
     put('dhh-day', D.getDate() + '일 ' + ['일','월','화','수','목','금','토'][D.getDay()] + '요일');
-    put('dhh-ver', document.querySelector('#app .tracking-wider')?.textContent?.trim() ?? '');
 
     const c = window.docsCounts?.();
     if (!c) return;
     docsTiles(c.boxes);
-    put('dhh-c-all',      '거래처를 가리지 않고 ' + c.batches + '개');
-    put('dhh-c-status',   '진행 중 ' + c.active + '개');
+    put('dhh-c-all',      c.batches + '개');
+    put('dhh-c-status',   c.active + '개');
     put('dhh-c-loose',    c.loose + '건');
     window.docsOrdersChanged?.();
     // 드라이브가 올린 날(ctime)을 아직 안 준 파일은 '고친 ○○' 로 나옵니다.
@@ -917,8 +908,8 @@
     put('dhh-ctime', 갈음
       ? `고친 날로 갈음 ${갈음}건`
       : '');
-    put('dhh-c-rules',    '파일을 자동으로 분류하는 기준 ' + c.rules + '개');
-    put('dhh-c-excluded', '목록에서 뺀 파일 ' + c.excluded + '건');
+    put('dhh-c-rules',    c.rules + '개');
+    put('dhh-c-excluded', c.excluded + '건');
     put('dhh-sub', '거래처 ' + c.vendors + '곳 · 차수 ' + c.batches + '개');
   }
   window.docsHomeRefresh = docsHomeRefresh;
