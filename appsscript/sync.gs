@@ -1034,6 +1034,8 @@ const BORING_MAX_DEPTH = 6;
 
 function 보링훑기_() {
   try {
+    보링주소적기_();                             // 보링변환이 부를 주소를 적어 둡니다
+
     const 폴더이름 = 보링폴더이름_();
     if (!폴더이름) return;                       // 아직 안 고르셨으면 아무 일도 안 합니다
 
@@ -1050,6 +1052,36 @@ function 보링훑기_() {
     // 삼킵니다. 서류 일은 이미 다 끝났습니다.
     console.error('보링 건너뜀: ' + (e && e.message));
   }
+}
+
+/**
+ * 배포된 /exec 주소를 boring_config/설정 의 exec 칸에 적어 둡니다.
+ * 보링변환은 그걸 읽어 GET 으로 한 번 두드리면 됩니다 — doGet 이 sync() 를 돌리고,
+ * 그 끝에서 이 보링 일이 함께 돕니다. 서류관리를 안 열어도 목록이 찹니다.
+ * 새 문은 안 만들었습니다. 있는 doGet 을 그대로 씁니다.
+ * ⚠ exec 칸 하나만 덧칠합니다(updateMask). 사장님이 고르신 folder 는 안 건드립니다.
+ * ⚠ docs_config/sync 는 안 건드립니다. 그건 ensureUrl_ 자리입니다.
+ */
+function 보링주소적기_() {
+  const url = ScriptApp.getService().getUrl();
+  if (!url) return;                              // 아직 웹앱 배포 전
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('boringUrl') === url) return;   // 안 바뀌었으면 안 씁니다
+
+  const res = UrlFetchApp.fetch(
+    BASE + '/' + BORING_CONFIG + '/' + encodeURIComponent('설정') + '?updateMask.fieldPaths=exec',
+    {
+      method: 'patch',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token_() },
+      payload: JSON.stringify({ fields: { exec: { stringValue: url } } }),
+      muteHttpExceptions: true,
+    });
+  if (res.getResponseCode() !== 200) {
+    throw new Error('보링 주소 적기 실패 ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200));
+  }
+  props.setProperty('boringUrl', url);
+  console.log('보링변환이 부를 주소: ' + url);
 }
 
 /** 볼 폴더 이름은 사장님이 폰에서 고르십니다. 코드에 안 박습니다. */
