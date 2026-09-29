@@ -51,6 +51,7 @@ function sync() {
   if (!retry && props.getProperty('mark') === mark) {
     lastNote = '바뀐 게 없습니다 · 파일 ' + files.length + '건 · ' + (new Date() - started) / 1000 + '초';
     console.log(lastNote);
+    보링훑기_();          // 서류 일은 여기서 끝났습니다. 보링은 제 안에서 try/catch 합니다.
     return;
   }
 
@@ -90,6 +91,8 @@ function sync() {
     'lastSync',
     Utilities.formatDate(started, 'Asia/Seoul', 'yyyy-MM-dd HH:mm') + ' · ' + files.length + '건 · 쓰기 ' + writes.length
   );
+
+  보링훑기_();            // 서류 일은 여기서 끝났습니다. 보링은 제 안에서 try/catch 합니다.
 }
 
 /** 파일 목록 전체를 한 줄로 요약합니다. 하나라도 달라지면 값이 바뀝니다. */
@@ -1012,4 +1015,181 @@ function removeTrigger() {
     if (t.getHandlerFunction() === 'sync') ScriptApp.deleteTrigger(t);
   });
   console.log('자동 실행을 껐습니다.');
+}
+
+/* ── 보링 ─────────────────────────────────────────────────
+   서류관리와 아주 떼어 둡니다. 여기서 무슨 일이 나도 위쪽 서류 일은 이미 끝나 있고,
+   catch 가 삼켜서 sync() 를 넘어뜨리지 않습니다.
+   · boring_files 에만 씁니다. docs_files·docs_config·docs_overlay·docs_rules 는
+     읽지도 쓰지도 않습니다.
+   · 드라이브는 읽기만 합니다. 옮기기·이름바꾸기·지우기·공유설정 전부 없습니다.
+   · 훑는 코드는 위엣것을 부르지 않고 베껴 뒀습니다. 위엣것을 보링 때문에 고치면
+     서류 885건이 같이 흔들립니다. token_·docId_·commit_ 만 그대로 부릅니다.
+   · 파일 속(구멍 자료)은 한 줄도 담지 않습니다. 목록뿐입니다. */
+
+const BORING_FILES = 'artifacts/vivivic-4b7ef/public/data/boring_files';
+const BORING_CONFIG = 'artifacts/vivivic-4b7ef/public/data/boring_config';
+const BORING_EXT = /\.(cix|bpp)$/i;
+const BORING_MAX_DEPTH = 6;
+
+function 보링훑기_() {
+  try {
+    const 폴더이름 = 보링폴더이름_();
+    if (!폴더이름) return;                       // 아직 안 고르셨으면 아무 일도 안 합니다
+
+    const it = DriveApp.getFoldersByName(폴더이름);
+    if (!it.hasNext()) {
+      console.log('보링 · 폴더 "' + 폴더이름 + '" 없음');
+      return;
+    }
+    const files = [];
+    보링걷기_(it.next().getId(), '', 0, files);
+    const 쓴수 = 보링쓰기_(files);
+    console.log('보링 · "' + 폴더이름 + '" · 파일 ' + files.length + '건 · 쓰기 ' + 쓴수 + '건');
+  } catch (e) {
+    // 삼킵니다. 서류 일은 이미 다 끝났습니다.
+    console.error('보링 건너뜀: ' + (e && e.message));
+  }
+}
+
+/** 볼 폴더 이름은 사장님이 폰에서 고르십니다. 코드에 안 박습니다. */
+function 보링폴더이름_() {
+  const res = UrlFetchApp.fetch(BASE + '/' + BORING_CONFIG + '/' + encodeURIComponent('설정'), {
+    headers: { Authorization: 'Bearer ' + token_() },
+    muteHttpExceptions: true,
+  });
+  if (res.getResponseCode() !== 200) return '';   // 칸이 아직 없으면 조용히 빈손
+  const f = (JSON.parse(res.getContentText()) || {}).fields || {};
+  return String((f.folder || {}).stringValue || '').trim();
+}
+
+/** 폴더 하나의 자식. 위 listChildren_ 를 베낀 것입니다 — 일부러 따로 둡니다. */
+function 보링자식_(folderId) {
+  const out = [];
+  let pageToken = '';
+  do {
+    const url =
+      'https://www.googleapis.com/drive/v3/files' +
+      '?q=' + encodeURIComponent("'" + folderId + "' in parents and trashed = false") +
+      '&fields=' + encodeURIComponent('nextPageToken,files(id,name,size,modifiedTime,createdTime,mimeType,shortcutDetails)') +
+      '&pageSize=1000' +
+      (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
+    const res = UrlFetchApp.fetch(url, {
+      headers: { Authorization: 'Bearer ' + token_() },
+      muteHttpExceptions: true,
+    });
+    if (res.getResponseCode() !== 200) {
+      throw new Error('보링 폴더 조회 실패 ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200));
+    }
+    const body = JSON.parse(res.getContentText());
+    (body.files || []).forEach(function (x) { out.push(x); });
+    pageToken = body.nextPageToken || '';
+  } while (pageToken);
+  return out;
+}
+
+/** 아래를 다 훑어 .cix 와 .bpp 만 고릅니다. 나머지는 버립니다. */
+function 보링걷기_(folderId, prefix, depth, out) {
+  if (depth > BORING_MAX_DEPTH) return;
+  const children = 보링자식_(folderId);
+  for (let i = 0; i < children.length; i++) {
+    const c = children[i];
+    const name = c.name;
+
+    if (c.mimeType === FOLDER_MIME) {
+      if (name.charAt(0) === '.') continue;
+      보링걷기_(c.id, prefix ? prefix + '/' + name : name, depth + 1, out);
+      continue;
+    }
+    if (name.charAt(0) === '.' || name.indexOf('~$') === 0) continue;
+    if (!BORING_EXT.test(name)) continue;
+
+    let id = c.id;
+    if (c.mimeType === SHORTCUT_MIME) {
+      const t = c.shortcutDetails || {};
+      if (!t.targetId || t.targetMimeType === FOLDER_MIME) continue;
+      id = t.targetId;
+    }
+    out.push({
+      name: name,
+      path: prefix ? prefix + '/' + name : name,
+      driveId: id,
+      size: c.size ? Number(c.size) : 0,
+      mtime: new Date(c.modifiedTime).getTime(),
+      ctime: c.createdTime ? new Date(c.createdTime).getTime() : 0,
+    });
+  }
+}
+
+/** 올라간 것과 견주어 달라진 것만 씁니다. 드라이브에서 없어진 것은 지웁니다. */
+function 보링쓰기_(files) {
+  const existing = 보링올라간것_();
+  const seen = {};
+  const writes = [];
+
+  files.forEach(function (f) {
+    const id = docId_(f.path);
+    seen[id] = true;
+    const b = existing[id];
+    const 같나 = b &&
+      b.name === f.name &&
+      b.driveId === f.driveId &&
+      b.size === String(f.size) &&
+      b.mtime === String(f.mtime) &&
+      b.ctime === String(f.ctime);
+    if (같나) return;
+    writes.push({
+      update: {
+        name: NAME + '/' + BORING_FILES + '/' + id,
+        fields: {
+          name: { stringValue: f.name },
+          path: { stringValue: f.path },
+          driveId: { stringValue: f.driveId },
+          size: { integerValue: String(f.size) },
+          mtime: { integerValue: String(f.mtime) },
+          ctime: { integerValue: String(f.ctime) },
+        },
+      },
+    });
+  });
+  Object.keys(existing).forEach(function (id) {
+    if (!seen[id]) writes.push({ delete: NAME + '/' + BORING_FILES + '/' + id });
+  });
+
+  if (writes.length) commit_(writes);
+  return writes.length;
+}
+
+/** boring_files 에 이미 올라가 있는 것. */
+function 보링올라간것_() {
+  const out = {};
+  const mask = ['name', 'path', 'driveId', 'size', 'mtime', 'ctime']
+    .map(function (x) { return 'mask.fieldPaths=' + x; })
+    .join('&');
+  let pageToken = '';
+  do {
+    const url = BASE + '/' + BORING_FILES + '?pageSize=300&' + mask +
+      (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
+    const res = UrlFetchApp.fetch(url, {
+      headers: { Authorization: 'Bearer ' + token_() },
+      muteHttpExceptions: true,
+    });
+    if (res.getResponseCode() !== 200) {
+      throw new Error('보링 목록 조회 실패 ' + res.getResponseCode());
+    }
+    const body = JSON.parse(res.getContentText());
+    (body.documents || []).forEach(function (d) {
+      const f = d.fields || {};
+      out[d.name.split('/').pop()] = {
+        name: (f.name || {}).stringValue,
+        path: (f.path || {}).stringValue,
+        driveId: (f.driveId || {}).stringValue,
+        size: (f.size || {}).integerValue,
+        mtime: (f.mtime || {}).integerValue,
+        ctime: (f.ctime || {}).integerValue,
+      };
+    });
+    pageToken = body.nextPageToken || '';
+  } while (pageToken);
+  return out;
 }
