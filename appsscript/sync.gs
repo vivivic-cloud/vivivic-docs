@@ -400,7 +400,9 @@ const SHARE_MAX = 10 * 1024 * 1024;   // base64 는 1/3 커집니다. 여기서 
 function doPost(e) {
   let out;
   try {
-    out = 파일내주기_(JSON.parse((e && e.postData && e.postData.contents) || '{}'));
+    const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    // 보링은 제 갈래로 갑니다. 서류 쪽 길(파일내주기_)은 한 줄도 안 건드립니다.
+    out = (req && req['일'] === '보링파일') ? 보링파일내주기_(req) : 파일내주기_(req);
   } catch (err) {
     out = { ok: false, why: 'bad' };
   }
@@ -1082,6 +1084,71 @@ function 보링주소적기_() {
   }
   props.setProperty('boringUrl', url);
   console.log('보링변환이 부를 주소: ' + url);
+}
+
+/* ── 보링 파일 알맹이를 내주는 문 ──────────────────────
+
+   보링변환 화면이 파일 줄을 누르면 이리로 두드립니다. 그러면 그 파일을 base64 로
+   싸서 내줍니다. 화면은 그것을 풀어 제 자리에서 뜯어 봅니다.
+
+   ⚠ 이 문에는 로그인이 없습니다. 관리자가 정했습니다 —
+   보링변환을 쓰시는 것은 사장님 폰 하나이고 거기엔 로그인이 없습니다.
+   그래서 자물쇠를 「누구냐」 가 아니라 「무엇을 내주느냐」 로 걸었습니다. 넷입니다:
+
+     ① 보링 폴더 아래 것만 (부모를 거슬러 봅니다 — id 만 알아도 밖은 못 빼갑니다)
+     ② .cix · .bpp 만
+     ③ 2MB 까지 (보링 파일은 10KB 안팎입니다)
+     ④ 읽기만 — 드라이브에 아무것도 쓰지 않습니다
+
+   이 넷 가운데 하나라도 빼지 마십시오. 그것이 이 문의 자물쇠 전부입니다.
+   서류 쪽 길(파일내주기_ · 표확인_ · 중국아래인가_ · shareAllow)은 이 갈래와 남입니다.
+*/
+const BORING_SHARE_MAX = 2 * 1024 * 1024;
+
+function 보링파일내주기_(req) {
+  const id = String((req && req.driveId) || '');
+  if (!/^[A-Za-z0-9_-]{10,}$/.test(id)) return { ok: false, why: 'bad' };
+
+  const file = DriveApp.getFileById(id);            // 읽기만
+  const name = file.getName();
+  // why 는 화면이 그대로 사람에게 보여 줍니다. 그래서 낱말이 아니라 문장으로 돌려줍니다.
+  // '밖' 하나만 낱말입니다 — 그것은 화면이 제 글로 갈아 적습니다.
+  if (!BORING_EXT.test(name)) return { ok: false, why: '보링 파일이 아닙니다' };   // ② .cix·.bpp 만
+  if (!보링아래인가_(file)) return { ok: false, why: '밖' };                       // ① 볼 폴더 아래만
+  if (file.getSize() > BORING_SHARE_MAX) return { ok: false, why: '파일이 너무 큽니다' };  // ③ 2MB
+
+  return { ok: true, name: name, b64: Utilities.base64Encode(file.getBlob().getBytes()) };
+}
+
+/**
+ * 볼 폴더 아래에 있는 파일인지 위로 거슬러 봅니다.
+ * 중국아래인가_ 와 같은 꼴이지만 **뿌리가 다릅니다** — 그래서 따로 둡니다.
+ * 폴더 이름을 아직 안 고르셨으면 아무것도 내주지 않습니다(빈손이면 false).
+ */
+function 보링아래인가_(file) {
+  const 폴더이름 = 보링폴더이름_();
+  if (!폴더이름) return false;
+  const 뿌리 = {};
+  const it = DriveApp.getFoldersByName(폴더이름);
+  while (it.hasNext()) 뿌리[it.next().getId()] = true;   // 같은 이름이 여럿일 수 있습니다
+  if (!Object.keys(뿌리).length) return false;
+
+  const 본것 = {};
+  let 층 = [file];
+  for (let d = 0; d <= BORING_MAX_DEPTH + 1 && 층.length; d++) {
+    const 다음 = [];
+    for (let i = 0; i < 층.length; i++) {
+      const ps = 층[i].getParents();
+      while (ps.hasNext()) {
+        const p = ps.next();
+        const pid = p.getId();
+        if (뿌리[pid]) return true;
+        if (!본것[pid]) { 본것[pid] = true; 다음.push(p); }
+      }
+    }
+    층 = 다음;
+  }
+  return false;
 }
 
 /** 볼 폴더 이름은 사장님이 폰에서 고르십니다. 코드에 안 박습니다. */
