@@ -16,6 +16,8 @@ const REAL = [
   ['ZEHE-ING26 -15   2026.08.06- CI&PL...xls', '26-15', 'cipl'],
   ['ZEHE-ING26 -14 2026.07.30- CI&PL...xls', '26-14', 'cipl'],
   ['SHBL-SOFLYHQB0783102.pdf', null, 'bl'],
+  // 빼기표 뒤에 빈칸이 더 붙은 꼴. 사장님이 2026-10-02 에 짚으셨습니다.
+  ['SHBL- SITTAGPT2635144.pdf', null, 'bl'],
   ['FTA ING26-14.pdf', '26-14', 'fta'],
   ['FTA-ING 26-13.pdf', '26-13', 'fta'],
   ['어린이 침대 견적서_2026.06.18.xlsx', null, 'dev'],

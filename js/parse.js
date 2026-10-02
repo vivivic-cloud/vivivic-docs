@@ -176,7 +176,8 @@ export function classify(rawName) {
   const hit = (key, why) => ({ key, stage: STAGE_BY_KEY[key]?.id ?? null, why });
 
   // 7. 선하증권 — SHBL / HBL / MBL / B/L / 선하증권
-  if (/선하증권|\b(?:SH|H|M)?BL[-_ ]?[A-Z0-9]{4,}|\bB\s*\/\s*L\b|提单/i.test(n)) return hit('bl', '선하증권 키워드');
+  // 가름字는 몇 자든 받습니다 — 「SHBL- SITTAGPT…」 처럼 빼기표 뒤에 빈칸이 더 붙습니다.
+  if (/선하증권|\b(?:SH|H|M)?BL[-_ \t]*[A-Z0-9]{4,}|\bB\s*\/\s*L\b|提单/i.test(n)) return hit('bl', '선하증권 키워드');
 
   // 6/3. 영수증 계열은 30% / 70% 로 갈립니다
   const isReceipt = /영수증|수령증|receipt/i.test(n);
