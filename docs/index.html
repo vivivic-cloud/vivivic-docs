@@ -58,6 +58,28 @@
   html[data-docsfiles="1"]  #docs-files{ display:block; }
   html[data-docsorders="1"] #docs-orders{ display:block; }
   html[data-docskinds="1"]  #docs-kinds{ display:block; }
+
+  /* ═══ 작업지시서 — 한 자리에서 띄웁니다 ════════════════════════
+     코드를 녹이지 않고 저쪽을 그대로 틀(iframe)에 담습니다.
+     · 같은 집(vivivic-cloud.github.io)이라 저장 칸 vv.workorder.* 가 그대로 열립니다.
+       이름은 한 글자도 안 건드립니다.
+     · 틀 안이라 저쪽 CSS(.card .sheet .it .tools …)가 이 화면의 .card 와 안 부딪힙니다.
+     · 저쪽 인쇄 규칙(@page{size:A4}) 도 틀 안에 갇혀 이 화면 인쇄에 안 걸립니다.
+     · 저쪽이 부르는 ../shared/viggle.js 는 틀 안에서 저쪽 자리 기준으로 풀립니다.
+     이 블록과 #wo-page 두 덩어리만 빼면 그대로 되돌아갑니다. */
+  #wo-page{
+    position:fixed; left:0; right:0; bottom:0; z-index:9000;
+    top:var(--dhh-top, 65px);
+    display:none; flex-direction:column; background:#fff;
+  }
+  html[data-wo="1"] #wo-page{ display:flex; }
+  #wo-page .wo-bar{ display:flex; align-items:center; gap:4px;
+    padding:0 8px; min-height:44px; border-bottom:1px solid #ededeb; }
+  #wo-page .wo-bar a, #wo-page .wo-bar button{
+    min-height:44px; min-width:44px; padding:0 12px; border:0; background:none;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:700; color:#37352f; text-decoration:none; cursor:pointer; }
+  #wo-page iframe{ flex:1 1 auto; width:100%; border:0; display:block; }
   .dhh-board *{ box-sizing:border-box; }
   .dhh-board .dhh-wrap{ max-width:430px; margin:0 auto;
     padding:14px 20px calc(28px + env(safe-area-inset-bottom)); }
@@ -234,7 +256,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.49.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.50.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -262,11 +284,12 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.49.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.50.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
-      <span class="px-3 py-1.5 rounded-md bg-chip text-ink">서류관리</span>
+      <button id="wo-tab-docs" class="px-3 rounded-md bg-chip text-ink" style="min-height:44px">서류관리</button>
+      <button id="wo-tab-wo" class="px-3 rounded-md text-faint" style="min-height:44px">작업지시서</button>
     </nav>
 
     <div class="ml-auto flex items-center gap-2">
@@ -545,6 +568,18 @@
 <div id="toast"
      class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-white text-[13px] font-semibold
             px-4 py-2.5 rounded-lg shadow-lg z-[300] opacity-0 pointer-events-none transition-opacity"></div>
+
+
+<!-- ═══ 작업지시서 자리 ═══════════════════════════════════════════
+     저쪽 코드를 베껴 오지 않습니다. 올라가 있는 것을 그대로 띄웁니다 —
+     사장님이 쓰시던 지시서가 그 자리에 그대로 있습니다. -->
+<div id="wo-page">
+  <div class="wo-bar">
+    <button id="wo-close">← 서류관리</button>
+    <a id="wo-new" href="#" target="_blank" rel="noopener" class="ml-auto">새 창</a>
+  </div>
+  <iframe id="wo-frame" title="작업지시서" allow="clipboard-write"></iframe>
+</div>
 
 
 <!-- 박스 판을 움직이는 코드 — 안쪽 화면(js/app.js)은 건드리지 않습니다 -->
@@ -922,6 +957,29 @@
   // 첫 화면으로 엽니다. 일찍 찍어 둬야 잠깐이라도 안쪽이 비치지 않습니다.
   docsPaint();
   window.addEventListener('load', () => { try { docsFitTop(); docsHomeRefresh(); } catch (e) {} });
+
+  /* ── 작업지시서 자리를 여닫습니다 ────────────────────────────
+     틀은 처음 열 때 한 번만 싣습니다 — 안 쓰실 때 빈 무게를 안 지웁니다.
+     주소는 집 뿌리에서 셉니다. 손잡이를 달고 들어오셨으면 틀에도 달아 줍니다. */
+  const WO_SRC = '/vivivic-apps/' + encodeURIComponent('작업지시서') + '/'
+               + encodeURIComponent('작업지시서') + '.html';
+  function woOpen(yes) {
+    const root = document.documentElement;
+    const f = document.getElementById('wo-frame');
+    const 손잡이 = new URLSearchParams(location.search).get('viggle') === '1';
+    const 주소 = WO_SRC + (손잡이 ? '?viggle=1&box=workorder' : '');
+    if (yes && f && !f.getAttribute('src')) f.setAttribute('src', 주소);
+    const a = document.getElementById('wo-new');
+    if (a) a.setAttribute('href', 주소);
+    yes ? root.setAttribute('data-wo', '1') : root.removeAttribute('data-wo');
+    const t1 = document.getElementById('wo-tab-docs');
+    const t2 = document.getElementById('wo-tab-wo');
+    if (t1) t1.className = 'px-3 rounded-md ' + (yes ? 'text-faint' : 'bg-chip text-ink');
+    if (t2) t2.className = 'px-3 rounded-md ' + (yes ? 'bg-chip text-ink' : 'text-faint');
+  }
+  document.getElementById('wo-tab-wo')?.addEventListener('click', () => woOpen(true));
+  document.getElementById('wo-tab-docs')?.addEventListener('click', () => woOpen(false));
+  document.getElementById('wo-close')?.addEventListener('click', () => woOpen(false));
 </script>
     <!-- 바이글 손잡이 — 주소에 ?viggle=1 이 있을 때만 켜진다 -->
     <script src="/vivivic-apps/shared/viggle.js"></script>
