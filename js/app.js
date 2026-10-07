@@ -786,6 +786,30 @@ const 못그리는형식 = (doc) =>
    ⚠ 웹앱에 그 자리가 아직 없으면(배포 전) 조용히 옛 길(링크)로 갑니다. 안 깨집니다. */
 const 받아둔파일 = new Map();      // 경로 → File. 서랍을 닫으면 비웁니다.
 
+/**
+ * 파일을 뒤에서 조용히 받아 둡니다. 공유판은 이미 떠 있으니 여기서 무슨 일이 나도
+ * 화면에 빨간 글을 띄우지 않습니다 — 놀라실 일이 아닙니다.
+ * 받아 두면 단추가 「보내기 ✓」 로 바뀌고, 둘째 탭에 파일째 나갑니다.
+ * 못 받으면 아무것도 안 담아 둡니다 — 다음 탭에 다시 해 봅니다.
+ */
+function 받아두기(doc) {
+  if (!doc?.driveId || 받아둔파일.has(doc.path) || !navigator.canShare) return;
+  웹앱에서받기(doc)
+    .then((받은것) => {
+      if (받은것 instanceof File) {
+        // 파일째 못 보내는 기계에서는 ✓ 를 붙이지 않습니다 — 둘째 탭도 링크로 갑니다.
+        // 붙여 두면 거짓말이 됩니다.
+        if (!navigator.canShare?.({ files: [받은것] })) return;
+        받아둔파일.set(doc.path, 받은것);
+        단추글(doc.path, '보내기 ✓');
+        toast('받음');
+      } else if (받은것 === 'big') {
+        단추글(doc.path, '링크만');       // 파일로는 못 붙입니다. 링크는 이미 갔습니다.
+      }
+    })
+    .catch(() => {});                      // 삼킵니다
+}
+
 async function 서류보내기(doc) {
   const 이름 = doc?.display ?? doc?.name ?? '서류';
   const 링크 = doc?.driveId ? driveOpen(doc.driveId) : null;
@@ -814,20 +838,13 @@ async function 서류보내기(doc) {
     }
   }
 
-  // ③ 웹앱에서 받아 둡니다 (첫 탭). 안 되면 아래 옛 길로 그냥 내려갑니다.
-  if (doc?.driveId && !든것 && navigator.canShare) {
-    단추글(doc.path, '받는 중…');
-    const 받은것 = await 웹앱에서받기(doc);
-    단추글(doc.path, 받은것 instanceof File ? '보내기 ✓' : '보내기');
-    if (받은것 === 'big') toast('너무 큼');
-    else if (받은것 instanceof File) {
-      받아둔파일.set(doc.path, 받은것);
-      return toast('받음');
-    }
-  }
-
-  // ④ 공유판으로 링크를 보냅니다 — 카톡·위챗·메일·문자가 한 판에 뜹니다.
+  // ③ 공유판을 먼저 띄웁니다 — 카톡·위챗·메일·문자가 한 판에 뜹니다.
+  //    ⚠ 여기서 기다리면 안 됩니다. 사파리는 손가락을 뗀 뒤 한참 지나서 부르는 share 를
+  //      막습니다. 전에는 파일을 받아 온 다음 불렀는데, 웹앱이 안 답하면 20초까지 기다리다
+  //      그 사이 창이 닫혀 아무 일도 안 일어났습니다.
+  //    파일 받아 두기는 그 뒤에서 조용히 돌립니다. 둘째 탭부터 파일째 나갑니다.
   if (링크 && navigator.share) {
+    받아두기(doc);                         // 기다리지 않습니다
     try {
       await navigator.share({ title: 이름, text: 이름, url: 링크 });
       return;
@@ -837,7 +854,7 @@ async function 서류보내기(doc) {
     }
   }
 
-  // ⑤ 공유판이 없는 자리(맥·PC 브라우저 등) — 메일로 물러납니다.
+  // ④ 공유판이 없는 자리(맥·PC 브라우저 등) — 메일로 물러납니다.
   if (링크) {
     메일로(이름, 링크);
     return;
