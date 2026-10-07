@@ -36,6 +36,32 @@ export function itemRows(before, now) {
   return rows.sort((a, b) => rank[a.kind] - rank[b.kind] || Math.abs(b.to - b.from) - Math.abs(a.to - a.from));
 }
 
+/**
+ * itemRows 의 줄을 사장님이 물으신 셋으로 갈라 담습니다.
+ *   「어떤 제품이 덜 실렸나 · 더 실렸나 · 발주에 없던 제품이 생겼나」
+ * 앞(before)이 발주, 뒤(now)가 출고일 때의 말입니다.
+ * 아예 안 실린 것(빠짐)은 덜 실림 안에 둡니다 — 모자란 것은 한자리에서 봐야 합니다.
+ */
+export function 제품차이(줄) {
+  const 덜실림 = [], 더실림 = [], 없던것 = [];
+  for (const r of 줄 ?? []) {
+    if (r.kind === '추가') 없던것.push({ ...r, 준것: r.to });
+    else if (r.kind === '빠짐') 덜실림.push({ ...r, 모자람: r.from, 안실림: true });
+    else if (r.kind === '수량') {
+      const 차 = r.to - r.from;
+      if (차 < 0) 덜실림.push({ ...r, 모자람: -차 });
+      else if (차 > 0) 더실림.push({ ...r, 더함: 차 });
+    }
+  }
+  const 큰것먼저 = (a, b) => (b.모자람 ?? b.더함 ?? b.준것 ?? 0) - (a.모자람 ?? a.더함 ?? a.준것 ?? 0);
+  return {
+    덜실림: 덜실림.sort(큰것먼저),
+    더실림: 더실림.sort(큰것먼저),
+    없던것: 없던것.sort(큰것먼저),
+    있나: 덜실림.length + 더실림.length + 없던것.length > 0,
+  };
+}
+
 const 숫 = (v) => { const n = Number(v); return Number.isFinite(n) && n ? n : 0; };
 
 /**

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이 } from '../js/match.js';
 
 const 품 = (...쌍) => 쌍.map(([code, qty]) => ({ code, name: code, qty }));
 
@@ -99,4 +99,29 @@ test('itemRows — 추가·수량·빠짐을 가린다', () => {
   const rows = itemRows(품(['A', 10], ['B', 5]), 품(['A', 12], ['C', 1]));
   assert.deepEqual(rows.map((r) => [r.kind, r.code]), [['추가', 'C'], ['수량', 'A'], ['빠짐', 'B']]);
   assert.deepEqual(itemRows([], 품(['A', 1])), [], '한쪽이 비면 댈 것이 없습니다');
+});
+
+test('제품차이 — 덜 실림·더 실림·발주에 없던 것으로 갈린다', () => {
+  // 발주(앞) → 출고(뒤)
+  const 줄 = itemRows(품(['A', 10], ['B', 5], ['D', 7]), 품(['A', 8], ['B', 9], ['C', 3]));
+  const g = 제품차이(줄);
+  assert.deepEqual(g.덜실림.map((r) => [r.code, r.모자람, !!r.안실림]), [['D', 7, true], ['A', 2, false]]);
+  assert.deepEqual(g.더실림.map((r) => [r.code, r.더함]), [['B', 4]]);
+  assert.deepEqual(g.없던것.map((r) => [r.code, r.준것]), [['C', 3]]);
+  assert.equal(g.있나, true);
+});
+
+test('제품차이 — 다 같으면 셋 다 비고 있나는 거짓', () => {
+  const g = 제품차이(itemRows(품(['A', 10]), 품(['A', 10])));
+  assert.deepEqual([g.덜실림.length, g.더실림.length, g.없던것.length, g.있나], [0, 0, 0, false]);
+  assert.equal(제품차이(null).있나, false, '댈 것이 없어도 터지지 않습니다');
+});
+
+test('제품차이 — 이름이 서류마다 달라도 코드가 같으면 한 줄로 묶인다', () => {
+  const 발주 = [{ code: 'myT_3C', name: '토리 마이토이 3단 교구장', qty: 100 }];
+  const 출고 = [{ code: 'myT_3C', name: 'TORY MY TOY 3-TIER SHELF', qty: 88 }];
+  const g = 제품차이(itemRows(발주, 출고));
+  assert.equal(g.덜실림.length, 1, '이름이 달라도 두 줄로 갈라지지 않습니다');
+  assert.equal(g.덜실림[0].모자람, 12);
+  assert.equal(g.없던것.length + g.더실림.length, 0);
 });

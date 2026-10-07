@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -1499,6 +1499,37 @@ function renderDrawer(id) {
       </button>` : '');
   }
 
+  /* 제품 단위로 맞댄 답 셋. 사장님이 보시려는 것은 이 셋입니다 —
+     어떤 제품이 덜 실렸나 · 더 실렸나 · 발주에 없던 제품이 생겼나.
+     코드로 맞대므로 서류마다 제품 이름이 다르게 적혀도 한 줄로 묶입니다(match.js). */
+  function 제품답(rows) {
+    const 제품줄 = (rows ?? []).filter((r) => r.kind !== '합계');
+    const g = 제품차이(제품줄);
+    if (!제품줄.length) return '<div class="text-[12px] text-faint">제품 줄 없음</div>';
+    if (!g.있나) return '<div class="text-[12px] font-bold text-ok">✓ 제품 같음</div>';
+
+    const 묶음 = (이름, 줄, 색, 수) => {
+      if (!줄.length) return '';
+      return `
+        <section class="mt-3">
+          <div class="text-[11px] font-bold ${색} tracking-wide mb-1">${이름} ${줄.length}건</div>
+          <ul class="divide-y divide-line border border-line rounded-lg overflow-hidden">
+            ${줄.map((r) => `
+              <li class="px-3 py-2 flex items-baseline gap-2">
+                <span class="text-[12px] font-semibold break-words min-w-0 flex-1">${esc(r.name)}${
+                  r.code && r.code !== r.name ? `<span class="text-faint text-[11px]"> ${esc(r.code)}</span>` : ''}</span>
+                <span class="text-[12px] font-bold tabular-nums whitespace-nowrap ${색}">${esc(수(r))}</span>
+              </li>`).join('')}
+          </ul>
+        </section>`;
+    };
+
+    return 묶음('덜 실림', g.덜실림, 'text-warn',
+             (r) => r.안실림 ? `안 실림 ${fmtNum(r.모자람)}` : `−${fmtNum(r.모자람)}`)
+         + 묶음('더 실림', g.더실림, 'text-info', (r) => `+${fmtNum(r.더함)}`)
+         + 묶음('발주에 없던 제품', g.없던것, 'text-warn', (r) => fmtNum(r.준것));
+  }
+
   function diffNotes(docs) {
     const notes = new Map();
     const has = docs.filter((d) => d.cipl?.brief);
@@ -1597,8 +1628,23 @@ function renderDrawer(id) {
           <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px]">닫기</button>
         </div>
 
-        <h3 class="text-[12px] font-bold text-faint tracking-wide mb-1">바뀐 것 ${pair.rows.length}건</h3>
-        ${diffTable(pair.rows, null, Infinity)}
+        ${제품답(pair.rows)}
+
+        ${(() => {
+          /* 서류에 적힌 숫자·글자(수량·금액·CBM·납기·발주일·컨테이너)는 접어 둡니다.
+             사장님이 2026-10-07 에 「이런 서류상 문구등은 나중에 따로 부탁할테니 이렇게
+             하지마」 라고 하셨습니다. 지우지 않고 접은 까닭 — 「나중에 따로」 라고 하셨으니
+             그때 다시 짜지 않으려고 길을 남겨 둡니다. 펴면 전과 똑같이 나옵니다. */
+          const 합계줄 = pair.rows.filter((r) => r.kind === '합계');
+          if (!합계줄.length) return '';
+          return `
+            <details class="mt-5">
+              <summary class="min-h-[44px] flex items-center text-[12px] font-bold text-faint tracking-wide cursor-pointer">
+                서류 숫자 ${합계줄.length}건
+              </summary>
+              ${diffTable(합계줄, null, Infinity)}
+            </details>`;
+        })()}
 
         <h3 class="text-[12px] font-bold text-faint tracking-wide mt-6 mb-2">비교한 두 서류의 원본</h3>
         ${원본(pair.before, '앞 서류')}
