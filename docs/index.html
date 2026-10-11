@@ -286,7 +286,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.3</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -314,7 +314,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.3</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1664,15 +1664,25 @@ const ITEM_COLS = [
 /* 서류 아래쪽 글귀가 품목 칸으로 겹쳐 들어온 것 — 이름 자리만 비웁니다.
    줄째 버리지 않습니다. 겹친 것뿐이고 그 줄은 진짜 제품일 수 있습니다.
    ⚠ 이 낱말 목록은 받치는 그물입니다. 가르는 일은 아래 제품꼴_ 의 꼴이 합니다. */
-const 글귀_ = /^\s*(beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant|地址|电话|开户|收款|银行)\b|[:：]\s*\S/i;
+/* ⚠⚠ **쌍점 가지에 `^` 와 「숫자 없는 앞머리」 를 둔다. 그냥 `[:：]` 로 되돌리지 마라.**
+      쌍점이 **어디에 있든** 걸면 **진짜 제품 이름이 통째로 지워진다.**
+      10-11 관리자가 쟀다 — 「3단 교구장 (상판:오크)」 · 「책장 2단 : 화이트」 가 다 빈칸이 됐다.
+      이름표는 **맨 앞에 글자 몇 자 쓰고 쌍점**이 온다(Beneficiary: · ADDRESS: · 地址：).
+      제품 이름은 앞머리에 **숫자나 여는 괄호**가 섞인다. 그것으로 가른다. */
+/* ⚠⚠ **한자 낱말은 `\b` 가지 **밖**에 둔다. 한 묶음으로 되돌리지 마라.**
+      자바스크립트의 `\b` 는 **ASCII 글자만** 본다. 「地址」 뒤에는 `\b` 가 **아예 안 선다**.
+      그래서 한자 낱말을 `\b` 가지에 넣어 두면 **하나도 안 걸린다.**
+      v0.57.0 에서는 「글자만 있는 낱말은 코드가 아니다」 가 우연히 받쳐 줘서 안 드러났고,
+      10-11 에 그 규칙을 길이로 한정하자 **地址·开户行 이 그대로 샜다**(관리자가 쟀다). */
+const 글귀_ = /^\s*(?:(?:beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant)\b|(?:地址|电话|开户|收款|银行))|^[A-Za-z一-鿿][A-Za-z一-鿿 .\/#]{0,22}[:：]\s*\S/i;
 
 /**
- * 이 줄이 진짜 제품 줄인가.
- * 사장님 규칙: 코드 옆에 Product model(상품명)·가격·수량이 서 있어야 제품입니다.
- * · 수량 하나만으로는 안 됩니다 — 주소 줄에도 숫자 하나가 걸립니다.
- *   그래서 상품명이나 가격 가운데 하나는 더 있어야 합니다.
- * · 코드 칸 자체의 꼴도 봅니다 — 주소·문장은 길고 쌍점이 붙습니다.
- *   낱말이 아니라 꼴로 가릅니다. 거래처가 늘어도 샐 자리가 적습니다.
+ * 이 줄이 진짜 제품 줄인가 — **코드 칸의 꼴만 봅니다. 옆 칸은 안 봅니다.**
+ * 사장님 규칙은 「코드 옆에 Product model·가격·수량이 서 있을 때 그것이 코드」 였지만,
+ * 옆 칸을 **필수로 걸면 진짜 제품이 사라집니다** — 이름도 단가도 비고 수량만 있는
+ * 제품이 실제로 있습니다(wdB_5). 그래서 가르는 일은 코드 칸의 꼴이 합니다.
+ * 주소·은행 글귀는 옆 칸을 안 봐도 꼴에서 다 걸립니다(10-11 에 여섯 줄로 쟀습니다).
+ * ⚠ 이 글을 「옆 칸을 본다」 로 되돌려 적지 마십시오. 코드는 옆 칸을 안 봅니다.
  */
 function 제품줄인가(code) {
   // 짧습니다. 주소·문장은 깁니다.
@@ -1681,9 +1691,12 @@ function 제품줄인가(code) {
   if (/[:：]/.test(code)) return false;
   // 띄어쓰기가 둘 이상이면 문장입니다.
   if ((code.match(/ /g) ?? []).length > 1) return false;
-  // 코드는 이름표가 아니라 번호표입니다 — 숫자나 가름표(_ - . /)가 섞입니다.
-  // 「Beneficiary」 처럼 글자만 있는 낱말은 코드가 아닙니다.
-  if (!/[0-9]/.test(code) && !/[_\-./]/.test(code)) return false;
+  /* ⚠⚠ **글자만 있는 코드는 「길 때만」 버린다. 길이 재는 것을 지우지 마라.**
+        10-11 관리자가 쟀다 — 길이를 안 보고 버렸더니 **진짜 제품 `newX 신규 깔판 2종`**
+        이 단품관리에서 사라졌다(코드 5개 → 4개). 숫자도 가름표도 없는 짧은 코드가 실제로 있다.
+        글귀는 길다(Beneficiary 11 · Consignee 9). 코드는 짧다(newX 4 · CHAIR 5 · 床订单 3).
+        짧은 글귀(TEL · Bank · 地址)는 **아래 낱말 그물이 받는다** — 여기서 안 버려도 된다. */
+  if (code.length > 8 && !/[0-9]/.test(code) && !/[_\-./]/.test(code)) return false;
   // 받치는 그물 — 꼴을 빠져나온 이름표를 마지막으로 거릅니다.
   if (글귀_.test(code)) return false;
   return true;

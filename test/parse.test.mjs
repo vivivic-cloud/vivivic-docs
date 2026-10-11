@@ -510,6 +510,56 @@ test('readItems — 단가·금액 칸을 읽는다. 없으면 빈칸이다', ()
   assert.equal(다름[0].amount, 255);
 });
 
+test('readItems — 글귀는 빠지고 진짜 코드는 짧아도 남는다', () => {
+  // 10-11 관리자가 쟀다. 「글자만 있으면 코드가 아니다」 를 길이 없이 걸었더니
+  // 진짜 제품 newX(신규 깔판 2종) 가 단품관리에서 사라졌다 — 코드 5개가 4개가 됐다.
+  // 그리고 길이로 한정하자 이번에는 한자 글귀가 샜다 — JS 의 \b 는 한자 뒤에 안 선다.
+  const 있나 = (c) => !!readItems([
+    ['Code#', 'Item Name', 'Quantity', 'Unit Price', 'Amount'],
+    [c, '무엇', 10, 5, 50],
+  ]);
+
+  // 진짜 코드 — 숫자도 가름표도 없고 짧아도 남아야 한다
+  for (const c of ['newX', 'bkS_2', 'myT_3C', 'tbl_L', 'wdB_5', '床-21', 'A1', 'CHAIR', '床订单'])
+    assert.equal(있나(c), true, c + ' 는 진짜 코드다');
+
+  // 서류 아래 글귀 — 한자까지 다 빠져야 한다
+  for (const c of ['Beneficiary', 'ADDRESS(地址)青岛市胶州市郑州东路39号', 'A/C NO', 'TEL',
+                   '地址', '开户行', 'ADDRESS: 39 Zhengzhou Rd'])
+    assert.equal(있나(c), false, c + ' 는 글귀다');
+
+  // 문장과 너무 긴 것 — 코드가 아니다
+  assert.equal(있나('AB CD EF'), false);
+  assert.equal(있나('ABC-1234567890123456789012'), false);
+});
+
+test('readItems — 이름 가운데 쌍점이 있어도 진짜 제품 이름은 안 지운다', () => {
+  // 10-11 관리자가 쟀다. 글귀 그물의 쌍점 가지가 `^` 없이 **어디에 있든** 걸려서
+  // 「3단 교구장 (상판:오크)」 같은 진짜 이름이 통째로 빈칸이 됐다.
+  const 이름 = (n) => readItems([
+    ['Code#', 'Item Name', 'Quantity', 'Unit Price', 'Amount'],
+    ['tbl_L', n, 10, 5, 50],
+  ])[0].name;
+
+  // 제품 이름 — 그대로 남아야 한다
+  assert.equal(이름('3단 교구장 (상판:오크)'), '3단 교구장 (상판:오크)');
+  assert.equal(이름('책장 2단 : 화이트'), '책장 2단 : 화이트');
+  assert.equal(이름('테이블 라지'), '테이블 라지');
+
+  // 서류 아래 글귀가 이름 칸에 겹친 것 — 이름만 비운다
+  assert.equal(이름('Beneficiary: QINGDAO ZEHE WOOD'), '');
+  assert.equal(이름('ADDRESS: 39 Zhengzhou Rd'), '');
+
+  // 이름을 비워도 **줄은 살아 있다** — 그 줄은 진짜 제품이다
+  const 산줄 = readItems([
+    ['Code#', 'Item Name', 'Quantity', 'Unit Price', 'Amount'],
+    ['bjA_1', 'Beneficiary: QINGDAO ZEHE WOOD', 40, '', ''],
+  ]);
+  assert.equal(산줄.length, 1);
+  assert.equal(산줄[0].code, 'bjA_1');
+  assert.equal(산줄[0].qty, 40);
+});
+
 test('readItems — 가격 칸이 **비어 있으면** 0 이 아니라 빈칸이다', () => {
   // Number('') 은 0 이다. 이것을 안 거르면 빈 단가가 「공짜」 로 찍힌다.
   // 10-11 관리자가 진짜 CI&PL 꼴로 쟀다 — 마지막 품목의 단가·금액이 비어 있었다.

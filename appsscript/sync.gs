@@ -872,7 +872,17 @@ const ITEM_COLS_ = [
 
 /* 서류 아래쪽 글귀가 품목 칸으로 겹쳐 들어온 것 — js/parse.js 의 글귀_ 와 같은 것입니다.
    한쪽만 고치면 화면과 서버가 어긋납니다. */
-const 글귀_RE_ = /^\s*(beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant|地址|电话|开户|收款|银行)\b|[:：]\s*\S/i;
+/* ⚠⚠ **쌍점 가지에 `^` 와 「숫자 없는 앞머리」 를 둔다. 그냥 `[:：]` 로 되돌리지 마라.**
+      쌍점이 **어디에 있든** 걸면 **진짜 제품 이름이 통째로 지워진다.**
+      10-11 관리자가 쟀다 — 「3단 교구장 (상판:오크)」 · 「책장 2단 : 화이트」 가 다 빈칸이 됐다.
+      이름표는 **맨 앞에 글자 몇 자 쓰고 쌍점**이 온다(Beneficiary: · ADDRESS: · 地址：).
+      제품 이름은 앞머리에 **숫자나 여는 괄호**가 섞인다. 그것으로 가른다. */
+/* ⚠⚠ **한자 낱말은 `\b` 가지 **밖**에 둔다. 한 묶음으로 되돌리지 마라.**
+      자바스크립트의 `\b` 는 **ASCII 글자만** 본다. 「地址」 뒤에는 `\b` 가 **아예 안 선다**.
+      그래서 한자 낱말을 `\b` 가지에 넣어 두면 **하나도 안 걸린다.**
+      v0.57.0 에서는 「글자만 있는 낱말은 코드가 아니다」 가 우연히 받쳐 줘서 안 드러났고,
+      10-11 에 그 규칙을 길이로 한정하자 **地址·开户行 이 그대로 샜다**(관리자가 쟀다). */
+const 글귀_RE_ = /^\s*(?:(?:beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant)\b|(?:地址|电话|开户|收款|银行))|^[A-Za-z一-鿿][A-Za-z一-鿿 .\/#]{0,22}[:：]\s*\S/i;
 
 /* 사장님 2026-10-11 규칙 — 코드 칸에 글자가 있다고 코드가 아닙니다.
    코드는 이름표가 아니라 번호표입니다. js/parse.js 의 제품꼴_ 와 같은 규칙입니다. */
@@ -880,7 +890,9 @@ function 제품꼴_(code) {
   if (code.length > 24) return false;
   if (/[:：]/.test(code)) return false;
   if ((code.match(/ /g) || []).length > 1) return false;
-  if (!/[0-9]/.test(code) && !/[_\-./]/.test(code)) return false;
+  // 글자만 있는 코드는 **길 때만** 버립니다 — js/parse.js 의 제품꼴_ 와 같습니다.
+  // 길이를 안 보면 진짜 제품 newX 같은 짧은 코드가 사라집니다.
+  if (code.length > 8 && !/[0-9]/.test(code) && !/[_\-./]/.test(code)) return false;
   if (글귀_RE_.test(code)) return false;
   return true;
 }
@@ -921,7 +933,13 @@ function readItems_(rows) {
     // 못 읽은 칸은 null 입니다. 0 으로 채우면 '공짜' 로 읽힙니다.
     const 숫자칸 = function (c) {
       if (c === undefined) return null;
-      const n = Number(String(row[c] == null ? '' : row[c]).replace(/[,\s$]/g, ''));
+      /* ⚠⚠ **빈 칸을 먼저 걸러 낸다. js/parse.js 의 숫자칸 과 같은 것이다.**
+            Number('') 은 NaN 이 아니라 **0** 이다. 안 거르면 빈 단가·금액이 0 으로 올라가
+            화면에 「0」 이 찍힌다 — 공짜로 읽힌다. 10-11 에 화면 쪽만 고쳤다가(v0.56.1)
+            여기가 남아 **서버가 0 을 써 올리고 있었다.** 두 자리를 같이 고쳐라. */
+      const 글 = String(row[c] == null ? '' : row[c]).replace(/[,\s$]/g, '');
+      if (!글) return null;
+      const n = Number(글);
       return isFinite(n) ? n : null;
     };
     const price = 숫자칸(cols.price);
