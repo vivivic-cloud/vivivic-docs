@@ -486,3 +486,26 @@ test('kindOf — 애매한 것은 억지로 끼우지 않고 기타로', () => {
                    '자료.zip', 'TalkMedia_i_46729f9035b8.png', '이름만있는파일'])
     assert.equal(kindOf(n), 'etc', `${n} 이 기타가 아니다`);
 });
+
+test('readItems — 단가·금액 칸을 읽는다. 없으면 빈칸이다', () => {
+  const rows = [
+    ['CODE#', '품명', '수량', 'UNIT PRICE', 'AMOUNT'],
+    ['A1', '교구장', 10, 12.5, 125],
+    ['A1', '교구장 빨강', 5, 12.5, 62.5],   // 같은 코드 — 합쳐 셉니다
+    ['B2', '책장', 3, 9.8, 29.4],
+  ];
+  const got = readItems(rows);
+  assert.deepEqual(got.map((x) => [x.code, x.qty, x.price, x.amount]),
+    [['A1', 15, 12.5, 187.5], ['B2', 3, 9.8, 29.4]]);
+
+  // 가격 칸이 아예 없는 양식 — 0 이 아니라 빈칸입니다
+  const 없음 = readItems([['CODE#', '품명', '수량'], ['A1', '교구장', 10]]);
+  assert.equal(없음[0].price, null);
+  assert.equal(없음[0].amount, null);
+
+  // 같은 코드인데 단가가 다르면 단가는 빈칸, 금액은 더합니다
+  const 다름 = readItems([['CODE#', '품명', '수량', '단가', '금액'],
+    ['A1', '교구장', 10, 12.5, 125], ['A1', '교구장', 10, 13.0, 130]]);
+  assert.equal(다름[0].price, null);
+  assert.equal(다름[0].amount, 255);
+});

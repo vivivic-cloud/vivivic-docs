@@ -1372,6 +1372,7 @@ function shipSummary(b, ov) {
             : '· 폴더 연결 안 됨'}
         </p>
         ${state.root ? '' : '<button id="ciplConnect" class="btn btn-ghost">폴더 연결하고 읽기</button>'}
+        ${제품표(auto)}
       </section>`;
   }
 
@@ -1390,7 +1391,57 @@ function shipSummary(b, ov) {
         ${esc(auto.from)} · 패킹리스트 ${auto.lines}줄${auto.pcs ? ` · ${fmtNum(auto.pcs)} pcs` : ''}${auto.net ? ` · 순중량 ${fmtNum(auto.net)} kg` : ''}
         ${auto.swapped ? '<br /><span class="text-warn font-semibold">G.W./N.W. 뒤바뀜 — 큰 값을 총중량으로</span>' : ''}
       </p>` : ''}
+      ${제품표(auto)}
     </section>`;
+}
+
+/**
+ * 잔액서류(CI&PL)에서 읽어낸 제품별 수량과 가격.
+ * 사장님 2026-10-11 말씀 — 「잔액서류에 실제 제품수량 및 가격 관련된 내용을 정리해서 보여줘」
+ * ⚠ 못 읽은 칸은 빈칸(—)입니다. 0 으로 채우지 않습니다 — 공짜와 모름은 다릅니다.
+ * ⚠ 어느 칸을 수량·가격으로 보았는지 한 줄 적습니다. 짐작으로 박은 이름이 아닙니다.
+ */
+function 제품표(auto) {
+  const items = auto?.items ?? [];
+  if (!items.length) return '';
+  const 숫 = (v) => (v === null || v === undefined || v === '' ? '<span class="text-faint">—</span>' : fmtNum(v));
+  const 수량합 = items.reduce((n, x) => n + (Number(x.qty) || 0), 0);
+  const 금액있는것 = items.filter((x) => x.amount !== null && x.amount !== undefined);
+  const 금액합 = 금액있는것.reduce((n, x) => n + Number(x.amount), 0);
+  const 못읽은칸 = items.filter((x) => x.price === null || x.price === undefined).length
+                 + (items.length - 금액있는것.length);
+  return `
+    <div class="mt-4">
+      <div class="flex items-baseline gap-2 mb-1">
+        <h4 class="text-[12px] font-bold text-faint tracking-wide">제품</h4>
+        <span class="text-[11px] text-faint tabular-nums">${items.length}가지 · ${fmtNum(수량합)}개${
+          금액있는것.length ? ` · ${fmtNum(Math.round(금액합 * 100) / 100)}` : ''}</span>
+        ${못읽은칸 ? `<span class="text-[11px] text-faint ml-auto">빈칸 ${못읽은칸}</span>` : ''}
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-[11px] border border-line rounded-lg overflow-hidden tabular-nums">
+          <thead>
+            <tr class="bg-hover text-faint text-left">
+              <th class="font-bold px-2 py-1">제품</th>
+              <th class="font-bold px-2 py-1 text-right whitespace-nowrap">수량</th>
+              <th class="font-bold px-2 py-1 text-right whitespace-nowrap">단가</th>
+              <th class="font-bold px-2 py-1 text-right whitespace-nowrap">금액</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-line">
+            ${items.map((x) => `
+              <tr>
+                <td class="px-2 py-1">${esc(x.name || x.code)}${
+                  x.name && x.code && x.name !== x.code ? `<span class="text-faint"> ${esc(x.code)}</span>` : ''}</td>
+                <td class="px-2 py-1 text-right">${숫(x.qty)}</td>
+                <td class="px-2 py-1 text-right">${숫(x.price)}</td>
+                <td class="px-2 py-1 text-right font-bold">${숫(x.amount)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-[11px] text-faint mt-1">수량 = Quantity·수량 칸 · 단가 = Unit Price·단가 칸 · 금액 = Amount·금액 칸</p>
+    </div>`;
 }
 
 /* 상차일 — 달력에서 고르면 그것으로 정해집니다. 차수마다 하나입니다.
@@ -1485,6 +1536,15 @@ function renderDrawer(id) {
 
   /** 바뀐 것들을 표 한 장으로 만듭니다. 줄글로 이어 붙이면 뭐가 뭔지 안 보입니다.
       key 를 주면 표 아래에 '상세보기' 를 답니다 — 접힌 것까지 다 보고, 두 판의 원본을 봅니다. */
+  /** 「상세보기」 단추 하나. 표가 비어도 서류 숫자로 들어갈 길은 남겨 둡니다. */
+  const 상세단추 = (key) => `
+      <button type="button" data-diff="${esc(key)}"
+              class="mt-2 w-full min-h-[44px] rounded-lg border border-line bg-white
+                     text-[12px] font-bold text-ink flex items-center justify-center gap-1.5">
+        상세보기
+        <span class="font-semibold text-faint">${esc(diffPairs.get(key)?.label ?? '')}</span>
+      </button>`;
+
   function diffTable(rows, key = null, MAX = 12) {
     if (!rows.length) return '';
     const shown = rows.slice(0, MAX);
@@ -1599,9 +1659,15 @@ function renderDrawer(id) {
         label: `${짧은판이름(line[i - 1])} ↔ ${짧은판이름(line[i])}`,
       });
 
+      /* 서류에 적힌 글귀(납기·발주일·컨테이너 같은 것)는 여기 안 적습니다.
+         사장님이 2026-10-11 에 「이런 서류상 텍스트 문구를 비교해서 알려줄 필요가 없다」
+         하셨습니다. 지우지 않고 「상세보기」 안 「서류 숫자」 에 그대로 둡니다. */
+      const 제품줄 = rows.filter((r) => r.kind !== '합계');
       notes.set(
         line[i].path,
-        rows.length ? diffTable(rows, line[i].path) : '<span class="text-faint">앞 서류와 같음</span>'
+        제품줄.length
+          ? diffTable(제품줄, line[i].path)
+          : `<span class="text-faint">제품 같음</span>${rows.length ? 상세단추(line[i].path) : ''}`
       );
     }
     return notes;

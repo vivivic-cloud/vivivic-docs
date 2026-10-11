@@ -482,6 +482,10 @@ const ITEM_COLS = [
   ['alt', [/^zh#?$/, /^no#?$/]],
   ['name', [/^productmodel$/, /^itemname$/, /^품명$/, /^descriptionofgoods$/]],
   ['qty', [/^quantity$/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
+  // 가격 — 거래처마다 머리글이 다릅니다. 한 꼴에 맞춰 박지 않습니다.
+  // 없으면 빈칸으로 둡니다. 0 으로 채우지 않습니다 — 공짜와 모름은 다릅니다.
+  ['price', [/^unitprice$/, /^price$/, /^fobprice$/, /^단가$/, /^unitpriceusd$/, /^u\/price$/]],
+  ['amount', [/^amount$/, /^totalamount$/, /^totalvalue$/, /^amountusd$/, /^금액$/, /^합계금액$/]],
 ];
 
 /**
@@ -520,10 +524,22 @@ export function readItems(rows) {
     if (!code || !Number.isFinite(qty)) continue;
 
     const name = String(row[cols.name] ?? '').trim().split(/\r?\n/)[0].slice(0, 40);
+    // 못 읽은 칸은 null 입니다. 0 으로 채우면 '공짜' 로 읽힙니다.
+    const 숫자칸 = (c) => {
+      if (c === undefined) return null;
+      const n = Number(String(row[c] ?? '').replace(/[,\s$]/g, ''));
+      return Number.isFinite(n) ? n : null;
+    };
+    const price = 숫자칸(cols.price);
+    const amount = 숫자칸(cols.amount);
     const had = out.get(code);
     // 같은 코드가 색깔별로 여러 줄인 양식이 있습니다 — 합쳐서 셉니다.
-    if (had) had.qty += qty;
-    else out.set(code, { code, name, qty });
+    // 금액은 더합니다. 단가는 줄마다 다를 수 있어, 다르면 빈칸으로 둡니다.
+    if (had) {
+      had.qty += qty;
+      if (amount !== null) had.amount = (had.amount ?? 0) + amount;
+      if (had.price !== price) had.price = null;
+    } else out.set(code, { code, name, qty, price, amount });
   }
   return out.size ? [...out.values()] : null;
 }

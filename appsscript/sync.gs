@@ -13,7 +13,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 2;
+const READ_VERSION = 3;
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -865,6 +865,9 @@ const ITEM_COLS_ = [
   ['alt', [/^zh#?$/, /^no#?$/]],
   ['name', [/^productmodel$/, /^itemname$/, /^품명$/, /^descriptionofgoods$/]],
   ['qty', [/^quantity$/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
+  // 가격 — js/parse.js 의 ITEM_COLS 와 같은 것입니다. 한쪽만 고치면 어긋납니다.
+  ['price', [/^unitprice$/, /^price$/, /^fobprice$/, /^단가$/, /^unitpriceusd$/, /^u\/price$/]],
+  ['amount', [/^amount$/, /^totalamount$/, /^totalvalue$/, /^amountusd$/, /^금액$/, /^합계금액$/]],
 ];
 
 function readItems_(rows) {
@@ -897,8 +900,21 @@ function readItems_(rows) {
     const qty = Number(row[cols.qty]);
     if (!code || !isFinite(qty)) continue;
     const name = String(row[cols.name] == null ? '' : row[cols.name]).trim().split(/\r?\n/)[0].slice(0, 40);
-    if (seen[code]) { seen[code].qty += qty; continue; }
-    seen[code] = { code: code, name: name, qty: qty };
+    // 못 읽은 칸은 null 입니다. 0 으로 채우면 '공짜' 로 읽힙니다.
+    const 숫자칸 = function (c) {
+      if (c === undefined) return null;
+      const n = Number(String(row[c] == null ? '' : row[c]).replace(/[,\s$]/g, ''));
+      return isFinite(n) ? n : null;
+    };
+    const price = 숫자칸(cols.price);
+    const amount = 숫자칸(cols.amount);
+    if (seen[code]) {
+      seen[code].qty += qty;
+      if (amount !== null) seen[code].amount = (seen[code].amount == null ? 0 : seen[code].amount) + amount;
+      if (seen[code].price !== price) seen[code].price = null;   // 줄마다 단가가 다르면 빈칸
+      continue;
+    }
+    seen[code] = { code: code, name: name, qty: qty, price: price, amount: amount };
     order.push(seen[code]);
   }
   return order.length ? order : null;
@@ -911,6 +927,9 @@ function itemsValue_(list) {
       code: { stringValue: String(it.code).slice(0, 40) },
       name: { stringValue: String(it.name || '').slice(0, 40) },
       qty: { doubleValue: Number(it.qty) || 0 },
+      // 못 읽은 칸은 담지 않습니다 — 0 으로 적으면 '공짜' 가 됩니다.
+      price: it.price == null ? { nullValue: null } : { doubleValue: Number(it.price) },
+      amount: it.amount == null ? { nullValue: null } : { doubleValue: Number(it.amount) },
     } } };
   });
   return { arrayValue: { values: values } };
