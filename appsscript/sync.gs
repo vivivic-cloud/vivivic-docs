@@ -13,7 +13,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 3;
+const READ_VERSION = 4;
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -870,6 +870,21 @@ const ITEM_COLS_ = [
   ['amount', [/^amount$/, /^totalamount$/, /^totalvalue$/, /^amountusd$/, /^금액$/, /^합계금액$/]],
 ];
 
+/* 서류 아래쪽 글귀가 품목 칸으로 겹쳐 들어온 것 — js/parse.js 의 글귀_ 와 같은 것입니다.
+   한쪽만 고치면 화면과 서버가 어긋납니다. */
+const 글귀_RE_ = /^\s*(beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant|地址|电话|开户|收款|银行)\b|[:：]\s*\S/i;
+
+/* 사장님 2026-10-11 규칙 — 코드 칸에 글자가 있다고 코드가 아닙니다.
+   코드는 이름표가 아니라 번호표입니다. js/parse.js 의 제품꼴_ 와 같은 규칙입니다. */
+function 제품꼴_(code) {
+  if (code.length > 24) return false;
+  if (/[:：]/.test(code)) return false;
+  if ((code.match(/ /g) || []).length > 1) return false;
+  if (!/[0-9]/.test(code) && !/[_\-./]/.test(code)) return false;
+  if (글귀_RE_.test(code)) return false;
+  return true;
+}
+
 function readItems_(rows) {
   if (!rows || !rows.length) return null;
 
@@ -899,7 +914,10 @@ function readItems_(rows) {
     const code = String(row[codeCol] == null ? '' : row[codeCol]).trim().replace(/\s+/g, ' ');
     const qty = Number(row[cols.qty]);
     if (!code || !isFinite(qty)) continue;
-    const name = String(row[cols.name] == null ? '' : row[cols.name]).trim().split(/\r?\n/)[0].slice(0, 40);
+    // 셀 병합이 풀리면 은행·주소 글귀가 마지막 품목의 이름 칸에 겹쳐 들어옵니다.
+    // 그때는 이름만 비웁니다 — 줄은 진짜 제품일 수 있습니다.
+    const 날이름 = String(row[cols.name] == null ? '' : row[cols.name]).trim().split(/\r?\n/)[0].slice(0, 40);
+    const name = 글귀_RE_.test(날이름) ? '' : 날이름;
     // 못 읽은 칸은 null 입니다. 0 으로 채우면 '공짜' 로 읽힙니다.
     const 숫자칸 = function (c) {
       if (c === undefined) return null;
@@ -908,6 +926,7 @@ function readItems_(rows) {
     };
     const price = 숫자칸(cols.price);
     const amount = 숫자칸(cols.amount);
+    if (!제품꼴_(code)) continue;          // 주소·은행 글귀는 품목이 아닙니다
     if (seen[code]) {
       seen[code].qty += qty;
       if (amount !== null) seen[code].amount = (seen[code].amount == null ? 0 : seen[code].amount) + amount;

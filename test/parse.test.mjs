@@ -530,3 +530,29 @@ test('readItems — 가격 칸이 **비어 있으면** 0 이 아니라 빈칸이
   assert.equal(공짜[0].price, 0);
   assert.equal(공짜[0].amount, 0);
 });
+
+test('readItems — 코드 옆이 제품 꼴일 때만 제품이다 (사장님 10-11 규칙)', () => {
+  const rows = [
+    ['CODE#', '품명', '수량', 'UNIT PRICE', 'AMOUNT'],
+    ['myT_3C', '토리 마이토이 3단 교구장', 100, 12.5, 1250],   // 이름·가격 다 있음
+    ['wdB_5', '우드 벤치', 40, '', ''],                        // 가격 없어도 이름 있으면 제품
+    ['tbl_L', '', 100, 21, 2100],                              // 이름 없어도 가격 있으면 제품
+    ['ADDRESS(地址)青岛市胶州市郑州东路39号', '', 39, '', ''],   // 수량만 — 제품 아님
+    ['Beneficiary', '', 1, '', ''],                            // 수량만 — 제품 아님
+  ];
+  const got = readItems(rows);
+  assert.deepEqual(got.map((x) => x.code), ['myT_3C', 'wdB_5', 'tbl_L'],
+    '주소·은행 글귀는 빠지고 진짜 제품 셋은 남습니다');
+});
+
+test('readItems — 이름 칸에 겹쳐 들어온 글귀는 이름만 비우고 줄은 살린다', () => {
+  const rows = [
+    ['CODE#', '품명', '수량', 'UNIT PRICE'],
+    ['wdB_5', 'Beneficiary: QINGDAO ZEHE WOOD INDUSTRY', 40, 12.5],
+  ];
+  const got = readItems(rows);
+  assert.equal(got.length, 1, '진짜 제품을 떨어뜨리지 않습니다');
+  assert.equal(got[0].code, 'wdB_5');
+  assert.equal(got[0].name, '', '겹친 글귀는 이름 자리에서 빠집니다');
+  assert.equal(got[0].qty, 40);
+});

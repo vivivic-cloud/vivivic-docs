@@ -286,7 +286,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.56.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -314,7 +314,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.56.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1661,6 +1661,34 @@ const ITEM_COLS = [
  * 합계만 견주면 "수량 +10" 까지만 알 수 있습니다.
  * 어떤 제품이 늘고 줄었는지 보려면 품목이 있어야 합니다.
  */
+/* 서류 아래쪽 글귀가 품목 칸으로 겹쳐 들어온 것 — 이름 자리만 비웁니다.
+   줄째 버리지 않습니다. 겹친 것뿐이고 그 줄은 진짜 제품일 수 있습니다.
+   ⚠ 이 낱말 목록은 받치는 그물입니다. 가르는 일은 아래 제품꼴_ 의 꼴이 합니다. */
+const 글귀_ = /^\s*(beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant|地址|电话|开户|收款|银行)\b|[:：]\s*\S/i;
+
+/**
+ * 이 줄이 진짜 제품 줄인가.
+ * 사장님 규칙: 코드 옆에 Product model(상품명)·가격·수량이 서 있어야 제품입니다.
+ * · 수량 하나만으로는 안 됩니다 — 주소 줄에도 숫자 하나가 걸립니다.
+ *   그래서 상품명이나 가격 가운데 하나는 더 있어야 합니다.
+ * · 코드 칸 자체의 꼴도 봅니다 — 주소·문장은 길고 쌍점이 붙습니다.
+ *   낱말이 아니라 꼴로 가릅니다. 거래처가 늘어도 샐 자리가 적습니다.
+ */
+function 제품꼴_(code) {
+  // 짧습니다. 주소·문장은 깁니다.
+  if (code.length > 24) return false;
+  // 쌍점이 붙으면 「ADDRESS: …」 같은 이름표입니다.
+  if (/[:：]/.test(code)) return false;
+  // 띄어쓰기가 둘 이상이면 문장입니다.
+  if ((code.match(/ /g) ?? []).length > 1) return false;
+  // 코드는 이름표가 아니라 번호표입니다 — 숫자나 가름표(_ - . /)가 섞입니다.
+  // 「Beneficiary」 처럼 글자만 있는 낱말은 코드가 아닙니다.
+  if (!/[0-9]/.test(code) && !/[_\-./]/.test(code)) return false;
+  // 받치는 그물 — 꼴을 빠져나온 이름표를 마지막으로 거릅니다.
+  if (글귀_.test(code)) return false;
+  return true;
+}
+
 function readItems(rows) {
   if (!Array.isArray(rows)) return null;
 
@@ -1691,7 +1719,10 @@ function readItems(rows) {
     const qty = Number(row[cols.qty]);
     if (!code || !Number.isFinite(qty)) continue;
 
-    const name = String(row[cols.name] ?? '').trim().split(/\r?\n/)[0].slice(0, 40);
+    // 셀 병합이 풀리면 은행·주소 글귀가 마지막 품목의 이름 칸에 겹쳐 들어옵니다.
+    // 그때는 이름만 비웁니다 — 줄은 진짜 제품일 수 있습니다.
+    const 날이름 = String(row[cols.name] ?? '').trim().split(/\r?\n/)[0].slice(0, 40);
+    const name = 글귀_.test(날이름) ? '' : 날이름;
     // 못 읽은 칸은 null 입니다. 0 으로 채우면 '공짜' 로 읽힙니다.
     const 숫자칸 = (c) => {
       if (c === undefined) return null;
@@ -1707,6 +1738,14 @@ function readItems(rows) {
     };
     const price = 숫자칸(cols.price);
     const amount = 숫자칸(cols.amount);
+
+    /* 사장님 2026-10-11 규칙 —
+       「코드열에 코드가 있다면 그 옆으로 Product model, 가격, 수량 등
+         실제 발송된 제품일 때 그 열값이 코드인거야」
+       코드 칸에 글자가 있다고 코드가 아닙니다. 옆 칸이 제품의 꼴을 갖춰야 코드입니다.
+       합계 줄이 없는 양식에서는 서류 아래 주소·은행 글귀가 그대로 품목으로 샜습니다. */
+    if (!제품꼴_(code)) continue;
+
     const had = out.get(code);
     // 같은 코드가 색깔별로 여러 줄인 양식이 있습니다 — 합쳐서 셉니다.
     // 금액은 더합니다. 단가는 줄마다 다를 수 있어, 다르면 빈칸으로 둡니다.
