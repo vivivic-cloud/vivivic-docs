@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_ } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -2552,11 +2552,34 @@ window.docs단품 = (vendor) => {
       }
     }
   }
+  const 사전 = 벤더피아?.ok ? 벤더피아.사전 : null;
   const codes = [...칸.values()]
-    .map((x) => ({ ...x, 차수들: x.차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch))) }))
+    .map((x) => ({
+      ...x,
+      // 벤더피아에서 찾은 단품명. 못 찾으면 비워 둡니다 — 지어내지 않습니다.
+      vp: 사전?.get(x.code) ?? '',
+      차수들: x.차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch))),
+    }))
     .sort((a, z) => a.code.localeCompare(z.code));
-  return { codes, 차수수: 센차수.size };
+  return { codes, 차수수: 센차수.size, 맞음: codes.filter((x) => x.vp).length };
 };
+
+/* ── 벤더피아 단품명 ───────────────────────────────────
+   단품관리를 열 때 **한 번만** 읽습니다. 코드마다 읽으면 문서마다 돈이 듭니다.
+   ⚠ 읽기만 합니다. vp_상품목록 에 한 글자도 안 씁니다.
+   ⚠ 못 읽어도 단품관리는 그대로 떠야 합니다 — 여기서 터지면 안 됩니다.
+   읽은 결과는 화면이 그대로 적습니다(맞음 N / 전체 M). 숨기지 않습니다. */
+let 벤더피아 = null;              // { ok, 사전, 줄수, 단품수, why }
+
+window.벤더피아읽기 = async () => {
+  if (벤더피아) return 벤더피아;                  // 열 때 한 번
+  const r = await DB.벤더피아상품();
+  벤더피아 = r.ok
+    ? { ok: true, ...벤더피아사전(r.rows) }
+    : { ok: false, why: r.why };
+  return 벤더피아;
+};
+window.벤더피아본것 = () => 벤더피아;
 
 window.docsCounts = () => ({
   batches: state.batches.length,

@@ -285,3 +285,21 @@ export async function saveRules(rules, email) {
 }
 
 export const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
+
+/* ── 벤더피아 상품 ─────────────────────────────────────
+   벤더피아상품정리 앱이 적어 둔 자리를 **읽기만** 합니다. 한 글자도 안 씁니다.
+   ⚠ 그 자리의 화베 규칙은 사장님 계정만 들여보냅니다. 다른 계정이면 못 읽습니다 —
+     그때는 터뜨리지 않고 왜 못 읽었는지만 돌려줍니다. 화면이 그 한 줄을 적습니다.
+   ⚠ 열 때 한 번만 부릅니다. 코드마다 부르면 문서마다 돈이 듭니다. */
+export const VP_상품 = 'vp_상품목록';
+
+export async function 벤더피아상품() {
+  try {
+    const snap = await ctx.f.getDocs(col(VP_상품));
+    const rows = [];
+    snap.forEach((d) => rows.push(d.data()));
+    return { ok: true, rows };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 읽음' };
+  }
+}

@@ -122,3 +122,34 @@ export function 맞춤판정(잰것) {
   if (잰것.every((x) => x.못댐 || x.하나도안맞음)) return '하나도안맞음';
   return '골라야함';
 }
+
+/**
+ * 벤더피아 상품 줄에서 「단품코드 → 단품명」 사전을 짓습니다.
+ *
+ * 벤더피아는 상품 한 줄 안에 단품 여럿을 「+」 로 이어 붙여 둡니다.
+ *   단품코드 「EF-al55 + bd-whsqa」 · 단품명 「55형 다리 + 흰 손잡이」
+ * ⚠ 「 + 」(빈칸 포함)로 쪼개면 안 됩니다 — 빈칸이 없는 줄이 섞여 있습니다.
+ *   「+」 로 쪼개고 앞뒤 빈칸을 텁니다.
+ * ⚠ 단품**명** 안에도 「+」 가 든 줄이 있어 코드 수와 이름 수가 안 맞습니다.
+ *   그래서 **수가 맞는 줄로 사전을 먼저 짓고**, 안 맞는 줄은 그 사전으로 메웁니다.
+ *   같은 코드면 이름은 늘 하나라는 것이 저쪽에서 확인돼 있습니다.
+ */
+export function 벤더피아사전(rows) {
+  const 쪼갬 = (v) => String(v ?? '').split('+').map((x) => x.trim()).filter(Boolean);
+  const 사전 = new Map();
+  const 남은것 = [];
+
+  for (const r of rows ?? []) {
+    const codes = 쪼갬(r?.단품코드);
+    const names = 쪼갬(r?.단품명);
+    if (!codes.length) continue;
+    if (codes.length === names.length) {
+      codes.forEach((c, i) => { if (!사전.has(c)) 사전.set(c, names[i]); });
+    } else 남은것.push(codes);
+  }
+  // 수가 안 맞던 줄 — 이름을 짝지을 수 없습니다. 사전에 이미 있는 코드만 살립니다.
+  let 못메운코드 = 0;
+  for (const codes of 남은것) for (const c of codes) if (!사전.has(c)) 못메운코드++;
+
+  return { 사전, 줄수: (rows ?? []).length, 단품수: 사전.size, 못메운코드 };
+}

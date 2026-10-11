@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전 } from '../js/match.js';
 
 const 품 = (...쌍) => 쌍.map(([code, qty]) => ({ code, name: code, qty }));
 
@@ -124,4 +124,27 @@ test('제품차이 — 이름이 서류마다 달라도 코드가 같으면 한 
   assert.equal(g.덜실림.length, 1, '이름이 달라도 두 줄로 갈라지지 않습니다');
   assert.equal(g.덜실림[0].모자람, 12);
   assert.equal(g.없던것.length + g.더실림.length, 0);
+});
+
+test('벤더피아사전 — 「+」 로 쪼개고, 수가 맞는 줄로 먼저 짓는다', () => {
+  const { 사전, 단품수, 못메운코드 } = 벤더피아사전([
+    { 단품코드: 'EF-al55 + bd-whsqa', 단품명: '55형 다리 + 흰 손잡이' },
+    { 단품코드: 'EC_0209m', 단품명: '구구단 선반' },
+    // 이름 안에 「+」 가 들어 수가 안 맞는 줄 — 앞 줄 사전으로 메워집니다
+    { 단품코드: 'EF-al55 + EC_0209m', 단품명: '55형 다리 + 구구단 + 선반' },
+    // 빈칸 없이 붙여 쓴 줄
+    { 단품코드: 'aa-1+bb-2', 단품명: '가 + 나' },
+  ]);
+  assert.equal(사전.get('EF-al55'), '55형 다리');
+  assert.equal(사전.get('bd-whsqa'), '흰 손잡이');
+  assert.equal(사전.get('EC_0209m'), '구구단 선반');
+  assert.equal(사전.get('aa-1'), '가');
+  assert.equal(사전.get('bb-2'), '나');
+  assert.equal(단품수, 5);
+  assert.equal(못메운코드, 0, '수가 안 맞던 줄의 코드도 사전에 이미 있으면 셈에서 빠집니다');
+});
+
+test('벤더피아사전 — 빈손이어도 터지지 않는다', () => {
+  assert.equal(벤더피아사전(null).단품수, 0);
+  assert.equal(벤더피아사전([{ 단품코드: '', 단품명: '' }]).단품수, 0);
 });

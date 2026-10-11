@@ -304,7 +304,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.58.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.59.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -332,7 +332,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.58.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.59.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -446,6 +446,7 @@
     <!-- 무엇을 코드열·상품명으로 보았는지 한 줄. 짐작으로 박은 칸 이름이 아닙니다. -->
     <p class="dhh-foot" id="dit-what">코드 = 잔액서류의 Code#·품번·코드 칸 · 상품명 = Item Name·품명 칸<br />
       Qty pcs · FOB · Packing size(mm) · pcs/ctn · carton Volume (CBM) 칸 그대로 · 같은 코드가 여러 줄이면 수량·부피는 더하고 다르면 빈칸</p>
+    <p class="dhh-foot" id="dit-vp"></p>
     <div id="dit-list"></div>
     <p class="dhh-foot"></p>
   </div>
@@ -757,6 +758,11 @@
     docsPaint();
     docsFitTop();
     window.scrollTo(0, 0);
+    /* 벤더피아 단품명은 **열 때 한 번만** 읽습니다. 읽히면 다시 그려 이름을 앞에 세웁니다.
+       못 읽혀도 여기서 멈추지 않습니다 — 단품관리는 이미 떠 있습니다. */
+    window.벤더피아읽기?.().then(() => {
+      if (docsLevel === 'items') docsItemsRefresh();
+    }).catch(() => {});
   }
   window.docsOpenItems = docsOpenItems;
 
@@ -773,17 +779,23 @@
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     const box = document.getElementById('dit-list');
     if (!box) return;
-    const { codes, 차수수 } = window.docs단품?.(docsVendor) ?? { codes: [], 차수수: 0 };
+    const { codes, 차수수, 맞음 } = window.docs단품?.(docsVendor) ?? { codes: [], 차수수: 0, 맞음: 0 };
     const 이름없음 = codes.filter((c) => !c.name).length;
     put('dit-name', docsVendor ?? '단품관리');
     // 차수는 '잔액서류가 온 차수' 만 셉니다 — 안 온 차수는 보이지도 세지도 않습니다.
     put('dit-sub', `코드 ${codes.length}개 · 잔액서류 온 차수 ${차수수}개${이름없음 ? ` · 이름 없음 ${이름없음}` : ''}`);
+    // 벤더피아 — 읽혔으면 맞은 수를, 못 읽혔으면 한 줄만. 설명을 늘어놓지 않습니다.
+    const vp = window.벤더피아본것?.();
+    put('dit-vp', !vp ? ''
+      : vp.ok ? `벤더피아와 맞음 ${맞음 ?? 0} / 전체 ${codes.length} · 상품 ${vp.줄수}줄 · 단품 ${vp.단품수}가지`
+      : `벤더피아 자료를 못 읽습니다 — ${vp.why}`);
     if (!codes.length) { box.innerHTML = '<div class="dit-none">잔액서류에서 읽은 코드 없음</div>'; return; }
 
     const 값 = (이름, v) => (v === null || v === undefined || v === ''
       ? '' : `<span class="dit-v"><b>${이름}</b> ${dhhEsc(String(v))}</span>`);
     box.innerHTML = codes.map((c, i) => `
       <button type="button" class="dit-code" aria-expanded="false" onclick="ditToggle(this)">
+        ${c.vp ? `<span class="dit-vp">${dhhEsc(c.vp)}</span>` : ''}
         <span class="dit-c">${dhhEsc(c.code)}</span>
         <span class="dit-n">${dhhEsc(c.name)}</span>
         <span class="dit-ar">▾</span>
@@ -2472,7 +2484,38 @@ function 맞춤판정(잰것) {
   return '골라야함';
 }
 
-return { itemRows, 맞춤판정, 맞춰보기, 제품차이 };
+/**
+ * 벤더피아 상품 줄에서 「단품코드 → 단품명」 사전을 짓습니다.
+ *
+ * 벤더피아는 상품 한 줄 안에 단품 여럿을 「+」 로 이어 붙여 둡니다.
+ *   단품코드 「EF-al55 + bd-whsqa」 · 단품명 「55형 다리 + 흰 손잡이」
+ * ⚠ 「 + 」(빈칸 포함)로 쪼개면 안 됩니다 — 빈칸이 없는 줄이 섞여 있습니다.
+ *   「+」 로 쪼개고 앞뒤 빈칸을 텁니다.
+ * ⚠ 단품**명** 안에도 「+」 가 든 줄이 있어 코드 수와 이름 수가 안 맞습니다.
+ *   그래서 **수가 맞는 줄로 사전을 먼저 짓고**, 안 맞는 줄은 그 사전으로 메웁니다.
+ *   같은 코드면 이름은 늘 하나라는 것이 저쪽에서 확인돼 있습니다.
+ */
+function 벤더피아사전(rows) {
+  const 쪼갬 = (v) => String(v ?? '').split('+').map((x) => x.trim()).filter(Boolean);
+  const 사전 = new Map();
+  const 남은것 = [];
+
+  for (const r of rows ?? []) {
+    const codes = 쪼갬(r?.단품코드);
+    const names = 쪼갬(r?.단품명);
+    if (!codes.length) continue;
+    if (codes.length === names.length) {
+      codes.forEach((c, i) => { if (!사전.has(c)) 사전.set(c, names[i]); });
+    } else 남은것.push(codes);
+  }
+  // 수가 안 맞던 줄 — 이름을 짝지을 수 없습니다. 사전에 이미 있는 코드만 살립니다.
+  let 못메운코드 = 0;
+  for (const codes of 남은것) for (const c of codes) if (!사전.has(c)) 못메운코드++;
+
+  return { 사전, 줄수: (rows ?? []).length, 단품수: 사전.size, 못메운코드 };
+}
+
+return { itemRows, 맞춤판정, 맞춰보기, 벤더피아사전, 제품차이 };
 })();
 const FS = (() => {
 /**
@@ -2923,11 +2966,29 @@ async function saveRules(rules, email) {
 
 const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
 
-return { APP_ID, CONFIG, FILES, OVERLAY, RULES, WT, authMessage, deleteRule, fileKey, idToken, init, overlayKey, replaceFiles, saveBox, saveCipl, saveKinds, saveLoading, saveOverlay, saveRule, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOrders, watchOverlay, watchRules };
+/* ── 벤더피아 상품 ─────────────────────────────────────
+   벤더피아상품정리 앱이 적어 둔 자리를 **읽기만** 합니다. 한 글자도 안 씁니다.
+   ⚠ 그 자리의 화베 규칙은 사장님 계정만 들여보냅니다. 다른 계정이면 못 읽습니다 —
+     그때는 터뜨리지 않고 왜 못 읽었는지만 돌려줍니다. 화면이 그 한 줄을 적습니다.
+   ⚠ 열 때 한 번만 부릅니다. 코드마다 부르면 문서마다 돈이 듭니다. */
+const VP_상품 = 'vp_상품목록';
+
+async function 벤더피아상품() {
+  try {
+    const snap = await ctx.f.getDocs(col(VP_상품));
+    const rows = [];
+    snap.forEach((d) => rows.push(d.data()));
+    return { ok: true, rows };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 읽음' };
+  }
+}
+
+return { APP_ID, CONFIG, FILES, OVERLAY, RULES, VP_상품, WT, authMessage, deleteRule, fileKey, idToken, init, overlayKey, replaceFiles, saveBox, saveCipl, saveKinds, saveLoading, saveOverlay, saveRule, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOrders, watchOverlay, watchRules, 벤더피아상품 };
 })();
 const { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_ } = PARSE;
 const { progressWord } = PROGRESS;
-const { itemRows, 맞춰보기, 맞춤판정, 제품차이 } = MATCH;
+const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전 } = MATCH;
 
 
 
@@ -5481,11 +5542,34 @@ window.docs단품 = (vendor) => {
       }
     }
   }
+  const 사전 = 벤더피아?.ok ? 벤더피아.사전 : null;
   const codes = [...칸.values()]
-    .map((x) => ({ ...x, 차수들: x.차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch))) }))
+    .map((x) => ({
+      ...x,
+      // 벤더피아에서 찾은 단품명. 못 찾으면 비워 둡니다 — 지어내지 않습니다.
+      vp: 사전?.get(x.code) ?? '',
+      차수들: x.차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch))),
+    }))
     .sort((a, z) => a.code.localeCompare(z.code));
-  return { codes, 차수수: 센차수.size };
+  return { codes, 차수수: 센차수.size, 맞음: codes.filter((x) => x.vp).length };
 };
+
+/* ── 벤더피아 단품명 ───────────────────────────────────
+   단품관리를 열 때 **한 번만** 읽습니다. 코드마다 읽으면 문서마다 돈이 듭니다.
+   ⚠ 읽기만 합니다. vp_상품목록 에 한 글자도 안 씁니다.
+   ⚠ 못 읽어도 단품관리는 그대로 떠야 합니다 — 여기서 터지면 안 됩니다.
+   읽은 결과는 화면이 그대로 적습니다(맞음 N / 전체 M). 숨기지 않습니다. */
+let 벤더피아 = null;              // { ok, 사전, 줄수, 단품수, why }
+
+window.벤더피아읽기 = async () => {
+  if (벤더피아) return 벤더피아;                  // 열 때 한 번
+  const r = await DB.벤더피아상품();
+  벤더피아 = r.ok
+    ? { ok: true, ...벤더피아사전(r.rows) }
+    : { ok: false, why: r.why };
+  return 벤더피아;
+};
+window.벤더피아본것 = () => 벤더피아;
 
 window.docsCounts = () => ({
   batches: state.batches.length,
