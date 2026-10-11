@@ -304,7 +304,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.61.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.62.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -332,7 +332,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.61.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.62.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -779,11 +779,16 @@
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     const box = document.getElementById('dit-list');
     if (!box) return;
-    const { codes, 차수수, 맞음 } = window.docs단품?.(docsVendor) ?? { codes: [], 차수수: 0, 맞음: 0 };
+    const { codes, 차수수, 맞음, 밑줄묶음 } = window.docs단품?.(docsVendor)
+      ?? { codes: [], 차수수: 0, 맞음: 0, 밑줄묶음: 0 };
     const 이름없음 = codes.filter((c) => !c.name).length;
     put('dit-name', docsVendor ?? '단품관리');
     // 차수는 '잔액서류가 온 차수' 만 셉니다 — 안 온 차수는 보이지도 세지도 않습니다.
-    put('dit-sub', `코드 ${codes.length}개 · 잔액서류 온 차수 ${차수수}개${이름없음 ? ` · 이름 없음 ${이름없음}` : ''}`);
+    /* 밑줄 꼴만 달라 합친 것은 딱지로 남깁니다 — 숨기면 거짓말이 됩니다.
+       집 규칙대로 낱말과 숫자뿐입니다(2026-09-28). 없으면 아예 안 뜹니다. */
+    put('dit-sub', `코드 ${codes.length}개 · 잔액서류 온 차수 ${차수수}개`
+      + (이름없음 ? ` · 이름 없음 ${이름없음}` : '')
+      + (밑줄묶음 ? ` · 밑줄 묶음 ${밑줄묶음}쌍` : ''));
     // 벤더피아 — 읽혔으면 맞은 수를, 못 읽혔으면 한 줄만. 설명을 늘어놓지 않습니다.
     const vp = window.벤더피아본것?.();
     put('dit-vp', !vp ? ''
@@ -1692,17 +1697,25 @@ function readBrief(rows) {
 
 /* ── 서류 안의 품목 ───────────────────────────────────── */
 
-/* ── 코드 다듬기 ───────────────────────────────────────
-   **밑줄처럼 보이기만 하는 딴 글자를 보통 밑줄로 맞춥니다. 이 한 자리에서만 합니다.**
-   10-11 관리자가 진짜 자료로 쟀습니다 — docs_files 의 코드 213가지 가운데
-   `_`(U+005F) 가 123가지, `▁`(U+2581 LOWER ONE EIGHTH BLOCK) 가 **57가지**였습니다.
-   눈에는 똑같은데 컴퓨터에게는 딴 글자라, **같은 제품이 두 꼴로 갈려 46쌍이 따로 세어졌습니다**
-   (myT_3C 15회 ↔ myT▁3C 29회). 벤더피아는 보통 밑줄을 쓰니 `▁` 는 영원히 안 맞습니다.
-   ⚠⚠ **`▁` 만 바꿉니다. `-`·`.`·`/` 는 건드리지 마십시오 — 진짜로 다른 코드입니다**
-      (BHP8_B 와 BHP_B 는 다른 제품입니다). 가름표를 뭉개면 남의 제품이 한 줄로 합쳐집니다.
-   ⚠ **서류 쪽과 벤더피아 쪽이 둘 다 이것을 부릅니다. 두 벌로 만들지 마십시오.**
-     한쪽만 다듬으면 또 안 맞습니다. */
-const 코드다듬기 = (v) => String(v ?? '').replace(/\u2581/g, '_');
+/* ── 코드 열쇠 ────────────────────────────────────────
+   **밑줄 자리를 「표식」 으로 봅니다. 날것 코드는 한 글자도 안 고칩니다.**
+   사장님 10-11 말씀 — 「문자와 문자 사이에 모양은 같지만 어긋나는 `_` 표시가 있다는
+   약속하에, 완전동일하다면 고, `_` 때문에 완전동일 하지 못하더라도 `_` 때문이라면 고」
+
+   관리자가 진짜 자료로 쟀습니다 — 코드 213가지 가운데 `_`(U+005F) 가 123가지,
+   `▁`(U+2581 LOWER ONE EIGHTH BLOCK) 가 57가지. 눈에는 똑같은데 딴 글자라
+   같은 제품이 두 꼴로 갈려 **46쌍**이 따로 세어졌습니다(myT_3C ↔ myT▁3C).
+
+   그래서 **고쳐 담지 않고**, 맞댈 때 쓰는 **열쇠**에서만 표식 자리를 하나로 봅니다.
+   화면에 보이는 것은 서류에 적힌 그대로입니다.
+     myT▁3C 와 myT_3C → 열쇠가 둘 다 myT_3C → 좌 「myT」·우 「3C」 가 같으니 한 제품
+
+   ⚠⚠ **밑줄 꼴만 모읍니다.** `-`(U+002D) 는 **넣지 마십시오** — 진짜로 다른 제품입니다
+      (`BHP8_B` 와 `BHP_B` 는 남입니다). `.`·`/` 도 마찬가지입니다.
+   ⚠ **대소문자를 뭉개지 마십시오.** `myT_3C` 와 `MYT_3C` 는 같다고 하지 않습니다.
+   ⚠ **서류끼리 합칠 때도 벤더피아와 맞댈 때도 이 하나를 부릅니다.** 두 벌로 만들지 마십시오. */
+const 밑줄꼴_ = /[\u005F\u2581\uFF3F\u2017]/g;
+const 코드열쇠 = (v) => String(v ?? '').replace(밑줄꼴_, '_');
 
 const ITEM_COLS = [
   ['code', [/^code#?$/, /^품번$/, /^코드$/]],
@@ -1793,11 +1806,12 @@ function readItems(rows) {
   if (head < 0) return null;
 
   const codeCol = cols.code ?? cols.alt;
-  const out = new Map();
+  const out = new Map();                  // 열쇠 → 품목
+  const 꼴수 = new Map();                 // 열쇠 → (날것 코드 → 몇 번 쓰였나)
   for (let i = head + 1; i < rows.length; i++) {
     const row = rows[i] ?? [];
     if (row.some((v) => TOTAL_ROW.test(String(v ?? '')))) break; // 합계 줄에서 멈춥니다
-    const code = 코드다듬기(row[codeCol]).trim().replace(/\s+/g, ' ');
+    const code = String(row[codeCol] ?? '').trim().replace(/\s+/g, ' ');
     const qty = Number(row[cols.qty]);
     if (!code || !Number.isFinite(qty)) continue;
 
@@ -1837,7 +1851,14 @@ function readItems(rows) {
        합계 줄이 없는 양식에서는 서류 아래 주소·은행 글귀가 그대로 품목으로 샜습니다. */
     if (!제품줄인가(code)) continue;
 
-    const had = out.get(code);
+    /* 맞대는 것은 **열쇠**입니다. 담는 것은 **날것**입니다.
+       밑줄 꼴만 다른 두 줄은 여기서 한 줄이 됩니다 — 사장님이 보시는 것은 제품 하나입니다. */
+    const 열쇠 = 코드열쇠(code);
+    const 셈 = 꼴수.get(열쇠) ?? new Map();
+    셈.set(code, (셈.get(code) ?? 0) + 1);
+    꼴수.set(열쇠, 셈);
+
+    const had = out.get(열쇠);
     // 같은 코드가 색깔별로 여러 줄인 양식이 있습니다 — 합쳐서 셉니다.
     // 금액은 더합니다. 단가는 줄마다 다를 수 있어, 다르면 빈칸으로 둡니다.
     if (had) {
@@ -1850,8 +1871,16 @@ function readItems(rows) {
       if (had.size !== size) had.size = null;
       if (had.perCtn !== perCtn) had.perCtn = null;
       if (cbm !== null) had.cbm = (had.cbm ?? 0) + cbm;
-    } else out.set(code, { code, name, qty, price, amount,
+    } else out.set(열쇠, { code, name, qty, price, amount,
                           colors: color ? [color] : [], size, perCtn, cbm });
+  }
+  /* 머리에 세울 꼴 — **많이 쓰인 꼴**입니다. 수가 같으면 먼저 본 꼴입니다(sort 가 차례를 지킵니다).
+     지어낸 꼴이 아니라 서류에 적힌 꼴 가운데 하나입니다. */
+  for (const [열쇠, it] of out) {
+    const 셈 = [...(꼴수.get(열쇠) ?? new Map()).entries()].sort((a, b) => b[1] - a[1]);
+    if (셈.length) it.code = 셈[0][0];
+    // 밑줄 꼴만 달라 합쳐진 것이면 표시를 남깁니다 — 숨기면 거짓말이 됩니다.
+    if (셈.length > 1) it.밑줄꼴 = 셈.map(([c]) => c);
   }
   return out.size ? [...out.values()] : null;
 }
@@ -1865,7 +1894,9 @@ function readItems(rows) {
 
 const PDF_MONEY = /^[¥$₩]\s*[\d,]+(?:\.\d+)?$/;
 const PDF_INT = /^[\d,]+$/;
-const PDF_CODE = /^[A-Za-z0-9][A-Za-z0-9_\-./]{1,24}$/;
+/* ⚠ 밑줄 꼴(`▁`·`＿`·`‗`)을 받아야 합니다 — 안 받으면 그 줄을 **통째로 버립니다.**
+      날것은 안 고칩니다. 맞대는 일은 js/match.js 의 itemRows 가 코드열쇠로 합니다. */
+const PDF_CODE = /^[A-Za-z0-9][A-Za-z0-9_\u2581\uFF3F\u2017\-./]{1,24}$/;
 const PDF_SIZE = /^\d+\s*\*/;
 
 function readPdfItems(text) {
@@ -1881,8 +1912,7 @@ function readPdfItems(text) {
     if (!PDF_MONEY.test(cells[i])) continue;
     if (!PDF_INT.test(cells[i + 1]) || !PDF_MONEY.test(cells[i + 2])) continue;
 
-    // 발주서 코드도 같이 다듬습니다 — 서류 쪽만 다듬으면 둘이 서로 안 맞습니다.
-    const code = 코드다듬기(cells[i - 2]);
+    const code = cells[i - 2];
     if (!PDF_CODE.test(code)) continue;
 
     // 이름은 색·코드·치수 앞에 있습니다. 색깔만 다른 이어지는 줄은
@@ -2341,7 +2371,7 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, CJK_GLOSS, KINDS, STAGES, STAGE_BY_KEY, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, kindOf, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, suggestKeyword, summarize, 글귀_, 제품줄인가, 코드다듬기 };
+return { ASIDE, CJK_GLOSS, KINDS, STAGES, STAGE_BY_KEY, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, kindOf, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, suggestKeyword, summarize, 글귀_, 제품줄인가, 코드열쇠 };
 })();
 const PROGRESS = (() => {
 /**
@@ -2381,7 +2411,7 @@ function progressWord(b) {
 return { PROGRESS_WORDS, progressWord };
 })();
 const MATCH = (() => {
-const { 코드다듬기 } = PARSE;
+const { 코드열쇠 } = PARSE;
 /**
  * 잔액서류(CI&PL)와 발주서를 숫자로 맞춰 봅니다.
  *
@@ -2395,8 +2425,8 @@ const { 코드다듬기 } = PARSE;
  * 화면과 얽히지 않은 순수한 셈이라 브라우저와 Node 검사 양쪽에서 그대로 씁니다.
  */
 
-/* 코드 다듬기는 **js/parse.js 한 자리**에 있습니다. 여기서 또 만들지 마십시오.
-   서류 쪽과 벤더피아 쪽이 같은 것을 불러야 둘이 맞습니다. */
+/* 코드를 맞대는 셈(`코드열쇠`)은 **js/parse.js 한 자리**에 있습니다. 여기서 또 만들지 마십시오.
+   서류끼리 맞댈 때도 벤더피아와 맞댈 때도 같은 것을 불러야 둘이 안 갈라집니다. */
 
 /**
  * 두 서류의 품목을 코드로 맞춰 보고, 무엇이 새로 들어오고 빠지고 수량이 바뀌었는지 줄로 만듭니다.
@@ -2404,19 +2434,26 @@ const { 코드다듬기 } = PARSE;
  */
 function itemRows(before, now) {
   if (!before?.length || !now?.length) return [];
-  const key = (list) => new Map(list.map((x) => [String(x.code), x]));
+  // 밑줄 꼴만 다른 코드는 같은 것으로 봅니다 — 발주서와 잔액서류가 서로 다른 꼴을 쓰는 일이 있습니다.
+  // 보이는 코드는 날것 그대로입니다. 맞대는 열쇠만 표식 자리를 하나로 봅니다.
+  const key = (list) => new Map(list.map((x) => [코드열쇠(x.code), x]));
   const A = key(before);
   const B = key(now);
   const rows = [];
 
-  for (const [code, x] of B) {
-    const was = A.get(code);
+  // 줄에 적는 코드는 **날것**입니다 — 열쇠는 맞대는 데만 씁니다.
+  for (const [열쇠, x] of B) {
+    const was = A.get(열쇠);
+    const code = String(x.code ?? '');
     if (!was) rows.push({ kind: '추가', name: x.name || code, code, from: null, to: x.qty });
     else if (was.qty !== x.qty)
       rows.push({ kind: '수량', name: x.name || code, code, from: was.qty, to: x.qty });
   }
-  for (const [code, x] of A)
-    if (!B.has(code)) rows.push({ kind: '빠짐', name: x.name || code, code, from: x.qty, to: null });
+  for (const [열쇠, x] of A)
+    if (!B.has(열쇠)) {
+      const code = String(x.code ?? '');
+      rows.push({ kind: '빠짐', name: x.name || code, code, from: x.qty, to: null });
+    }
 
   // 새로 들어온 것 → 수량이 바뀐 것 → 빠진 것 차례로 봅니다.
   const rank = { 추가: 0, 수량: 1, 빠짐: 2 };
@@ -2530,16 +2567,19 @@ function 벤더피아사전(rows) {
     /* ⚠ 저쪽 코드에도 `▁`(U+2581) 가 섞여 있을 수 있습니다 — 저쪽은 제가 못 읽습니다.
        서류 쪽과 **같은 손질**을 해 둡니다. 한쪽만 다듬으면 또 안 맞습니다.
        단품**명** 은 손대지 않습니다 — 화면에 보이는 글자입니다. */
-    const codes = 쪼갬(r?.단품코드).map(코드다듬기);
+    const codes = 쪼갬(r?.단품코드);
     const names = 쪼갬(r?.단품명);
     if (!codes.length) continue;
+    /* ⚠ 저쪽 코드에도 밑줄 꼴이 섞여 있을 수 있습니다 — 저쪽은 제가 못 읽습니다.
+       사전의 **열쇠**를 코드열쇠로 둡니다. 서류 쪽도 같은 열쇠로 찾습니다.
+       단품**명** 은 손대지 않습니다 — 화면에 보이는 글자입니다. */
     if (codes.length === names.length) {
-      codes.forEach((c, i) => { if (!사전.has(c)) 사전.set(c, names[i]); });
+      codes.forEach((c, i) => { const k = 코드열쇠(c); if (!사전.has(k)) 사전.set(k, names[i]); });
     } else 남은것.push(codes);
   }
   // 수가 안 맞던 줄 — 이름을 짝지을 수 없습니다. 사전에 이미 있는 코드만 살립니다.
   let 못메운코드 = 0;
-  for (const codes of 남은것) for (const c of codes) if (!사전.has(c)) 못메운코드++;
+  for (const codes of 남은것) for (const c of codes) if (!사전.has(코드열쇠(c))) 못메운코드++;
 
   return { 사전, 줄수: (rows ?? []).length, 단품수: 사전.size, 못메운코드 };
 }
@@ -3028,7 +3068,7 @@ async function 벤더피아상품() {
 
 return { APP_ID, CONFIG, FILES, OVERLAY, RULES, VP_상품, WT, authMessage, deleteRule, fileKey, idToken, init, overlayKey, replaceFiles, saveBox, saveCipl, saveKinds, saveLoading, saveOverlay, saveRule, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOrders, watchOverlay, watchRules, 벤더피아상품, 벤더피아줄벗기기 };
 })();
-const { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드다듬기 } = PARSE;
+const { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠 } = PARSE;
 const { progressWord } = PROGRESS;
 const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전 } = MATCH;
 
@@ -5520,9 +5560,15 @@ window.docsCodes = () => {
         if (!code) continue;
         if (!거래처.has(이름)) 거래처.set(이름, new Map());
         const 칸 = 거래처.get(이름);
-        const 있던것 = 칸.get(code);
-        if (있던것) { if (b.batch) 있던것.차수들.add(b.batch); if (!있던것.name && it.name) 있던것.name = it.name; }
-        else 칸.set(code, { code, name: it.name ?? '', 차수들: new Set(b.batch ? [b.batch] : []) });
+        // 밑줄 꼴만 다른 코드는 한 제품입니다 — 열쇠로 묶고 날것 꼴을 셉니다.
+        const 열쇠 = 코드열쇠(code);
+        const 있던것 = 칸.get(열쇠);
+        if (있던것) {
+          있던것.꼴.set(code, (있던것.꼴.get(code) ?? 0) + 1);
+          if (b.batch) 있던것.차수들.add(b.batch);
+          if (!있던것.name && it.name) 있던것.name = it.name;
+        } else 칸.set(열쇠, { 꼴: new Map([[code, 1]]), name: it.name ?? '',
+                              차수들: new Set(b.batch ? [b.batch] : []) });
       }
     }
   }
@@ -5530,8 +5576,10 @@ window.docsCodes = () => {
     .map(([vendor, 칸]) => ({
       vendor,
       codes: [...칸.values()]
-        .map((x) => ({ code: x.code, name: x.name, 차수: [...x.차수들].sort() }))
+        .map((x) => ({ code: 머리꼴(x.꼴), name: x.name, 차수: [...x.차수들].sort(),
+                       밑줄꼴: x.꼴.size > 1 ? [...x.꼴.keys()] : null }))
         .sort((a, b2) => a.code.localeCompare(b2.code)),
+      밑줄묶음: [...칸.values()].filter((x) => x.꼴.size > 1).length,
     }))
     .sort((a, b2) => b2.codes.length - a.codes.length || a.vendor.localeCompare(b2.vendor));
 };
@@ -5543,12 +5591,14 @@ window.docsCodes = () => {
    같은 자(제품줄인가·글귀_)를 씁니다 — 두 벌로 만들지 않습니다. */
 function 제품줄만(items) {
   return (items ?? [])
-    /* ⚠ 밑줄 꼴도 여기서 맞춥니다 — 서버가 `▁` 로 올려 둔 묵은 자료가 그대로 있습니다.
-         `READ_VERSION` 을 올려 다시 읽히기 전까지는 사장님 화면에 한 제품이 두 줄로 섭니다.
-         셈은 js/parse.js 의 코드다듬기 한 자리입니다 — 여기서 또 만들지 마십시오. */
-    .map((x) => ({ ...x, code: 코드다듬기(x?.code).trim() }))
-    .filter((x) => 제품줄인가(x.code))
+    .filter((x) => 제품줄인가(String(x?.code ?? '').trim()))
     .map((x) => (글귀_.test(String(x.name ?? '')) ? { ...x, name: '' } : x));
+}
+
+/* 모아 둔 날것 꼴 가운데 **많이 쓰인 꼴**을 머리에 세웁니다.
+   수가 같으면 먼저 본 꼴입니다. 지어낸 꼴이 아니라 서류에 적힌 꼴 가운데 하나입니다. */
+function 머리꼴(셈) {
+  return [...셈.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
 /* ── 단품관리 ─────────────────────────────────────────────
@@ -5559,7 +5609,7 @@ function 제품줄만(items) {
    ⚠ 잔액서류가 아직 안 온 차수도 빈 채로 그대로 돌려줍니다 — 빠뜨리지 않습니다. */
 window.docs단품 = (vendor) => {
   if (!vendor) return { codes: [], 차수수: 0 };
-  const 칸 = new Map();                         // 코드 → {code, name, 차수들[]}
+  const 칸 = new Map();                         // 코드열쇠 → {꼴, name, 차수들[]}
   const 센차수 = new Set();
   for (const b of state.batches) {
     if ((b.vendor || '(루트)') !== vendor) continue;
@@ -5571,13 +5621,18 @@ window.docs단품 = (vendor) => {
         const code = String(it.code ?? '').trim();
         if (!code) continue;
         센차수.add(차수);
-        if (!칸.has(code)) 칸.set(code, { code, name: String(it.name ?? '').trim(), 차수들: [] });
-        const 것 = 칸.get(code);
+        /* 밑줄 꼴만 다른 코드는 **한 제품**입니다 — 열쇠로 묶습니다.
+           보이는 코드는 날것입니다. 모은 꼴 가운데 많이 쓰인 것을 머리에 세웁니다. */
+        const 열쇠 = 코드열쇠(code);
+        if (!칸.has(열쇠)) 칸.set(열쇠, { 꼴: new Map(), name: String(it.name ?? '').trim(), 차수들: [] });
+        const 것 = 칸.get(열쇠);
+        것.꼴.set(code, (것.꼴.get(code) ?? 0) + 1);
         if (!것.name && it.name) 것.name = String(it.name).trim();
         // 한 차수에 같은 코드가 두 서류(원본·수정본)에 있으면 뒤엣것만 둡니다.
         const 자리 = 것.차수들.findIndex((x) => x.batch === 차수);
         const 줄 = {
           batch: 차수,
+          출처: d.path,
           model: String(it.name ?? '').trim() || null,
           color: (it.colors ?? []).join(' · ') || null,
           qty: it.qty ?? null,
@@ -5586,20 +5641,37 @@ window.docs단품 = (vendor) => {
           perCtn: it.perCtn ?? null,
           cbm: it.cbm ?? null,
         };
-        if (자리 >= 0) 것.차수들[자리] = 줄; else 것.차수들.push(줄);
+        /* ⚠ **한 서류 안에서** 밑줄 꼴만 다른 두 줄이 온 것이면 더합니다 — 뒤엣것으로 덮지 않습니다.
+             덮는 규칙은 원본·수정본 **두 서류**를 위한 것입니다. 같은 서류면 둘 다 진짜 수량입니다.
+             (서버가 다시 읽으면 readItems 가 이미 더해 올립니다. 이것은 묵은 자료를 위한 받침입니다) */
+        if (자리 >= 0 && 것.차수들[자리].출처 === d.path) {
+          const 앞 = 것.차수들[자리];
+          앞.qty = (앞.qty ?? 0) + (줄.qty ?? 0);
+          if (줄.color && 앞.color !== 줄.color) 앞.color = [앞.color, 줄.color].filter(Boolean).join(' · ');
+          if (앞.fob !== 줄.fob) 앞.fob = null;
+          if (앞.size !== 줄.size) 앞.size = null;
+          if (앞.perCtn !== 줄.perCtn) 앞.perCtn = null;
+          if (줄.cbm != null) 앞.cbm = (앞.cbm ?? 0) + 줄.cbm;
+        } else if (자리 >= 0) 것.차수들[자리] = 줄;
+        else 것.차수들.push(줄);
       }
     }
   }
   const 사전 = 벤더피아?.ok ? 벤더피아.사전 : null;
-  const codes = [...칸.values()]
-    .map((x) => ({
-      ...x,
+  const codes = [...칸.entries()]
+    .map(([열쇠, x]) => ({
+      code: 머리꼴(x.꼴),
+      name: x.name,
+      // 밑줄 꼴만 달라 합쳐진 것이면 모은 꼴을 둡니다. 안 합쳐졌으면 null 입니다.
+      밑줄꼴: x.꼴.size > 1 ? [...x.꼴.keys()] : null,
       // 벤더피아에서 찾은 단품명. 못 찾으면 비워 둡니다 — 지어내지 않습니다.
-      vp: 사전?.get(x.code) ?? '',
+      // 저쪽 사전도 같은 열쇠로 지어져 있습니다(js/match.js 벤더피아사전).
+      vp: 사전?.get(열쇠) ?? '',
       차수들: x.차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch))),
     }))
     .sort((a, z) => a.code.localeCompare(z.code));
-  return { codes, 차수수: 센차수.size, 맞음: codes.filter((x) => x.vp).length };
+  return { codes, 차수수: 센차수.size, 맞음: codes.filter((x) => x.vp).length,
+           밑줄묶음: codes.filter((x) => x.밑줄꼴).length };
 };
 
 /* ── 벤더피아 단품명 ───────────────────────────────────
