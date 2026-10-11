@@ -2504,6 +2504,39 @@ window.docsCodes = () => {
     .sort((a, b2) => b2.codes.length - a.codes.length || a.vendor.localeCompare(b2.vendor));
 };
 
+/* ── 단품관리 ─────────────────────────────────────────────
+   한 거래처의 차수마다, 그 차수에 온 잔액서류(CI&PL)의 코드와 상품명을 모읍니다.
+   ⚠ 코드를 여기서 새로 뽑지 않습니다. 잔액서류에서 읽어 둔 cipl.items 를 그대로 씁니다.
+     코드열·상품명 칸이 무엇인지는 js/parse.js 의 readItems 가 정합니다.
+   ⚠ 상품명을 못 찾은 코드는 이름을 비워 둡니다. 지어내지 않습니다.
+   ⚠ 잔액서류가 아직 안 온 차수도 빈 채로 그대로 돌려줍니다 — 빠뜨리지 않습니다. */
+window.docs단품 = (vendor) => {
+  if (!vendor) return [];
+  return state.batches
+    .filter((b) => (b.vendor || '(루트)') === vendor)
+    .map((b) => {
+      const 서류 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
+      const 칸 = new Map();                      // 코드 → {code, name}
+      for (const d of 서류) {
+        for (const it of d.cipl?.items ?? []) {
+          const code = String(it.code ?? '').trim();
+          if (!code) continue;
+          const name = String(it.name ?? '').trim();
+          const 있던것 = 칸.get(code);
+          if (있던것) { if (!있던것.name && name) 있던것.name = name; }
+          else 칸.set(code, { code, name });
+        }
+      }
+      return {
+        batch: b.batch ?? '차수 미정',
+        id: b.id,
+        서류: 서류.length,
+        codes: [...칸.values()].sort((a, z) => a.code.localeCompare(z.code)),
+      };
+    })
+    .sort((a, z) => String(z.batch).localeCompare(String(a.batch)));
+};
+
 window.docsCounts = () => ({
   batches: state.batches.length,
   vendors: new Set(state.batches.map((b) => b.vendor)).size,

@@ -44,7 +44,7 @@
      색 토큰·타일·알약을 그대로 가져왔고 새로 만든 색은 없습니다.
      이름은 전부 dhh- 로 시작합니다 — 짧은 이름은 텔윈드와 겹칩니다.
      이 블록과 #docs-home / #docs-back 두 덩어리만 빼면 그대로 되돌아갑니다. */
-  #docs-home, #docs-vendor, #docs-files, #docs-orders, #docs-kinds, #docs-codes{
+  #docs-home, #docs-vendor, #docs-files, #docs-orders, #docs-kinds, #docs-codes, #docs-items{
     --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19;
     --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-fill:#F4F4F2; --vg-red:#FF3B30;
     position:fixed; left:0; right:0; bottom:0; z-index:8000;
@@ -59,6 +59,20 @@
   html[data-docsorders="1"] #docs-orders{ display:block; }
   html[data-docskinds="1"]  #docs-kinds{ display:block; }
   html[data-docscodes="1"]  #docs-codes{ display:block; }
+  html[data-docsitems="1"]  #docs-items{ display:block; }
+
+  /* 단품관리 — 차수 한 덩이, 그 아래 코드·상품명 줄 */
+  #docs-items .dit-b{ margin:0 0 18px; }
+  #docs-items .dit-bh{ display:flex; align-items:baseline; gap:8px; margin:0 0 7px; }
+  #docs-items .dit-bn{ font-size:17px; font-weight:700; color:var(--vg-ink); }
+  #docs-items .dit-bc{ font-size:12px; color:var(--vg-muted); }
+  #docs-items .dit-row{ display:flex; align-items:baseline; gap:10px; min-height:44px;
+    padding:0 2px; border-bottom:1px solid var(--vg-edge); }
+  #docs-items .dit-c{ font-size:14px; font-weight:700; font-variant-numeric:tabular-nums;
+    white-space:nowrap; }
+  #docs-items .dit-n{ font-size:13px; flex:1; min-width:0; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  #docs-items .dit-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
 
   /* 코드관리 — 거래처 한 덩이, 그 아래 코드 줄 */
   #docs-codes .dcd-v{ margin:0 0 18px; }
@@ -221,7 +235,8 @@
   html[data-docsorders="1"] #docs-back,
   html[data-docskinds="1"] #docs-back,
   html[data-docsfiles="1"] #docs-back,
-  html[data-docscodes="1"] #docs-back{ display:block; }
+  html[data-docscodes="1"] #docs-back,
+  html[data-docsitems="1"] #docs-back{ display:block; }
   #docs-back button{ pointer-events:auto; background:#fff; border:1px solid #E2E2DF;
     border-radius:999px; padding:10px 18px; font-size:13px; font-weight:700; color:#111110;
     box-shadow:0 8px 22px -14px rgba(0,0,0,.5); cursor:pointer; }
@@ -271,7 +286,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.55.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.56.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -299,7 +314,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.55.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.56.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -399,6 +414,20 @@
       <span class="dhh-sub" id="dkd-sub">&nbsp;</span>
     </div>
     <div class="dhh-tiles" id="dkd-tiles"></div>
+    <p class="dhh-foot"></p>
+  </div>
+</div>
+
+<!-- 단품관리 — 그 거래처의 차수마다, 잔액서류에서 읽어 둔 코드와 상품명 -->
+<div id="docs-items" class="dhh-board">
+  <div class="dhh-wrap">
+    <div class="dhh-head">
+      <span class="dhh-day" id="dit-name">단품관리</span>
+      <span class="dhh-sub" id="dit-sub">&nbsp;</span>
+    </div>
+    <!-- 무엇을 코드열·상품명으로 보았는지 한 줄. 짐작으로 박은 칸 이름이 아닙니다. -->
+    <p class="dhh-foot">코드 = 잔액서류의 Code#·품번·코드 칸 · 상품명 = Item Name·품명 칸</p>
+    <div id="dit-list"></div>
     <p class="dhh-foot"></p>
   </div>
 </div>
@@ -645,7 +674,7 @@
     const has = c ? c.has : true;          // 아직 못 읽었으면 첫 화면을 그대로 둡니다
     const on = (name, yes) => yes ? root.setAttribute(name, '1') : root.removeAttribute(name);
     if (!has) {                            // 올라간 목록이 없으면 원래 안내를 보여 줍니다
-      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docsorders','data-docskinds','data-docscodes']
+      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docsorders','data-docskinds','data-docscodes','data-docsitems']
         .forEach((n) => root.removeAttribute(n));
       return;
     }
@@ -655,10 +684,12 @@
     on('data-docsorders', docsLevel === 'orders');
     on('data-docskinds',  docsLevel === 'kinds');
     on('data-docscodes',  docsLevel === 'codes');
+    on('data-docsitems',  docsLevel === 'items');
     on('data-docsv',      !!docsVendor);
     if (docsLevel !== 'box') root.removeAttribute('data-docsbox');
     const back = document.getElementById('dhh-back');
-    if (back) back.textContent = (docsLevel === 'box' && docsVendor) ? '← ' + docsVendor
+    if (back) back.textContent = (docsLevel === 'items' && docsVendor) ? '← ' + docsVendor
+                               : (docsLevel === 'box' && docsVendor) ? '← ' + docsVendor
                                : (docsLevel === 'files' && docsKindWhere) ? '← ' + docsKindWhere
                                : (docsLevel === 'files' || docsLevel === 'kinds') ? '← ' + (docsVendor ?? '거래처')
                                : '← 박스판';
@@ -692,6 +723,48 @@
     window.scrollTo(0, 0);
   }
   window.docsOpenCodes = docsOpenCodes;
+
+  /* 단품관리 — 이 거래처의 차수마다, 잔액서류에서 읽어 둔 코드와 상품명.
+     코드를 여기서 새로 뽑지 않습니다. 읽어 둔 것을 모아 보일 뿐입니다. */
+  function dit단품수(vendor) {
+    const 차수들 = window.docs단품?.(vendor) ?? [];
+    const 코드수 = 차수들.reduce((n, b) => n + b.codes.length, 0);
+    return `차수 ${차수들.length}개 · 코드 ${코드수}개`;
+  }
+
+  function docsOpenItems() {
+    if (!docsVendor) return;
+    docsLevel = 'items';
+    docsItemsRefresh();
+    docsPaint();
+    docsFitTop();
+    window.scrollTo(0, 0);
+  }
+  window.docsOpenItems = docsOpenItems;
+
+  function docsItemsRefresh() {
+    const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    const box = document.getElementById('dit-list');
+    if (!box) return;
+    const 차수들 = window.docs단품?.(docsVendor) ?? [];
+    const 코드수 = 차수들.reduce((n, b) => n + b.codes.length, 0);
+    const 이름없음 = 차수들.reduce((n, b) => n + b.codes.filter((c) => !c.name).length, 0);
+    put('dit-name', docsVendor ?? '단품관리');
+    put('dit-sub', `차수 ${차수들.length}개 · 코드 ${코드수}개${이름없음 ? ` · 이름 없음 ${이름없음}` : ''}`);
+    if (!차수들.length) { box.innerHTML = '<div class="dit-none">차수 없음</div>'; return; }
+    box.innerHTML = 차수들.map((b) => `
+      <section class="dit-b">
+        <div class="dit-bh">
+          <span class="dit-bn">${dhhEsc(b.batch)}</span>
+          <span class="dit-bc">${b.codes.length ? `${b.codes.length}개` : (b.서류 ? '코드 없음' : '잔액서류 없음')}</span>
+        </div>
+        ${b.codes.map((c) => `
+          <div class="dit-row">
+            <span class="dit-c">${dhhEsc(c.code)}</span>
+            <span class="dit-n">${dhhEsc(c.name)}</span>
+          </div>`).join('')}
+      </section>`).join('');
+  }
 
   function docsCodesRefresh() {
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
@@ -752,6 +825,7 @@
     if (docsLevel === 'files' && docsKindWhere) { docsKindOpen(docsKindWhere, docsKindList); return; }
     if (docsLevel === 'kinds') { docsKindWhere = ''; docsLevel = 'vendor'; }
     else if (docsLevel === 'files') docsLevel = 'vendor';
+    else if (docsLevel === 'items' && docsVendor) docsLevel = 'vendor';
     else if (docsLevel === 'box' && docsVendor) docsLevel = 'vendor';
     else { docsLevel = 'home'; docsVendor = null; }
     if (docsLevel === 'vendor') docsVendorRefresh();
@@ -836,6 +910,11 @@
           <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
           <span><span class="dhh-nm">미확인</span>
             <span class="dhh-pct">${v.unsure.length}건</span></span>
+        </button>
+        <button type="button" class="dhh-tile dhh-light" onclick="docsOpenItems()">
+          <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+          <span><span class="dhh-nm">단품관리</span>
+            <span class="dhh-pct">${dit단품수(docsVendor)}</span></span>
         </button>` +
         // 이 거래처 안에 손으로 만든 박스 — 뒤에 이어 섭니다
         (v.mine ?? []).map((m, i) => `
@@ -5241,6 +5320,39 @@ window.docsCodes = () => {
         .sort((a, b2) => a.code.localeCompare(b2.code)),
     }))
     .sort((a, b2) => b2.codes.length - a.codes.length || a.vendor.localeCompare(b2.vendor));
+};
+
+/* ── 단품관리 ─────────────────────────────────────────────
+   한 거래처의 차수마다, 그 차수에 온 잔액서류(CI&PL)의 코드와 상품명을 모읍니다.
+   ⚠ 코드를 여기서 새로 뽑지 않습니다. 잔액서류에서 읽어 둔 cipl.items 를 그대로 씁니다.
+     코드열·상품명 칸이 무엇인지는 js/parse.js 의 readItems 가 정합니다.
+   ⚠ 상품명을 못 찾은 코드는 이름을 비워 둡니다. 지어내지 않습니다.
+   ⚠ 잔액서류가 아직 안 온 차수도 빈 채로 그대로 돌려줍니다 — 빠뜨리지 않습니다. */
+window.docs단품 = (vendor) => {
+  if (!vendor) return [];
+  return state.batches
+    .filter((b) => (b.vendor || '(루트)') === vendor)
+    .map((b) => {
+      const 서류 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
+      const 칸 = new Map();                      // 코드 → {code, name}
+      for (const d of 서류) {
+        for (const it of d.cipl?.items ?? []) {
+          const code = String(it.code ?? '').trim();
+          if (!code) continue;
+          const name = String(it.name ?? '').trim();
+          const 있던것 = 칸.get(code);
+          if (있던것) { if (!있던것.name && name) 있던것.name = name; }
+          else 칸.set(code, { code, name });
+        }
+      }
+      return {
+        batch: b.batch ?? '차수 미정',
+        id: b.id,
+        서류: 서류.length,
+        codes: [...칸.values()].sort((a, z) => a.code.localeCompare(z.code)),
+      };
+    })
+    .sort((a, z) => String(z.batch).localeCompare(String(a.batch)));
 };
 
 window.docsCounts = () => ({
