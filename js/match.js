@@ -11,9 +11,9 @@
  * 화면과 얽히지 않은 순수한 셈이라 브라우저와 Node 검사 양쪽에서 그대로 씁니다.
  */
 
-/* 코드 다듬기는 **js/parse.js 한 자리**에 있습니다. 여기서 또 만들지 마십시오.
-   서류 쪽과 벤더피아 쪽이 같은 것을 불러야 둘이 맞습니다. */
-import { 코드다듬기 } from './parse.js';
+/* 코드를 맞대는 셈(`코드열쇠`)은 **js/parse.js 한 자리**에 있습니다. 여기서 또 만들지 마십시오.
+   서류끼리 맞댈 때도 벤더피아와 맞댈 때도 같은 것을 불러야 둘이 안 갈라집니다. */
+import { 코드열쇠 } from './parse.js';
 
 /**
  * 두 서류의 품목을 코드로 맞춰 보고, 무엇이 새로 들어오고 빠지고 수량이 바뀌었는지 줄로 만듭니다.
@@ -21,19 +21,26 @@ import { 코드다듬기 } from './parse.js';
  */
 export function itemRows(before, now) {
   if (!before?.length || !now?.length) return [];
-  const key = (list) => new Map(list.map((x) => [String(x.code), x]));
+  // 밑줄 꼴만 다른 코드는 같은 것으로 봅니다 — 발주서와 잔액서류가 서로 다른 꼴을 쓰는 일이 있습니다.
+  // 보이는 코드는 날것 그대로입니다. 맞대는 열쇠만 표식 자리를 하나로 봅니다.
+  const key = (list) => new Map(list.map((x) => [코드열쇠(x.code), x]));
   const A = key(before);
   const B = key(now);
   const rows = [];
 
-  for (const [code, x] of B) {
-    const was = A.get(code);
+  // 줄에 적는 코드는 **날것**입니다 — 열쇠는 맞대는 데만 씁니다.
+  for (const [열쇠, x] of B) {
+    const was = A.get(열쇠);
+    const code = String(x.code ?? '');
     if (!was) rows.push({ kind: '추가', name: x.name || code, code, from: null, to: x.qty });
     else if (was.qty !== x.qty)
       rows.push({ kind: '수량', name: x.name || code, code, from: was.qty, to: x.qty });
   }
-  for (const [code, x] of A)
-    if (!B.has(code)) rows.push({ kind: '빠짐', name: x.name || code, code, from: x.qty, to: null });
+  for (const [열쇠, x] of A)
+    if (!B.has(열쇠)) {
+      const code = String(x.code ?? '');
+      rows.push({ kind: '빠짐', name: x.name || code, code, from: x.qty, to: null });
+    }
 
   // 새로 들어온 것 → 수량이 바뀐 것 → 빠진 것 차례로 봅니다.
   const rank = { 추가: 0, 수량: 1, 빠짐: 2 };
@@ -147,16 +154,19 @@ export function 벤더피아사전(rows) {
     /* ⚠ 저쪽 코드에도 `▁`(U+2581) 가 섞여 있을 수 있습니다 — 저쪽은 제가 못 읽습니다.
        서류 쪽과 **같은 손질**을 해 둡니다. 한쪽만 다듬으면 또 안 맞습니다.
        단품**명** 은 손대지 않습니다 — 화면에 보이는 글자입니다. */
-    const codes = 쪼갬(r?.단품코드).map(코드다듬기);
+    const codes = 쪼갬(r?.단품코드);
     const names = 쪼갬(r?.단품명);
     if (!codes.length) continue;
+    /* ⚠ 저쪽 코드에도 밑줄 꼴이 섞여 있을 수 있습니다 — 저쪽은 제가 못 읽습니다.
+       사전의 **열쇠**를 코드열쇠로 둡니다. 서류 쪽도 같은 열쇠로 찾습니다.
+       단품**명** 은 손대지 않습니다 — 화면에 보이는 글자입니다. */
     if (codes.length === names.length) {
-      codes.forEach((c, i) => { if (!사전.has(c)) 사전.set(c, names[i]); });
+      codes.forEach((c, i) => { const k = 코드열쇠(c); if (!사전.has(k)) 사전.set(k, names[i]); });
     } else 남은것.push(codes);
   }
   // 수가 안 맞던 줄 — 이름을 짝지을 수 없습니다. 사전에 이미 있는 코드만 살립니다.
   let 못메운코드 = 0;
-  for (const codes of 남은것) for (const c of codes) if (!사전.has(c)) 못메운코드++;
+  for (const codes of 남은것) for (const c of codes) if (!사전.has(코드열쇠(c))) 못메운코드++;
 
   return { 사전, 줄수: (rows ?? []).length, 단품수: 사전.size, 못메운코드 };
 }

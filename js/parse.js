@@ -477,17 +477,25 @@ export function readBrief(rows) {
 
 /* ── 서류 안의 품목 ───────────────────────────────────── */
 
-/* ── 코드 다듬기 ───────────────────────────────────────
-   **밑줄처럼 보이기만 하는 딴 글자를 보통 밑줄로 맞춥니다. 이 한 자리에서만 합니다.**
-   10-11 관리자가 진짜 자료로 쟀습니다 — docs_files 의 코드 213가지 가운데
-   `_`(U+005F) 가 123가지, `▁`(U+2581 LOWER ONE EIGHTH BLOCK) 가 **57가지**였습니다.
-   눈에는 똑같은데 컴퓨터에게는 딴 글자라, **같은 제품이 두 꼴로 갈려 46쌍이 따로 세어졌습니다**
-   (myT_3C 15회 ↔ myT▁3C 29회). 벤더피아는 보통 밑줄을 쓰니 `▁` 는 영원히 안 맞습니다.
-   ⚠⚠ **`▁` 만 바꿉니다. `-`·`.`·`/` 는 건드리지 마십시오 — 진짜로 다른 코드입니다**
-      (BHP8_B 와 BHP_B 는 다른 제품입니다). 가름표를 뭉개면 남의 제품이 한 줄로 합쳐집니다.
-   ⚠ **서류 쪽과 벤더피아 쪽이 둘 다 이것을 부릅니다. 두 벌로 만들지 마십시오.**
-     한쪽만 다듬으면 또 안 맞습니다. */
-export const 코드다듬기 = (v) => String(v ?? '').replace(/\u2581/g, '_');
+/* ── 코드 열쇠 ────────────────────────────────────────
+   **밑줄 자리를 「표식」 으로 봅니다. 날것 코드는 한 글자도 안 고칩니다.**
+   사장님 10-11 말씀 — 「문자와 문자 사이에 모양은 같지만 어긋나는 `_` 표시가 있다는
+   약속하에, 완전동일하다면 고, `_` 때문에 완전동일 하지 못하더라도 `_` 때문이라면 고」
+
+   관리자가 진짜 자료로 쟀습니다 — 코드 213가지 가운데 `_`(U+005F) 가 123가지,
+   `▁`(U+2581 LOWER ONE EIGHTH BLOCK) 가 57가지. 눈에는 똑같은데 딴 글자라
+   같은 제품이 두 꼴로 갈려 **46쌍**이 따로 세어졌습니다(myT_3C ↔ myT▁3C).
+
+   그래서 **고쳐 담지 않고**, 맞댈 때 쓰는 **열쇠**에서만 표식 자리를 하나로 봅니다.
+   화면에 보이는 것은 서류에 적힌 그대로입니다.
+     myT▁3C 와 myT_3C → 열쇠가 둘 다 myT_3C → 좌 「myT」·우 「3C」 가 같으니 한 제품
+
+   ⚠⚠ **밑줄 꼴만 모읍니다.** `-`(U+002D) 는 **넣지 마십시오** — 진짜로 다른 제품입니다
+      (`BHP8_B` 와 `BHP_B` 는 남입니다). `.`·`/` 도 마찬가지입니다.
+   ⚠ **대소문자를 뭉개지 마십시오.** `myT_3C` 와 `MYT_3C` 는 같다고 하지 않습니다.
+   ⚠ **서류끼리 합칠 때도 벤더피아와 맞댈 때도 이 하나를 부릅니다.** 두 벌로 만들지 마십시오. */
+const 밑줄꼴_ = /[\u005F\u2581\uFF3F\u2017]/g;
+export const 코드열쇠 = (v) => String(v ?? '').replace(밑줄꼴_, '_');
 
 const ITEM_COLS = [
   ['code', [/^code#?$/, /^품번$/, /^코드$/]],
@@ -578,11 +586,12 @@ export function readItems(rows) {
   if (head < 0) return null;
 
   const codeCol = cols.code ?? cols.alt;
-  const out = new Map();
+  const out = new Map();                  // 열쇠 → 품목
+  const 꼴수 = new Map();                 // 열쇠 → (날것 코드 → 몇 번 쓰였나)
   for (let i = head + 1; i < rows.length; i++) {
     const row = rows[i] ?? [];
     if (row.some((v) => TOTAL_ROW.test(String(v ?? '')))) break; // 합계 줄에서 멈춥니다
-    const code = 코드다듬기(row[codeCol]).trim().replace(/\s+/g, ' ');
+    const code = String(row[codeCol] ?? '').trim().replace(/\s+/g, ' ');
     const qty = Number(row[cols.qty]);
     if (!code || !Number.isFinite(qty)) continue;
 
@@ -622,7 +631,14 @@ export function readItems(rows) {
        합계 줄이 없는 양식에서는 서류 아래 주소·은행 글귀가 그대로 품목으로 샜습니다. */
     if (!제품줄인가(code)) continue;
 
-    const had = out.get(code);
+    /* 맞대는 것은 **열쇠**입니다. 담는 것은 **날것**입니다.
+       밑줄 꼴만 다른 두 줄은 여기서 한 줄이 됩니다 — 사장님이 보시는 것은 제품 하나입니다. */
+    const 열쇠 = 코드열쇠(code);
+    const 셈 = 꼴수.get(열쇠) ?? new Map();
+    셈.set(code, (셈.get(code) ?? 0) + 1);
+    꼴수.set(열쇠, 셈);
+
+    const had = out.get(열쇠);
     // 같은 코드가 색깔별로 여러 줄인 양식이 있습니다 — 합쳐서 셉니다.
     // 금액은 더합니다. 단가는 줄마다 다를 수 있어, 다르면 빈칸으로 둡니다.
     if (had) {
@@ -635,8 +651,16 @@ export function readItems(rows) {
       if (had.size !== size) had.size = null;
       if (had.perCtn !== perCtn) had.perCtn = null;
       if (cbm !== null) had.cbm = (had.cbm ?? 0) + cbm;
-    } else out.set(code, { code, name, qty, price, amount,
+    } else out.set(열쇠, { code, name, qty, price, amount,
                           colors: color ? [color] : [], size, perCtn, cbm });
+  }
+  /* 머리에 세울 꼴 — **많이 쓰인 꼴**입니다. 수가 같으면 먼저 본 꼴입니다(sort 가 차례를 지킵니다).
+     지어낸 꼴이 아니라 서류에 적힌 꼴 가운데 하나입니다. */
+  for (const [열쇠, it] of out) {
+    const 셈 = [...(꼴수.get(열쇠) ?? new Map()).entries()].sort((a, b) => b[1] - a[1]);
+    if (셈.length) it.code = 셈[0][0];
+    // 밑줄 꼴만 달라 합쳐진 것이면 표시를 남깁니다 — 숨기면 거짓말이 됩니다.
+    if (셈.length > 1) it.밑줄꼴 = 셈.map(([c]) => c);
   }
   return out.size ? [...out.values()] : null;
 }
@@ -650,7 +674,9 @@ export function readItems(rows) {
 
 const PDF_MONEY = /^[¥$₩]\s*[\d,]+(?:\.\d+)?$/;
 const PDF_INT = /^[\d,]+$/;
-const PDF_CODE = /^[A-Za-z0-9][A-Za-z0-9_\-./]{1,24}$/;
+/* ⚠ 밑줄 꼴(`▁`·`＿`·`‗`)을 받아야 합니다 — 안 받으면 그 줄을 **통째로 버립니다.**
+      날것은 안 고칩니다. 맞대는 일은 js/match.js 의 itemRows 가 코드열쇠로 합니다. */
+const PDF_CODE = /^[A-Za-z0-9][A-Za-z0-9_\u2581\uFF3F\u2017\-./]{1,24}$/;
 const PDF_SIZE = /^\d+\s*\*/;
 
 export function readPdfItems(text) {
@@ -666,8 +692,7 @@ export function readPdfItems(text) {
     if (!PDF_MONEY.test(cells[i])) continue;
     if (!PDF_INT.test(cells[i + 1]) || !PDF_MONEY.test(cells[i + 2])) continue;
 
-    // 발주서 코드도 같이 다듬습니다 — 서류 쪽만 다듬으면 둘이 서로 안 맞습니다.
-    const code = 코드다듬기(cells[i - 2]);
+    const code = cells[i - 2];
     if (!PDF_CODE.test(code)) continue;
 
     // 이름은 색·코드·치수 앞에 있습니다. 색깔만 다른 이어지는 줄은

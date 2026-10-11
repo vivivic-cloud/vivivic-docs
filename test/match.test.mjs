@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전 } from '../js/match.js';
+import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
 const 품 = (...쌍) => 쌍.map(([code, qty]) => ({ code, name: code, qty }));
@@ -173,14 +174,29 @@ test('벤더피아줄벗기기 — 엑셀 한 줄은 `fields` 밑에 있다', ()
   assert.equal(벤더피아줄벗기기(null), null);
 });
 
-test('벤더피아사전 — 저쪽 코드에 `▁` 가 섞여 있어도 서류 코드와 맞는다', () => {
-  // 서류 쪽은 `▁` 를 `_` 로 담습니다(js/parse.js 코드다듬기).
-  // 저쪽에도 섞여 있을 수 있으니 같은 손질을 해 둡니다 — 한쪽만 다듬으면 또 안 맞습니다.
+test('벤더피아사전 — 저쪽 코드에 밑줄 꼴이 섞여 있어도 서류 코드와 맞는다', () => {
+  // 사전의 열쇠는 코드열쇠입니다. 서류 쪽도 같은 열쇠로 찾습니다 — 날것은 양쪽 다 그대로입니다.
   const { 사전, 단품수 } = 벤더피아사전([
-    { 단품코드: 'myT▁3C + bd-whsqa', 단품명: '마이토이 교구장 + 흰 손잡이' },
+    { 단품코드: 'myT\u25813C + bd-whsqa', 단품명: '마이토이 교구장 + 흰 손잡이' },
   ]);
   assert.equal(단품수, 2);
-  assert.equal(사전.get('myT_3C'), '마이토이 교구장', '서류 쪽 코드 꼴로 찾힙니다');
-  assert.equal(사전.get('myT▁3C'), undefined, '다듬지 않은 꼴로는 안 남습니다');
-  assert.equal(사전.get('bd-whsqa'), '흰 손잡이', '하이픈은 그대로입니다');
+  assert.equal(사전.get(코드열쇠('myT_3C')), '마이토이 교구장', '서류가 보통 밑줄을 써도 찾힙니다');
+  assert.equal(사전.get(코드열쇠('myT\u25813C')), '마이토이 교구장', '저쪽 꼴로도 찾힙니다');
+  assert.equal(사전.get(코드열쇠('bd-whsqa')), '흰 손잡이', '하이픈은 그대로입니다');
+  assert.equal(사전.get(코드열쇠('bd_whsqa')), undefined, '하이픈과 밑줄은 다른 것입니다');
+});
+
+test('itemRows — 발주서와 잔액서류의 밑줄 꼴이 달라도 같은 제품으로 맞댄다', () => {
+  const 발주 = [{ code: 'myT\u25813C', name: '마이토이 교구장', qty: 100 }];
+  const 잔액 = [{ code: 'myT_3C', name: '마이토이 교구장', qty: 80 }];
+  const 줄 = itemRows(발주, 잔액);
+  assert.equal(줄.length, 1, '「없던 것」·「빠짐」 두 줄로 갈리면 안 됩니다');
+  assert.equal(줄[0].kind, '수량');
+  assert.deepEqual([줄[0].from, 줄[0].to], [100, 80]);
+  assert.equal(줄[0].code, 'myT_3C', '적히는 코드는 날것입니다');
+
+  // ⚠ 가름표가 다르면 남입니다 — 합치면 안 됩니다
+  const 남 = itemRows([{ code: 'BHP8_B', name: '보링 받침 8', qty: 10 }],
+                      [{ code: 'BHP_B', name: '보링 받침', qty: 10 }]);
+  assert.equal(남.length, 2, 'BHP8_B 와 BHP_B 는 서로 남입니다');
 });
