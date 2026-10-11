@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, readBrief, readItems, readPdfItems } from '../js/parse.js';
+import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, readBrief, readItems, readPdfItems, 코드다듬기 } from '../js/parse.js';
 
 /** 실제 드라이브 `중국/제헤우드/` 폴더에서 가져온 파일명입니다. */
 const REAL = [
@@ -645,4 +645,40 @@ test('readItems — Color 를 읽고, 같은 코드가 색깔별이면 색을 �
   assert.equal(got[0].qty, 100, '수량은 더합니다');
   assert.deepEqual(got[1].colors, [], '색 칸이 비면 빈 목록입니다');
   assert.equal(got[0].name, '토리 마이토이 3단 교구장');
+});
+
+/* ⚠ 이 본보기에는 **`▁`(U+2581) 가 꼭 섞여 있어야** 합니다.
+     진짜 자료의 코드 213가지 가운데 57가지가 이 글자를 쓰고 있었습니다.
+     본보기에 그 글자가 없으면 이 집에서 두 번 그랬듯 또 못 잡습니다. */
+test('코드다듬기 — `▁`(U+2581) 만 보통 밑줄로 맞추고, 가름표는 건드리지 않는다', () => {
+  assert.equal(코드다듬기('myT\u25813C'), 'myT_3C');
+  assert.equal(코드다듬기('myB\u2581O2C'), 'myB_O2C');
+  assert.equal(코드다듬기('myT_3C'), 'myT_3C', '이미 보통 밑줄이면 그대로입니다');
+  // ⚠ 가름표를 뭉개면 남의 제품이 한 줄로 합쳐집니다 — BHP8_B 와 BHP_B 는 다른 제품입니다
+  assert.equal(코드다듬기('bd-whsqa'), 'bd-whsqa', '하이픈은 그대로입니다');
+  assert.equal(코드다듬기('EC.0209m'), 'EC.0209m', '마침표는 그대로입니다');
+  assert.equal(코드다듬기('A/B'), 'A/B', '빗금은 그대로입니다');
+  assert.equal(코드다듬기(null), '');
+});
+
+test('readItems — 두 꼴로 갈려 있던 같은 제품이 한 줄로 합쳐진다', () => {
+  const got = readItems([
+    ['Code#', 'Product model', 'Color', 'Qty pcs', 'FOB', 'Packing size(mm)', 'pcs/ctn', 'carton Volume (CBM)'],
+    ['myT\u25813C', '토리 마이토이 3단 교구장', '화이트', 60, 12.5, '800*400*250', 2, 0.08],
+    ['myT_3C', '토리 마이토이 3단 교구장', '오크', 40, 12.5, '800*400*250', 2, 0.08],
+    ['BHP8_B', '보링 받침 8', '', 10, 3.1, '', '', ''],
+    ['BHP_B', '보링 받침', '', 20, 2.9, '', '', ''],
+  ]);
+  assert.equal(got.length, 3, '밑줄 두 꼴은 한 줄로, 다른 코드는 따로입니다');
+  assert.equal(got[0].code, 'myT_3C', '코드 자체를 보통 밑줄로 담습니다');
+  assert.equal(got[0].qty, 100, '수량은 두 쪽 합입니다');
+  assert.deepEqual(got[0].colors, ['화이트', '오크']);
+  assert.deepEqual([got[1].code, got[2].code], ['BHP8_B', 'BHP_B'], '가름표가 다른 코드는 안 합칩니다');
+});
+
+test('readPdfItems — 발주서 코드도 같은 손질을 받는다', () => {
+  const 줄 = ['', '', '토리 마이토이 3단 교구장', 'myT\u25813C', '화이트', '¥100', '60', '¥6,000'].join('\t');
+  const got = readPdfItems(줄);
+  assert.equal(got[0].code, 'myT_3C', '서류 쪽만 다듬으면 둘이 서로 안 맞습니다');
+  assert.equal(got[0].qty, 60);
 });

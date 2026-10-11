@@ -477,6 +477,18 @@ export function readBrief(rows) {
 
 /* ── 서류 안의 품목 ───────────────────────────────────── */
 
+/* ── 코드 다듬기 ───────────────────────────────────────
+   **밑줄처럼 보이기만 하는 딴 글자를 보통 밑줄로 맞춥니다. 이 한 자리에서만 합니다.**
+   10-11 관리자가 진짜 자료로 쟀습니다 — docs_files 의 코드 213가지 가운데
+   `_`(U+005F) 가 123가지, `▁`(U+2581 LOWER ONE EIGHTH BLOCK) 가 **57가지**였습니다.
+   눈에는 똑같은데 컴퓨터에게는 딴 글자라, **같은 제품이 두 꼴로 갈려 46쌍이 따로 세어졌습니다**
+   (myT_3C 15회 ↔ myT▁3C 29회). 벤더피아는 보통 밑줄을 쓰니 `▁` 는 영원히 안 맞습니다.
+   ⚠⚠ **`▁` 만 바꿉니다. `-`·`.`·`/` 는 건드리지 마십시오 — 진짜로 다른 코드입니다**
+      (BHP8_B 와 BHP_B 는 다른 제품입니다). 가름표를 뭉개면 남의 제품이 한 줄로 합쳐집니다.
+   ⚠ **서류 쪽과 벤더피아 쪽이 둘 다 이것을 부릅니다. 두 벌로 만들지 마십시오.**
+     한쪽만 다듬으면 또 안 맞습니다. */
+export const 코드다듬기 = (v) => String(v ?? '').replace(/\u2581/g, '_');
+
 const ITEM_COLS = [
   ['code', [/^code#?$/, /^품번$/, /^코드$/]],
   ['alt', [/^zh#?$/, /^no#?$/]],
@@ -570,7 +582,7 @@ export function readItems(rows) {
   for (let i = head + 1; i < rows.length; i++) {
     const row = rows[i] ?? [];
     if (row.some((v) => TOTAL_ROW.test(String(v ?? '')))) break; // 합계 줄에서 멈춥니다
-    const code = String(row[codeCol] ?? '').trim().replace(/\s+/g, ' ');
+    const code = 코드다듬기(row[codeCol]).trim().replace(/\s+/g, ' ');
     const qty = Number(row[cols.qty]);
     if (!code || !Number.isFinite(qty)) continue;
 
@@ -654,7 +666,8 @@ export function readPdfItems(text) {
     if (!PDF_MONEY.test(cells[i])) continue;
     if (!PDF_INT.test(cells[i + 1]) || !PDF_MONEY.test(cells[i + 2])) continue;
 
-    const code = cells[i - 2];
+    // 발주서 코드도 같이 다듬습니다 — 서류 쪽만 다듬으면 둘이 서로 안 맞습니다.
+    const code = 코드다듬기(cells[i - 2]);
     if (!PDF_CODE.test(code)) continue;
 
     // 이름은 색·코드·치수 앞에 있습니다. 색깔만 다른 이어지는 줄은

@@ -13,7 +13,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 6;
+const READ_VERSION = 7;
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -771,6 +771,17 @@ function pdfText_(fileId) {
 }
 
 
+/* ── 코드 다듬기 (js/parse.js 의 코드다듬기 와 같은 규칙) ──
+   **밑줄처럼 보이기만 하는 딴 글자를 보통 밑줄로 맞춥니다.**
+   10-11 관리자가 진짜 자료로 쟀습니다 — 코드 213가지 가운데 `▁`(U+2581) 가 든 것이 57가지,
+   같은 제품이 두 꼴로 갈려 46쌍이 따로 세어졌습니다(myT_3C ↔ myT▁3C).
+   ⚠⚠ **`▁` 만 바꿉니다. `-`·`.`·`/` 는 건드리지 마십시오 — 진짜로 다른 코드입니다**
+      (BHP8_B 와 BHP_B 는 다른 제품입니다).
+   ⚠ **화면 쪽(js/parse.js)과 여기를 같이 고쳐라.** 한쪽만 고치면 화면과 서버가 어긋난다. */
+function 코드다듬기_(v) {
+  return String(v == null ? '' : v).replace(/\u2581/g, '_');
+}
+
 /* ── 발주서 PDF 안의 품목 (js/parse.js 의 readPdfItems 와 같은 규칙) ──
  * 구글 문서로 바꾸면 표가 "탭 + 칸 내용" 으로 풀립니다. 칸 차례는 판마다
  * 다르니(일련번호 유무, 빈 칸 하나 더) 자리를 세지 않고
@@ -796,7 +807,8 @@ function readPdfItems_(text) {
     if (!PDF_MONEY_.test(cells[i])) continue;
     if (!PDF_INT_.test(cells[i + 1]) || !PDF_MONEY_.test(cells[i + 2])) continue;
 
-    const code = cells[i - 2];
+    // 발주서 코드도 같이 다듬습니다 — 서류 쪽만 다듬으면 둘이 서로 안 맞습니다.
+    const code = 코드다듬기_(cells[i - 2]);
     if (!PDF_CODE_.test(code)) continue;
 
     // 색만 다른 이어지는 줄은 앞 칸이 비어 있어, 위 품목의 이름을 물려받습니다.
@@ -928,7 +940,7 @@ function readItems_(rows) {
   for (let i = head + 1; i < rows.length; i++) {
     const row = rows[i] || [];
     if (row.some(function (v) { return TOTAL_ROW_.test(String(v == null ? '' : v)); })) break;
-    const code = String(row[codeCol] == null ? '' : row[codeCol]).trim().replace(/\s+/g, ' ');
+    const code = 코드다듬기_(row[codeCol]).trim().replace(/\s+/g, ' ');
     const qty = Number(row[cols.qty]);
     if (!code || !isFinite(qty)) continue;
     // 셀 병합이 풀리면 은행·주소 글귀가 마지막 품목의 이름 칸에 겹쳐 들어옵니다.
