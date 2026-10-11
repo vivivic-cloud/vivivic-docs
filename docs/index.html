@@ -304,7 +304,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.61.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.61.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -332,7 +332,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.61.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.61.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2381,6 +2381,7 @@ function progressWord(b) {
 return { PROGRESS_WORDS, progressWord };
 })();
 const MATCH = (() => {
+const { 코드다듬기 } = PARSE;
 /**
  * 잔액서류(CI&PL)와 발주서를 숫자로 맞춰 봅니다.
  *
@@ -2393,6 +2394,9 @@ const MATCH = (() => {
  *
  * 화면과 얽히지 않은 순수한 셈이라 브라우저와 Node 검사 양쪽에서 그대로 씁니다.
  */
+
+/* 코드 다듬기는 **js/parse.js 한 자리**에 있습니다. 여기서 또 만들지 마십시오.
+   서류 쪽과 벤더피아 쪽이 같은 것을 불러야 둘이 맞습니다. */
 
 /**
  * 두 서류의 품목을 코드로 맞춰 보고, 무엇이 새로 들어오고 빠지고 수량이 바뀌었는지 줄로 만듭니다.
@@ -2523,7 +2527,10 @@ function 벤더피아사전(rows) {
   const 남은것 = [];
 
   for (const r of rows ?? []) {
-    const codes = 쪼갬(r?.단품코드);
+    /* ⚠ 저쪽 코드에도 `▁`(U+2581) 가 섞여 있을 수 있습니다 — 저쪽은 제가 못 읽습니다.
+       서류 쪽과 **같은 손질**을 해 둡니다. 한쪽만 다듬으면 또 안 맞습니다.
+       단품**명** 은 손대지 않습니다 — 화면에 보이는 글자입니다. */
+    const codes = 쪼갬(r?.단품코드).map(코드다듬기);
     const names = 쪼갬(r?.단품명);
     if (!codes.length) continue;
     if (codes.length === names.length) {

@@ -31,14 +31,37 @@ def strip_imports(src):
     return IMPORT_RE.sub(take, src)
 
 
+# 로컬 모듈 이름 — mods 를 적는 순서가 곧 이 상수들이 서는 순서입니다.
+LOCAL_NS = {'./parse.js': 'PARSE', './progress.js': 'PROGRESS', './match.js': 'MATCH'}
+
+
+def local_binds(src):
+    """`import { x } from './parse.js'` 를 `const { x } = PARSE;` 로 바꿔 줍니다.
+
+    ⚠⚠ **이것을 지우면 모듈끼리 가져다 쓰는 이름이 배포본에서만 사라집니다.**
+       strip_imports 가 로컬 import 줄을 지우므로, 이 줄이 없으면 IIFE 안에서
+       그 이름이 그냥 **없는 변수**가 됩니다. 원본(브라우저 ESM)에서는 잘 돌고
+       배포본에서만 부를 때 터집니다 — 눈으로는 안 보입니다.
+    """
+    out = []
+    for src_path, ns in LOCAL_NS.items():
+        m = re.search(r"import\s*\{([^}]*)\}\s*from\s*'" + re.escape(src_path) + r"';", src)
+        if m:
+            out.append(f'const {{ {m.group(1).strip()} }} = {ns};')
+    return out
+
+
 def module(path, ns):
     """ESM 파일을 IIFE 네임스페이스로 바꿉니다."""
     src = (ROOT / path).read_text(encoding='utf-8')
     # 이름 첫 글자를 [A-Za-z_$] 로 묶으면 한글 이름(맞춰보기 같은)을 놓칩니다.
     # 놓치면 네임스페이스에 안 담겨 배포본에서만 "… is not a function" 이 납니다.
     names = re.findall(r'^export\s+(?:const|function|let|class|async function)\s+((?![0-9])[\w$]+)', src, re.M)
+    binds = local_binds(src)
     src = strip_imports(src)
     src = re.sub(r'^export\s+', '', src, flags=re.M)
+    if binds:
+        src = '\n'.join(binds) + '\n' + src
     return f'const {ns} = (() => {{\n{src}\nreturn {{ {", ".join(sorted(set(names)))} }};\n}})();\n'
 
 
@@ -67,7 +90,6 @@ mods = (module('js/parse.js', 'PARSE') + module('js/progress.js', 'PROGRESS')
 app = (ROOT / 'js' / 'app.js').read_text(encoding='utf-8')
 # app.js 가 parse.js 에서 가져오는 이름들을 그대로 PARSE 에서 꺼내 씁니다.
 # app.js 가 로컬 모듈에서 가져오는 이름을 그 모듈의 네임스페이스에서 꺼내 씁니다.
-LOCAL_NS = {'./parse.js': 'PARSE', './progress.js': 'PROGRESS', './match.js': 'MATCH'}
 lines = []
 for src, ns in LOCAL_NS.items():
     m = re.search(r"import\s*\{([^}]*)\}\s*from\s*'" + re.escape(src) + r"';", app)
