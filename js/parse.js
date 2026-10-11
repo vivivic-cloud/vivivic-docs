@@ -496,7 +496,7 @@ const ITEM_COLS = [
 /* 서류 아래쪽 글귀가 품목 칸으로 겹쳐 들어온 것 — 이름 자리만 비웁니다.
    줄째 버리지 않습니다. 겹친 것뿐이고 그 줄은 진짜 제품일 수 있습니다.
    ⚠ 이 낱말 목록은 받치는 그물입니다. 가르는 일은 아래 제품꼴_ 의 꼴이 합니다. */
-const 글귀_ = /^\s*(beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant|地址|电话|开户|收款|银行)\b|[:：]\s*\S/i;
+export const 글귀_ = /^\s*(beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant|地址|电话|开户|收款|银行)\b|[:：]\s*\S/i;
 
 /**
  * 이 줄이 진짜 제품 줄인가.
@@ -506,7 +506,7 @@ const 글귀_ = /^\s*(beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|n
  * · 코드 칸 자체의 꼴도 봅니다 — 주소·문장은 길고 쌍점이 붙습니다.
  *   낱말이 아니라 꼴로 가릅니다. 거래처가 늘어도 샐 자리가 적습니다.
  */
-function 제품꼴_(code) {
+export function 제품줄인가(code) {
   // 짧습니다. 주소·문장은 깁니다.
   if (code.length > 24) return false;
   // 쌍점이 붙으면 「ADDRESS: …」 같은 이름표입니다.
@@ -576,7 +576,7 @@ export function readItems(rows) {
          실제 발송된 제품일 때 그 열값이 코드인거야」
        코드 칸에 글자가 있다고 코드가 아닙니다. 옆 칸이 제품의 꼴을 갖춰야 코드입니다.
        합계 줄이 없는 양식에서는 서류 아래 주소·은행 글귀가 그대로 품목으로 샜습니다. */
-    if (!제품꼴_(code)) continue;
+    if (!제품줄인가(code)) continue;
 
     const had = out.get(code);
     // 같은 코드가 색깔별로 여러 줄인 양식이 있습니다 — 합쳐서 셉니다.

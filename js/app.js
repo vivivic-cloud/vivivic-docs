@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf } from './parse.js';
+import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_ } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이 } from './match.js';
 import * as FS from './fsaccess.js';
@@ -1402,7 +1402,7 @@ function shipSummary(b, ov) {
  * ⚠ 어느 칸을 수량·가격으로 보았는지 한 줄 적습니다. 짐작으로 박은 이름이 아닙니다.
  */
 function 제품표(auto) {
-  const items = auto?.items ?? [];
+  const items = 제품줄만(auto?.items);
   if (!items.length) return '';
   const 숫 = (v) => (v === null || v === undefined || v === '' ? '<span class="text-faint">—</span>' : fmtNum(v));
   const 수량합 = items.reduce((n, x) => n + (Number(x.qty) || 0), 0);
@@ -2483,7 +2483,7 @@ window.docsCodes = () => {
     const 이름 = b.vendor || '(루트)';
     for (const d of b.docs ?? []) {
       if (d.stageKey !== 'order') continue;
-      for (const it of d.cipl?.items ?? []) {
+      for (const it of 제품줄만(d.cipl?.items)) {
         const code = String(it.code ?? '').trim();
         if (!code) continue;
         if (!거래처.has(이름)) 거래처.set(이름, new Map());
@@ -2504,6 +2504,17 @@ window.docsCodes = () => {
     .sort((a, b2) => b2.codes.length - a.codes.length || a.vendor.localeCompare(b2.vendor));
 };
 
+/* 화면에서 한 번 더 거릅니다.
+   거르는 규칙은 js/parse.js 의 readItems 가 이미 갖고 있지만, **이미 올라가 있는 자료**에는
+   묵은 글귀(주소·은행)가 그대로 남아 있습니다. 서버를 다시 밀어 읽히기 전까지는
+   그것이 화면에 뜹니다. 그래서 그릴 때 같은 자로 한 번 더 겁니다.
+   같은 자(제품줄인가·글귀_)를 씁니다 — 두 벌로 만들지 않습니다. */
+function 제품줄만(items) {
+  return (items ?? [])
+    .filter((x) => 제품줄인가(String(x?.code ?? '').trim()))
+    .map((x) => (글귀_.test(String(x.name ?? '')) ? { ...x, name: '' } : x));
+}
+
 /* ── 단품관리 ─────────────────────────────────────────────
    한 거래처의 차수마다, 그 차수에 온 잔액서류(CI&PL)의 코드와 상품명을 모읍니다.
    ⚠ 코드를 여기서 새로 뽑지 않습니다. 잔액서류에서 읽어 둔 cipl.items 를 그대로 씁니다.
@@ -2518,7 +2529,7 @@ window.docs단품 = (vendor) => {
       const 서류 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
       const 칸 = new Map();                      // 코드 → {code, name}
       for (const d of 서류) {
-        for (const it of d.cipl?.items ?? []) {
+        for (const it of 제품줄만(d.cipl?.items)) {
           const code = String(it.code ?? '').trim();
           if (!code) continue;
           const name = String(it.name ?? '').trim();

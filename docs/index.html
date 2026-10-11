@@ -286,7 +286,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -314,7 +314,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1674,7 +1674,7 @@ const 글귀_ = /^\s*(beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|n
  * · 코드 칸 자체의 꼴도 봅니다 — 주소·문장은 길고 쌍점이 붙습니다.
  *   낱말이 아니라 꼴로 가릅니다. 거래처가 늘어도 샐 자리가 적습니다.
  */
-function 제품꼴_(code) {
+function 제품줄인가(code) {
   // 짧습니다. 주소·문장은 깁니다.
   if (code.length > 24) return false;
   // 쌍점이 붙으면 「ADDRESS: …」 같은 이름표입니다.
@@ -1744,7 +1744,7 @@ function readItems(rows) {
          실제 발송된 제품일 때 그 열값이 코드인거야」
        코드 칸에 글자가 있다고 코드가 아닙니다. 옆 칸이 제품의 꼴을 갖춰야 코드입니다.
        합계 줄이 없는 양식에서는 서류 아래 주소·은행 글귀가 그대로 품목으로 샜습니다. */
-    if (!제품꼴_(code)) continue;
+    if (!제품줄인가(code)) continue;
 
     const had = out.get(code);
     // 같은 코드가 색깔별로 여러 줄인 양식이 있습니다 — 합쳐서 셉니다.
@@ -2242,7 +2242,7 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, CJK_GLOSS, KINDS, STAGES, STAGE_BY_KEY, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, kindOf, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, suggestKeyword, summarize };
+return { ASIDE, CJK_GLOSS, KINDS, STAGES, STAGE_BY_KEY, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, kindOf, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, suggestKeyword, summarize, 글귀_, 제품줄인가 };
 })();
 const PROGRESS = (() => {
 /**
@@ -2860,7 +2860,7 @@ const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
 
 return { APP_ID, CONFIG, FILES, OVERLAY, RULES, WT, authMessage, deleteRule, fileKey, idToken, init, overlayKey, replaceFiles, saveBox, saveCipl, saveKinds, saveLoading, saveOverlay, saveRule, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOrders, watchOverlay, watchRules };
 })();
-const { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf } = PARSE;
+const { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_ } = PARSE;
 const { progressWord } = PROGRESS;
 const { itemRows, 맞춰보기, 맞춤판정, 제품차이 } = MATCH;
 
@@ -4266,7 +4266,7 @@ function shipSummary(b, ov) {
  * ⚠ 어느 칸을 수량·가격으로 보았는지 한 줄 적습니다. 짐작으로 박은 이름이 아닙니다.
  */
 function 제품표(auto) {
-  const items = auto?.items ?? [];
+  const items = 제품줄만(auto?.items);
   if (!items.length) return '';
   const 숫 = (v) => (v === null || v === undefined || v === '' ? '<span class="text-faint">—</span>' : fmtNum(v));
   const 수량합 = items.reduce((n, x) => n + (Number(x.qty) || 0), 0);
@@ -5347,7 +5347,7 @@ window.docsCodes = () => {
     const 이름 = b.vendor || '(루트)';
     for (const d of b.docs ?? []) {
       if (d.stageKey !== 'order') continue;
-      for (const it of d.cipl?.items ?? []) {
+      for (const it of 제품줄만(d.cipl?.items)) {
         const code = String(it.code ?? '').trim();
         if (!code) continue;
         if (!거래처.has(이름)) 거래처.set(이름, new Map());
@@ -5368,6 +5368,17 @@ window.docsCodes = () => {
     .sort((a, b2) => b2.codes.length - a.codes.length || a.vendor.localeCompare(b2.vendor));
 };
 
+/* 화면에서 한 번 더 거릅니다.
+   거르는 규칙은 js/parse.js 의 readItems 가 이미 갖고 있지만, **이미 올라가 있는 자료**에는
+   묵은 글귀(주소·은행)가 그대로 남아 있습니다. 서버를 다시 밀어 읽히기 전까지는
+   그것이 화면에 뜹니다. 그래서 그릴 때 같은 자로 한 번 더 겁니다.
+   같은 자(제품줄인가·글귀_)를 씁니다 — 두 벌로 만들지 않습니다. */
+function 제품줄만(items) {
+  return (items ?? [])
+    .filter((x) => 제품줄인가(String(x?.code ?? '').trim()))
+    .map((x) => (글귀_.test(String(x.name ?? '')) ? { ...x, name: '' } : x));
+}
+
 /* ── 단품관리 ─────────────────────────────────────────────
    한 거래처의 차수마다, 그 차수에 온 잔액서류(CI&PL)의 코드와 상품명을 모읍니다.
    ⚠ 코드를 여기서 새로 뽑지 않습니다. 잔액서류에서 읽어 둔 cipl.items 를 그대로 씁니다.
@@ -5382,7 +5393,7 @@ window.docs단품 = (vendor) => {
       const 서류 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
       const 칸 = new Map();                      // 코드 → {code, name}
       for (const d of 서류) {
-        for (const it of d.cipl?.items ?? []) {
+        for (const it of 제품줄만(d.cipl?.items)) {
           const code = String(it.code ?? '').trim();
           if (!code) continue;
           const name = String(it.name ?? '').trim();
