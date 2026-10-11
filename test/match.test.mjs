@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전 } from '../js/match.js';
+import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
 const 품 = (...쌍) => 쌍.map(([code, qty]) => ({ code, name: code, qty }));
 
@@ -147,4 +148,27 @@ test('벤더피아사전 — 「+」 로 쪼개고, 수가 맞는 줄로 먼저 
 test('벤더피아사전 — 빈손이어도 터지지 않는다', () => {
   assert.equal(벤더피아사전(null).단품수, 0);
   assert.equal(벤더피아사전([{ 단품코드: '', 단품명: '' }]).단품수, 0);
+});
+
+
+test('벤더피아줄벗기기 — 엑셀 한 줄은 `fields` 밑에 있다', () => {
+  // 10-11 관리자가 진짜 문서 꼴로 재서 잡았다. 벗기지 않으면 사전이 통째로 빈다 —
+  // 화면은 「읽혔다」 고 하면서 「맞음 0 / 전체 N」 이 뜬다. 읽기가 된 것처럼 보여 더 나쁘다.
+  const 진짜꼴 = {
+    fields: { 단품코드: 'bkS_2 +myT_3C', 단품명: '이단 책장 + 마이토이 교구장' },
+    source: '벤더피아 상품목록', fileName: 'x.xlsx', updatedAt: 0,
+  };
+  const 줄 = 벤더피아줄벗기기(진짜꼴);
+  assert.equal(줄.단품코드, 'bkS_2 +myT_3C');
+  assert.equal(줄.source, undefined, '겉껍질은 안 넘어와야 한다');
+
+  // 사전이 실제로 채워진다
+  const { 사전, 단품수 } = 벤더피아사전([진짜꼴].map(벤더피아줄벗기기));
+  assert.equal(단품수, 2);
+  assert.equal(사전.get('bkS_2'), '이단 책장');
+  assert.equal(사전.get('myT_3C'), '마이토이 교구장');
+
+  // fields 가 없는 문서가 섞여도 터지지 않는다
+  assert.deepEqual(벤더피아줄벗기기({ 단품코드: 'newX' }), { 단품코드: 'newX' });
+  assert.equal(벤더피아줄벗기기(null), null);
 });

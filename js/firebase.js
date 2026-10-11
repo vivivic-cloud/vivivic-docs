@@ -293,11 +293,24 @@ export const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
    ⚠ 열 때 한 번만 부릅니다. 코드마다 부르면 문서마다 돈이 듭니다. */
 export const VP_상품 = 'vp_상품목록';
 
+/** 벤더피아 문서 한 벌에서 **엑셀 한 줄**만 꺼냅니다. `fields` 가 없으면 그대로 돌려줍니다. */
+export function 벤더피아줄벗기기(v) {
+  return (v && typeof v.fields === 'object' && v.fields) ? v.fields : v;
+}
+
 export async function 벤더피아상품() {
   try {
     const snap = await ctx.f.getDocs(col(VP_상품));
     const rows = [];
-    snap.forEach((d) => rows.push(d.data()));
+    /* ⚠⚠ **엑셀 한 줄은 `fields` 밑에 들어 있다. 벗겨서 내보내라.**
+          벤더피아상품정리가 담는 꼴이다(그 쪽 index.html 371줄) —
+            { fields: { 매출처명, 상품코드, 단품코드, 단품명, … },
+              source: '벤더피아 상품목록', fileName, updatedAt }
+          벗기지 않으면 `r.단품코드` 가 undefined 라 **사전이 통째로 빈다.**
+          화면은 「읽혔다」 고 하면서 「맞음 0 / 전체 N」 이 뜬다 — 읽기가 된 것처럼
+          보여서 더 나쁘다. 10-11 관리자가 진짜 문서 꼴로 재서 잡았다(단품 0가지).
+          ⚠ `fields` 가 없는 문서가 섞여 있어도 터지지 않게 그 줄은 그대로 쓴다. */
+    snap.forEach((d) => rows.push(벤더피아줄벗기기(d.data())));
     return { ok: true, rows };
   } catch (e) {
     return { ok: false, why: e?.code || e?.message || '못 읽음' };
