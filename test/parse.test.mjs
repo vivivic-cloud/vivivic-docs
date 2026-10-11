@@ -509,3 +509,24 @@ test('readItems — 단가·금액 칸을 읽는다. 없으면 빈칸이다', ()
   assert.equal(다름[0].price, null);
   assert.equal(다름[0].amount, 255);
 });
+
+test('readItems — 가격 칸이 **비어 있으면** 0 이 아니라 빈칸이다', () => {
+  // Number('') 은 0 이다. 이것을 안 거르면 빈 단가가 「공짜」 로 찍힌다.
+  // 10-11 관리자가 진짜 CI&PL 꼴로 쟀다 — 마지막 품목의 단가·금액이 비어 있었다.
+  const 빈칸 = readItems([
+    ['Code#', 'Item Name', 'Quantity', 'Unit Price', 'Amount'],
+    ['myT_3C', '토리 마이토이 3단 교구장', 100, 12.5, 1250],
+    ['wdB_5', '', 40, '', ''],
+  ]);
+  assert.equal(빈칸[1].qty, 40);
+  assert.equal(빈칸[1].price, null, '빈 단가는 null 이어야 한다');
+  assert.equal(빈칸[1].amount, null, '빈 금액은 null 이어야 한다');
+
+  // 빈칸과 진짜 0 은 다르다 — 공짜로 준 것은 0 으로 남는다
+  const 공짜 = readItems([
+    ['Code#', 'Item Name', 'Quantity', 'Unit Price', 'Amount'],
+    ['free1', '샘플', 2, 0, 0],
+  ]);
+  assert.equal(공짜[0].price, 0);
+  assert.equal(공짜[0].amount, 0);
+});

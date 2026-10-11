@@ -527,7 +527,14 @@ export function readItems(rows) {
     // 못 읽은 칸은 null 입니다. 0 으로 채우면 '공짜' 로 읽힙니다.
     const 숫자칸 = (c) => {
       if (c === undefined) return null;
-      const n = Number(String(row[c] ?? '').replace(/[,\s$]/g, ''));
+      /* ⚠⚠ **빈 칸을 먼저 걸러 낸다. 이 줄을 지우지 마라.**
+            Number('') 은 NaN 이 아니라 **0** 이다. 이것을 안 거르면 빈 단가·금액이
+            0 으로 들어가 화면에 「0」 이 찍힌다 — 공짜로 읽힌다. 바로 윗줄에 적어 둔
+            약속이 깨진다. 10-11 관리자가 쟀다: 빈 칸 하나가 「단가 0 · 금액 0」 이 됐다.
+            null 이어야 화면이 「—」 로 두고 「빈칸 n」 으로 센다(js/app.js 제품표). */
+      const 글 = String(row[c] ?? '').replace(/[,\s$]/g, '');
+      if (!글) return null;
+      const n = Number(글);
       return Number.isFinite(n) ? n : null;
     };
     const price = 숫자칸(cols.price);

@@ -286,7 +286,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.56.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.56.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -314,7 +314,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.56.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.56.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1695,7 +1695,14 @@ function readItems(rows) {
     // 못 읽은 칸은 null 입니다. 0 으로 채우면 '공짜' 로 읽힙니다.
     const 숫자칸 = (c) => {
       if (c === undefined) return null;
-      const n = Number(String(row[c] ?? '').replace(/[,\s$]/g, ''));
+      /* ⚠⚠ **빈 칸을 먼저 걸러 낸다. 이 줄을 지우지 마라.**
+            Number('') 은 NaN 이 아니라 **0** 이다. 이것을 안 거르면 빈 단가·금액이
+            0 으로 들어가 화면에 「0」 이 찍힌다 — 공짜로 읽힌다. 바로 윗줄에 적어 둔
+            약속이 깨진다. 10-11 관리자가 쟀다: 빈 칸 하나가 「단가 0 · 금액 0」 이 됐다.
+            null 이어야 화면이 「—」 로 두고 「빈칸 n」 으로 센다(js/app.js 제품표). */
+      const 글 = String(row[c] ?? '').replace(/[,\s$]/g, '');
+      if (!글) return null;
+      const n = Number(글);
       return Number.isFinite(n) ? n : null;
     };
     const price = 숫자칸(cols.price);
