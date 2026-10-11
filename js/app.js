@@ -2542,6 +2542,8 @@ window.docs단품 = (vendor) => {
         const 자리 = 것.차수들.findIndex((x) => x.batch === 차수);
         const 줄 = {
           batch: 차수,
+          model: String(it.name ?? '').trim() || null,
+          color: (it.colors ?? []).join(' · ') || null,
           qty: it.qty ?? null,
           fob: it.price ?? null,
           size: it.size ?? null,

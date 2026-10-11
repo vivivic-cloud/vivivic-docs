@@ -633,3 +633,16 @@ test('readItems — 같은 코드가 여러 줄이면 포장 꼴이 다를 때 �
   assert.equal(got[0].perCtn, 2, '같으면 그대로 둡니다');
   assert.equal(Math.round(got[0].cbm * 100) / 100, 0.17, '부피는 더합니다');
 });
+
+test('readItems — Color 를 읽고, 같은 코드가 색깔별이면 색을 모은다', () => {
+  const got = readItems([
+    ['Code#', 'Product model', 'Color', 'Qty pcs', 'FOB', 'Packing size(mm)', 'pcs/ctn', 'carton Volume (CBM)'],
+    ['myT_3C', '토리 마이토이 3단 교구장', '화이트', 50, 12.5, '800*400*250', 2, 0.08],
+    ['myT_3C', '토리 마이토이 3단 교구장', '오크', 50, 12.5, '800*400*250', 2, 0.08],
+    ['bkS_2', '책장 2단', '', 60, 9.8, '900*350*220', 4, 0.07],
+  ]);
+  assert.deepEqual(got[0].colors, ['화이트', '오크'], '색은 합치지 않고 모읍니다');
+  assert.equal(got[0].qty, 100, '수량은 더합니다');
+  assert.deepEqual(got[1].colors, [], '색 칸이 비면 빈 목록입니다');
+  assert.equal(got[0].name, '토리 마이토이 3단 교구장');
+});

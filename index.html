@@ -302,7 +302,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.59.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.60.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -330,7 +330,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.59.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.60.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -443,7 +443,7 @@
     </div>
     <!-- 무엇을 코드열·상품명으로 보았는지 한 줄. 짐작으로 박은 칸 이름이 아닙니다. -->
     <p class="dhh-foot" id="dit-what">코드 = 잔액서류의 Code#·품번·코드 칸 · 상품명 = Item Name·품명 칸<br />
-      Qty pcs · FOB · Packing size(mm) · pcs/ctn · carton Volume (CBM) 칸 그대로 · 같은 코드가 여러 줄이면 수량·부피는 더하고 다르면 빈칸</p>
+      Product model · Color · Qty pcs · FOB · Packing size(mm) · pcs/ctn · carton Volume (CBM) 칸 그대로 · 같은 코드가 여러 줄이면 수량·부피는 더하고 다르면 빈칸</p>
     <p class="dhh-foot" id="dit-vp"></p>
     <div id="dit-list"></div>
     <p class="dhh-foot"></p>
@@ -803,6 +803,7 @@
           <div class="dit-bat">
             <span class="dit-bt">${dhhEsc(x.batch)}</span>
             <div class="dit-vals">
+              ${값('Product model', x.model)}${값('Color', x.color)}
               ${값('Qty pcs', x.qty)}${값('FOB', x.fob)}${값('Packing size(mm)', x.size)}
               ${값('pcs/ctn', x.perCtn)}${값('carton Volume (CBM)', x.cbm)}
             </div>

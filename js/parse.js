@@ -491,6 +491,8 @@ const ITEM_COLS = [
      ⚠ cell() 이 빈칸·마침표·괄호를 털고 소문자로 바꿔 놓고 견줍니다 —
        「Packing size(mm)」 는 packingsizemm, 「carton Volume (CBM)」 는 cartonvolumecbm 이 됩니다.
      ⚠ 거래처마다 머리글이 다릅니다. 여기 적은 것은 지금까지 본 꼴이고, 새 꼴이 오면 더합니다. */
+  // 색 — 같은 코드가 색깔별로 여러 줄인 양식이 있습니다. 그 색을 읽습니다.
+  ['color', [/^color$/, /^colour$/, /^색상$/, /^색$/, /^颜色$/, /^颜色色号$/]],
   ['size', [/^packingsize/, /^포장규격$/, /^외箱尺寸$/, /^外箱尺寸$/, /^카톤규격$/]],
   ['perCtn', [/^pcs\/ctn$/, /^pcsctn$/, /^pcsperctn$/, /^입수$/, /^装箱数$/, /^qty\/ctn$/]],
   ['cbm', [/^cartonvolume/, /^cbm$/, /^volumecbm$/, /^부피$/, /^立方数$/]],
@@ -593,6 +595,9 @@ export function readItems(rows) {
     const amount = 숫자칸(cols.amount);
     // ⚠ Packing size(mm) 는 숫자가 아닙니다 —「800*400*250」 처럼 생겼습니다.
     //   숫자칸으로 읽으면 통째로 빈칸이 됩니다. 글자 그대로 담습니다.
+    // 색은 숫자가 아닙니다. 글자 그대로 담습니다.
+    const color = cols.color === undefined ? null
+      : (String(row[cols.color] ?? '').trim().slice(0, 24) || null);
     const size = cols.size === undefined ? null
       : (String(row[cols.size] ?? '').trim().slice(0, 40) || null);
     const perCtn = 숫자칸(cols.perCtn);
@@ -613,10 +618,13 @@ export function readItems(rows) {
       if (amount !== null) had.amount = (had.amount ?? 0) + amount;
       if (had.price !== price) had.price = null;
       // 포장 꼴도 단가와 같은 잣대입니다 — 줄마다 다르면 빈칸으로 둡니다.
+      // 색은 합치지 않고 모읍니다 — 같은 코드가 색깔별로 여러 줄이면 색이 여럿입니다.
+      if (color && !had.colors.includes(color)) had.colors.push(color);
       if (had.size !== size) had.size = null;
       if (had.perCtn !== perCtn) had.perCtn = null;
       if (cbm !== null) had.cbm = (had.cbm ?? 0) + cbm;
-    } else out.set(code, { code, name, qty, price, amount, size, perCtn, cbm });
+    } else out.set(code, { code, name, qty, price, amount,
+                          colors: color ? [color] : [], size, perCtn, cbm });
   }
   return out.size ? [...out.values()] : null;
 }

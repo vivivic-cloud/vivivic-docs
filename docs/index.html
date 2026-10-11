@@ -304,7 +304,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.59.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.60.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -332,7 +332,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.59.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.60.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -445,7 +445,7 @@
     </div>
     <!-- 무엇을 코드열·상품명으로 보았는지 한 줄. 짐작으로 박은 칸 이름이 아닙니다. -->
     <p class="dhh-foot" id="dit-what">코드 = 잔액서류의 Code#·품번·코드 칸 · 상품명 = Item Name·품명 칸<br />
-      Qty pcs · FOB · Packing size(mm) · pcs/ctn · carton Volume (CBM) 칸 그대로 · 같은 코드가 여러 줄이면 수량·부피는 더하고 다르면 빈칸</p>
+      Product model · Color · Qty pcs · FOB · Packing size(mm) · pcs/ctn · carton Volume (CBM) 칸 그대로 · 같은 코드가 여러 줄이면 수량·부피는 더하고 다르면 빈칸</p>
     <p class="dhh-foot" id="dit-vp"></p>
     <div id="dit-list"></div>
     <p class="dhh-foot"></p>
@@ -805,6 +805,7 @@
           <div class="dit-bat">
             <span class="dit-bt">${dhhEsc(x.batch)}</span>
             <div class="dit-vals">
+              ${값('Product model', x.model)}${값('Color', x.color)}
               ${값('Qty pcs', x.qty)}${값('FOB', x.fob)}${값('Packing size(mm)', x.size)}
               ${값('pcs/ctn', x.perCtn)}${값('carton Volume (CBM)', x.cbm)}
             </div>
@@ -1705,6 +1706,8 @@ const ITEM_COLS = [
      ⚠ cell() 이 빈칸·마침표·괄호를 털고 소문자로 바꿔 놓고 견줍니다 —
        「Packing size(mm)」 는 packingsizemm, 「carton Volume (CBM)」 는 cartonvolumecbm 이 됩니다.
      ⚠ 거래처마다 머리글이 다릅니다. 여기 적은 것은 지금까지 본 꼴이고, 새 꼴이 오면 더합니다. */
+  // 색 — 같은 코드가 색깔별로 여러 줄인 양식이 있습니다. 그 색을 읽습니다.
+  ['color', [/^color$/, /^colour$/, /^색상$/, /^색$/, /^颜色$/, /^颜色色号$/]],
   ['size', [/^packingsize/, /^포장규격$/, /^외箱尺寸$/, /^外箱尺寸$/, /^카톤규격$/]],
   ['perCtn', [/^pcs\/ctn$/, /^pcsctn$/, /^pcsperctn$/, /^입수$/, /^装箱数$/, /^qty\/ctn$/]],
   ['cbm', [/^cartonvolume/, /^cbm$/, /^volumecbm$/, /^부피$/, /^立方数$/]],
@@ -1807,6 +1810,9 @@ function readItems(rows) {
     const amount = 숫자칸(cols.amount);
     // ⚠ Packing size(mm) 는 숫자가 아닙니다 —「800*400*250」 처럼 생겼습니다.
     //   숫자칸으로 읽으면 통째로 빈칸이 됩니다. 글자 그대로 담습니다.
+    // 색은 숫자가 아닙니다. 글자 그대로 담습니다.
+    const color = cols.color === undefined ? null
+      : (String(row[cols.color] ?? '').trim().slice(0, 24) || null);
     const size = cols.size === undefined ? null
       : (String(row[cols.size] ?? '').trim().slice(0, 40) || null);
     const perCtn = 숫자칸(cols.perCtn);
@@ -1827,10 +1833,13 @@ function readItems(rows) {
       if (amount !== null) had.amount = (had.amount ?? 0) + amount;
       if (had.price !== price) had.price = null;
       // 포장 꼴도 단가와 같은 잣대입니다 — 줄마다 다르면 빈칸으로 둡니다.
+      // 색은 합치지 않고 모읍니다 — 같은 코드가 색깔별로 여러 줄이면 색이 여럿입니다.
+      if (color && !had.colors.includes(color)) had.colors.push(color);
       if (had.size !== size) had.size = null;
       if (had.perCtn !== perCtn) had.perCtn = null;
       if (cbm !== null) had.cbm = (had.cbm ?? 0) + cbm;
-    } else out.set(code, { code, name, qty, price, amount, size, perCtn, cbm });
+    } else out.set(code, { code, name, qty, price, amount,
+                          colors: color ? [color] : [], size, perCtn, cbm });
   }
   return out.size ? [...out.values()] : null;
 }
@@ -5545,6 +5554,8 @@ window.docs단품 = (vendor) => {
         const 자리 = 것.차수들.findIndex((x) => x.batch === 차수);
         const 줄 = {
           batch: 차수,
+          model: String(it.name ?? '').trim() || null,
+          color: (it.colors ?? []).join(' · ') || null,
           qty: it.qty ?? null,
           fob: it.price ?? null,
           size: it.size ?? null,
