@@ -41,7 +41,7 @@
      색 토큰·타일·알약을 그대로 가져왔고 새로 만든 색은 없습니다.
      이름은 전부 dhh- 로 시작합니다 — 짧은 이름은 텔윈드와 겹칩니다.
      이 블록과 #docs-home / #docs-back 두 덩어리만 빼면 그대로 되돌아갑니다. */
-  #docs-home, #docs-vendor, #docs-files, #docs-orders, #docs-kinds{
+  #docs-home, #docs-vendor, #docs-files, #docs-orders, #docs-kinds, #docs-codes{
     --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19;
     --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-fill:#F4F4F2; --vg-red:#FF3B30;
     position:fixed; left:0; right:0; bottom:0; z-index:8000;
@@ -55,6 +55,20 @@
   html[data-docsfiles="1"]  #docs-files{ display:block; }
   html[data-docsorders="1"] #docs-orders{ display:block; }
   html[data-docskinds="1"]  #docs-kinds{ display:block; }
+  html[data-docscodes="1"]  #docs-codes{ display:block; }
+
+  /* 코드관리 — 거래처 한 덩이, 그 아래 코드 줄 */
+  #docs-codes .dcd-v{ margin:0 0 18px; }
+  #docs-codes .dcd-vh{ display:flex; align-items:baseline; gap:8px; margin:0 0 7px; }
+  #docs-codes .dcd-vn{ font-size:17px; font-weight:700; color:var(--vg-ink); }
+  #docs-codes .dcd-vc{ font-size:12px; color:var(--vg-muted); }
+  #docs-codes .dcd-row{ display:flex; align-items:baseline; gap:8px; min-height:44px;
+    padding:0 2px; border-bottom:1px solid var(--vg-edge); }
+  #docs-codes .dcd-c{ font-size:14px; font-weight:700; font-variant-numeric:tabular-nums;
+    white-space:nowrap; }
+  #docs-codes .dcd-n{ font-size:12px; color:var(--vg-muted); flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #docs-codes .dcd-b{ font-size:11px; color:var(--vg-muted); white-space:nowrap; }
 
   /* ═══ 작업지시서 — 한 자리에서 띄웁니다 ════════════════════════
      코드를 녹이지 않고 저쪽을 그대로 틀(iframe)에 담습니다.
@@ -203,7 +217,8 @@
   html[data-docsvendor="1"] #docs-back,
   html[data-docsorders="1"] #docs-back,
   html[data-docskinds="1"] #docs-back,
-  html[data-docsfiles="1"] #docs-back{ display:block; }
+  html[data-docsfiles="1"] #docs-back,
+  html[data-docscodes="1"] #docs-back{ display:block; }
   #docs-back button{ pointer-events:auto; background:#fff; border:1px solid #E2E2DF;
     border-radius:999px; padding:10px 18px; font-size:13px; font-weight:700; color:#111110;
     box-shadow:0 8px 22px -14px rgba(0,0,0,.5); cursor:pointer; }
@@ -254,7 +269,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.52.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.53.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -282,7 +297,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.52.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.53.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -317,7 +332,7 @@
     <div class="dhh-tiles" id="dhh-tiles"></div>
 
 
-    <div class="dhh-sec"><b>나머지</b><span id="dhh-rest">5</span></div>
+    <div class="dhh-sec"><b>나머지</b><span id="dhh-rest">6</span></div>
     <div class="dhh-list">
 
       <button type="button" class="dhh-row" onclick="docsOpenAll()">
@@ -338,6 +353,11 @@
       <button type="button" class="dhh-row" onclick="docsOpenOrders()">
         <span class="dhh-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
         <span class="dhh-t">지시 내용<i id="dhh-c-orders">—</i></span>
+      </button>
+
+      <button type="button" class="dhh-row" onclick="docsOpenCodes()">
+        <span class="dhh-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg></span>
+        <span class="dhh-t">코드관리<i id="dhh-c-codes">—</i></span>
       </button>
 
       <button type="button" class="dhh-row" onclick="docsOpenPanel('rules')">
@@ -377,6 +397,20 @@
       <span class="dhh-sub" id="dkd-sub">&nbsp;</span>
     </div>
     <div class="dhh-tiles" id="dkd-tiles"></div>
+    <p class="dhh-foot"></p>
+  </div>
+</div>
+
+<!-- 코드관리 — 발주서 PDF 에서 읽어 둔 코드를 거래처별로 -->
+<div id="docs-codes" class="dhh-board">
+  <div class="dhh-wrap">
+    <div class="dhh-head">
+      <span class="dhh-day">코드관리</span>
+      <span class="dhh-sub" id="dcd-sub">&nbsp;</span>
+    </div>
+    <!-- 무엇을 코드열로 보았는지 한 줄. 짐작으로 박은 칸 이름이 아닙니다. -->
+    <p class="dhh-foot" id="dcd-what">코드 = 발주서 PDF 의 단가·수량·금액 앞 칸</p>
+    <div id="dcd-list"></div>
     <p class="dhh-foot"></p>
   </div>
 </div>
@@ -609,7 +643,7 @@
     const has = c ? c.has : true;          // 아직 못 읽었으면 첫 화면을 그대로 둡니다
     const on = (name, yes) => yes ? root.setAttribute(name, '1') : root.removeAttribute(name);
     if (!has) {                            // 올라간 목록이 없으면 원래 안내를 보여 줍니다
-      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docsorders','data-docskinds']
+      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docsorders','data-docskinds','data-docscodes']
         .forEach((n) => root.removeAttribute(n));
       return;
     }
@@ -618,6 +652,7 @@
     on('data-docsfiles',  docsLevel === 'files');
     on('data-docsorders', docsLevel === 'orders');
     on('data-docskinds',  docsLevel === 'kinds');
+    on('data-docscodes',  docsLevel === 'codes');
     on('data-docsv',      !!docsVendor);
     if (docsLevel !== 'box') root.removeAttribute('data-docsbox');
     const back = document.getElementById('dhh-back');
@@ -642,6 +677,44 @@
     docsOrdersRefresh();
     docsFitTop();
     window.scrollTo(0, 0);
+  }
+
+  /* 코드관리 — 발주서에서 읽어 둔 코드를 거래처별로 세웁니다.
+     코드를 여기서 새로 뽑지 않습니다. 읽어 둔 것을 모아 보일 뿐입니다. */
+  function docsOpenCodes() {
+    docsLevel = 'codes';
+    docsVendor = null;
+    docsCodesRefresh();
+    docsPaint();
+    docsFitTop();
+    window.scrollTo(0, 0);
+  }
+  window.docsOpenCodes = docsOpenCodes;
+
+  function docsCodesRefresh() {
+    const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    const box = document.getElementById('dcd-list');
+    if (!box) return;
+    const 거래처들 = window.docsCodes?.() ?? [];
+    const 코드수 = 거래처들.reduce((n, v) => n + v.codes.length, 0);
+    put('dcd-sub', 거래처들.length ? `거래처 ${거래처들.length}곳 · 코드 ${코드수}개` : '');
+    if (!거래처들.length) {
+      box.innerHTML = '<div class="dhh-foot">읽어 둔 코드 없음</div>';
+      return;
+    }
+    box.innerHTML = 거래처들.map((v) => `
+      <section class="dcd-v">
+        <div class="dcd-vh">
+          <span class="dcd-vn">${dhhEsc(v.vendor)}</span>
+          <span class="dcd-vc">${v.codes.length}개</span>
+        </div>
+        ${v.codes.map((c) => `
+          <div class="dcd-row">
+            <span class="dcd-c">${dhhEsc(c.code)}</span>
+            <span class="dcd-n">${dhhEsc(c.name)}</span>
+            <span class="dcd-b">${dhhEsc(c.차수.join(' '))}</span>
+          </div>`).join('')}
+      </section>`).join('');
   }
 
   function docsOrdersRefresh() {
@@ -943,6 +1016,7 @@
     put('dhh-ctime', 갈음
       ? `고친 날로 갈음 ${갈음}건`
       : '');
+    put('dhh-c-codes',    (window.docsCodes?.() ?? []).reduce((n, v) => n + v.codes.length, 0) + '개');
     put('dhh-c-rules',    c.rules + '개');
     put('dhh-c-excluded', c.excluded + '건');
     put('dhh-sub', '거래처 ' + c.vendors + '곳 · 차수 ' + c.batches + '개');

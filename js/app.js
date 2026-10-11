@@ -2389,6 +2389,39 @@ window.docsOpenFile = (path) => {
   if (d) openDoc(d);
 };
 
+/* ── 코드관리 ─────────────────────────────────────────────
+   발주서 PDF 에서 읽어 둔 코드를 거래처별로 모읍니다.
+   ⚠ 코드는 여기서 새로 뽑지 않습니다. sync.gs 가 발주서 PDF 를 읽어 cipl.items 에
+     담아 둔 것을 그대로 씁니다. 코드열을 무엇으로 보았는지는 js/parse.js 의
+     readPdfItems 가 정합니다 — 단가·수량·금액 세 칸 바로 앞에 선 칸입니다.
+   ⚠ 읽기만 합니다. 드라이브도 Firestore 도 안 건드립니다. */
+window.docsCodes = () => {
+  const 거래처 = new Map();                     // 거래처 → Map(코드 → {code, name, 차수들})
+  for (const b of state.batches) {
+    const 이름 = b.vendor || '(루트)';
+    for (const d of b.docs ?? []) {
+      if (d.stageKey !== 'order') continue;
+      for (const it of d.cipl?.items ?? []) {
+        const code = String(it.code ?? '').trim();
+        if (!code) continue;
+        if (!거래처.has(이름)) 거래처.set(이름, new Map());
+        const 칸 = 거래처.get(이름);
+        const 있던것 = 칸.get(code);
+        if (있던것) { if (b.batch) 있던것.차수들.add(b.batch); if (!있던것.name && it.name) 있던것.name = it.name; }
+        else 칸.set(code, { code, name: it.name ?? '', 차수들: new Set(b.batch ? [b.batch] : []) });
+      }
+    }
+  }
+  return [...거래처.entries()]
+    .map(([vendor, 칸]) => ({
+      vendor,
+      codes: [...칸.values()]
+        .map((x) => ({ code: x.code, name: x.name, 차수: [...x.차수들].sort() }))
+        .sort((a, b2) => a.code.localeCompare(b2.code)),
+    }))
+    .sort((a, b2) => b2.codes.length - a.codes.length || a.vendor.localeCompare(b2.vendor));
+};
+
 window.docsCounts = () => ({
   batches: state.batches.length,
   vendors: new Set(state.batches.map((b) => b.vendor)).size,
