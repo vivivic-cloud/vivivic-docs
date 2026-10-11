@@ -1011,6 +1011,21 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
     if (stale()) return;
   }
 
+  /* 폰에는 '이 기기 폴더' 가 없습니다. 그러면 아래 드라이브 미리보기로 가는데,
+     엑셀은 거기서 자주 빈칸이 됩니다 — 구글 시트 뷰어가 쿠키·로그인을 타기 때문입니다.
+     PDF 는 그대로 그려져서 되고, 엑셀만 안 되는 것이 이 까닭입니다.
+     그래서 엑셀일 때만 바이트를 받아 와, 아래 'sheet' 자리에서 표로 그립니다.
+     ⚠ 받는 길이 닫혀 있으면 아무 일도 안 하고 옛 길(드라이브 미리보기)로 갑니다. */
+  let 받아온것 = false;
+  if (!file && doc.driveId && typeof XLSX !== 'undefined' &&
+      INLINE_KIND[(doc.name.split('.').pop() ?? '').toLowerCase()] === 'sheet') {
+    if (note) note.textContent = '받는 중…';
+    const 받은것 = await 웹앱에서받기(doc);
+    if (stale()) return;
+    if (받은것 instanceof File) { file = 받은것; 받아온것 = true; }
+    else if (note) note.textContent = '';
+  }
+
   if (file) {
     const kind = INLINE_KIND[(doc.name.split('.').pop() ?? '').toLowerCase()];
     const url = URL.createObjectURL(file);
@@ -1095,13 +1110,14 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
              class="btn btn-ghost inline-block">원본 열기</a>
         </div>`;
     }
+    const 어디서 = 받아온것 ? '드라이브' : '이 기기 폴더';
     if (note)
       note.textContent =
         kind === 'tool'
-          ? `이 기기 폴더 · ${fmtSize(file.size)} · 보기 전용`
+          ? `${어디서} · ${fmtSize(file.size)} · 보기 전용`
           : kind === 'sheet'
-            ? `이 기기 폴더 · ${fmtSize(file.size)} · 엑셀 표`
-            : `이 기기 폴더 · ${fmtSize(file.size)}`;
+            ? `${어디서} · ${fmtSize(file.size)} · 엑셀 표`
+            : `${어디서} · ${fmtSize(file.size)}`;
     return;
   }
   if (readError && note) note.textContent = `폴더에 없음: ${readError.message}`;
