@@ -501,7 +501,12 @@ const ITEM_COLS = [
       10-11 관리자가 쟀다 — 「3단 교구장 (상판:오크)」 · 「책장 2단 : 화이트」 가 다 빈칸이 됐다.
       이름표는 **맨 앞에 글자 몇 자 쓰고 쌍점**이 온다(Beneficiary: · ADDRESS: · 地址：).
       제품 이름은 앞머리에 **숫자나 여는 괄호**가 섞인다. 그것으로 가른다. */
-const 글귀_ = /^\s*(beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant|地址|电话|开户|收款|银行)\b|^[A-Za-z一-鿿][A-Za-z一-鿿 .\/#]{0,22}[:：]\s*\S/i;
+/* ⚠⚠ **한자 낱말은 `\b` 가지 **밖**에 둔다. 한 묶음으로 되돌리지 마라.**
+      자바스크립트의 `\b` 는 **ASCII 글자만** 본다. 「地址」 뒤에는 `\b` 가 **아예 안 선다**.
+      그래서 한자 낱말을 `\b` 가지에 넣어 두면 **하나도 안 걸린다.**
+      v0.57.0 에서는 「글자만 있는 낱말은 코드가 아니다」 가 우연히 받쳐 줘서 안 드러났고,
+      10-11 에 그 규칙을 길이로 한정하자 **地址·开户行 이 그대로 샜다**(관리자가 쟀다). */
+const 글귀_ = /^\s*(?:(?:beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant)\b|(?:地址|电话|开户|收款|银行))|^[A-Za-z一-鿿][A-Za-z一-鿿 .\/#]{0,22}[:：]\s*\S/i;
 
 /**
  * 이 줄이 진짜 제품 줄인가 — **코드 칸의 꼴만 봅니다. 옆 칸은 안 봅니다.**
@@ -518,9 +523,12 @@ function 제품꼴_(code) {
   if (/[:：]/.test(code)) return false;
   // 띄어쓰기가 둘 이상이면 문장입니다.
   if ((code.match(/ /g) ?? []).length > 1) return false;
-  // 코드는 이름표가 아니라 번호표입니다 — 숫자나 가름표(_ - . /)가 섞입니다.
-  // 「Beneficiary」 처럼 글자만 있는 낱말은 코드가 아닙니다.
-  if (!/[0-9]/.test(code) && !/[_\-./]/.test(code)) return false;
+  /* ⚠⚠ **글자만 있는 코드는 「길 때만」 버린다. 길이 재는 것을 지우지 마라.**
+        10-11 관리자가 쟀다 — 길이를 안 보고 버렸더니 **진짜 제품 `newX 신규 깔판 2종`**
+        이 단품관리에서 사라졌다(코드 5개 → 4개). 숫자도 가름표도 없는 짧은 코드가 실제로 있다.
+        글귀는 길다(Beneficiary 11 · Consignee 9). 코드는 짧다(newX 4 · CHAIR 5 · 床订单 3).
+        짧은 글귀(TEL · Bank · 地址)는 **아래 낱말 그물이 받는다** — 여기서 안 버려도 된다. */
+  if (code.length > 8 && !/[0-9]/.test(code) && !/[_\-./]/.test(code)) return false;
   // 받치는 그물 — 꼴을 빠져나온 이름표를 마지막으로 거릅니다.
   if (글귀_.test(code)) return false;
   return true;

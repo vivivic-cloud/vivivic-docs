@@ -510,6 +510,29 @@ test('readItems — 단가·금액 칸을 읽는다. 없으면 빈칸이다', ()
   assert.equal(다름[0].amount, 255);
 });
 
+test('readItems — 글귀는 빠지고 진짜 코드는 짧아도 남는다', () => {
+  // 10-11 관리자가 쟀다. 「글자만 있으면 코드가 아니다」 를 길이 없이 걸었더니
+  // 진짜 제품 newX(신규 깔판 2종) 가 단품관리에서 사라졌다 — 코드 5개가 4개가 됐다.
+  // 그리고 길이로 한정하자 이번에는 한자 글귀가 샜다 — JS 의 \b 는 한자 뒤에 안 선다.
+  const 있나 = (c) => !!readItems([
+    ['Code#', 'Item Name', 'Quantity', 'Unit Price', 'Amount'],
+    [c, '무엇', 10, 5, 50],
+  ]);
+
+  // 진짜 코드 — 숫자도 가름표도 없고 짧아도 남아야 한다
+  for (const c of ['newX', 'bkS_2', 'myT_3C', 'tbl_L', 'wdB_5', '床-21', 'A1', 'CHAIR', '床订单'])
+    assert.equal(있나(c), true, c + ' 는 진짜 코드다');
+
+  // 서류 아래 글귀 — 한자까지 다 빠져야 한다
+  for (const c of ['Beneficiary', 'ADDRESS(地址)青岛市胶州市郑州东路39号', 'A/C NO', 'TEL',
+                   '地址', '开户行', 'ADDRESS: 39 Zhengzhou Rd'])
+    assert.equal(있나(c), false, c + ' 는 글귀다');
+
+  // 문장과 너무 긴 것 — 코드가 아니다
+  assert.equal(있나('AB CD EF'), false);
+  assert.equal(있나('ABC-1234567890123456789012'), false);
+});
+
 test('readItems — 이름 가운데 쌍점이 있어도 진짜 제품 이름은 안 지운다', () => {
   // 10-11 관리자가 쟀다. 글귀 그물의 쌍점 가지가 `^` 없이 **어디에 있든** 걸려서
   // 「3단 교구장 (상판:오크)」 같은 진짜 이름이 통째로 빈칸이 됐다.

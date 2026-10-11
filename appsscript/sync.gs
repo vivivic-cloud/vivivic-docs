@@ -877,7 +877,12 @@ const ITEM_COLS_ = [
       10-11 관리자가 쟀다 — 「3단 교구장 (상판:오크)」 · 「책장 2단 : 화이트」 가 다 빈칸이 됐다.
       이름표는 **맨 앞에 글자 몇 자 쓰고 쌍점**이 온다(Beneficiary: · ADDRESS: · 地址：).
       제품 이름은 앞머리에 **숫자나 여는 괄호**가 섞인다. 그것으로 가른다. */
-const 글귀_RE_ = /^\s*(beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant|地址|电话|开户|收款|银行)\b|^[A-Za-z一-鿿][A-Za-z一-鿿 .\/#]{0,22}[:：]\s*\S/i;
+/* ⚠⚠ **한자 낱말은 `\b` 가지 **밖**에 둔다. 한 묶음으로 되돌리지 마라.**
+      자바스크립트의 `\b` 는 **ASCII 글자만** 본다. 「地址」 뒤에는 `\b` 가 **아예 안 선다**.
+      그래서 한자 낱말을 `\b` 가지에 넣어 두면 **하나도 안 걸린다.**
+      v0.57.0 에서는 「글자만 있는 낱말은 코드가 아니다」 가 우연히 받쳐 줘서 안 드러났고,
+      10-11 에 그 규칙을 길이로 한정하자 **地址·开户行 이 그대로 샜다**(관리자가 쟀다). */
+const 글귀_RE_ = /^\s*(?:(?:beneficiary|bank|account|a\/c|swift|address|tel|fax|attn|notify|consignee|shipper|applicant)\b|(?:地址|电话|开户|收款|银行))|^[A-Za-z一-鿿][A-Za-z一-鿿 .\/#]{0,22}[:：]\s*\S/i;
 
 /* 사장님 2026-10-11 규칙 — 코드 칸에 글자가 있다고 코드가 아닙니다.
    코드는 이름표가 아니라 번호표입니다. js/parse.js 의 제품꼴_ 와 같은 규칙입니다. */
@@ -885,7 +890,9 @@ function 제품꼴_(code) {
   if (code.length > 24) return false;
   if (/[:：]/.test(code)) return false;
   if ((code.match(/ /g) || []).length > 1) return false;
-  if (!/[0-9]/.test(code) && !/[_\-./]/.test(code)) return false;
+  // 글자만 있는 코드는 **길 때만** 버립니다 — js/parse.js 의 제품꼴_ 와 같습니다.
+  // 길이를 안 보면 진짜 제품 newX 같은 짧은 코드가 사라집니다.
+  if (code.length > 8 && !/[0-9]/.test(code) && !/[_\-./]/.test(code)) return false;
   if (글귀_RE_.test(code)) return false;
   return true;
 }
