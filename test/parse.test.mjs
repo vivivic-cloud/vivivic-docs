@@ -510,6 +510,33 @@ test('readItems — 단가·금액 칸을 읽는다. 없으면 빈칸이다', ()
   assert.equal(다름[0].amount, 255);
 });
 
+test('readItems — 이름 가운데 쌍점이 있어도 진짜 제품 이름은 안 지운다', () => {
+  // 10-11 관리자가 쟀다. 글귀 그물의 쌍점 가지가 `^` 없이 **어디에 있든** 걸려서
+  // 「3단 교구장 (상판:오크)」 같은 진짜 이름이 통째로 빈칸이 됐다.
+  const 이름 = (n) => readItems([
+    ['Code#', 'Item Name', 'Quantity', 'Unit Price', 'Amount'],
+    ['tbl_L', n, 10, 5, 50],
+  ])[0].name;
+
+  // 제품 이름 — 그대로 남아야 한다
+  assert.equal(이름('3단 교구장 (상판:오크)'), '3단 교구장 (상판:오크)');
+  assert.equal(이름('책장 2단 : 화이트'), '책장 2단 : 화이트');
+  assert.equal(이름('테이블 라지'), '테이블 라지');
+
+  // 서류 아래 글귀가 이름 칸에 겹친 것 — 이름만 비운다
+  assert.equal(이름('Beneficiary: QINGDAO ZEHE WOOD'), '');
+  assert.equal(이름('ADDRESS: 39 Zhengzhou Rd'), '');
+
+  // 이름을 비워도 **줄은 살아 있다** — 그 줄은 진짜 제품이다
+  const 산줄 = readItems([
+    ['Code#', 'Item Name', 'Quantity', 'Unit Price', 'Amount'],
+    ['bjA_1', 'Beneficiary: QINGDAO ZEHE WOOD', 40, '', ''],
+  ]);
+  assert.equal(산줄.length, 1);
+  assert.equal(산줄[0].code, 'bjA_1');
+  assert.equal(산줄[0].qty, 40);
+});
+
 test('readItems — 가격 칸이 **비어 있으면** 0 이 아니라 빈칸이다', () => {
   // Number('') 은 0 이다. 이것을 안 거르면 빈 단가가 「공짜」 로 찍힌다.
   // 10-11 관리자가 진짜 CI&PL 꼴로 쟀다 — 마지막 품목의 단가·금액이 비어 있었다.
