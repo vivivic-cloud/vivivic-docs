@@ -2522,30 +2522,40 @@ function 제품줄만(items) {
    ⚠ 상품명을 못 찾은 코드는 이름을 비워 둡니다. 지어내지 않습니다.
    ⚠ 잔액서류가 아직 안 온 차수도 빈 채로 그대로 돌려줍니다 — 빠뜨리지 않습니다. */
 window.docs단품 = (vendor) => {
-  if (!vendor) return [];
-  return state.batches
-    .filter((b) => (b.vendor || '(루트)') === vendor)
-    .map((b) => {
-      const 서류 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
-      const 칸 = new Map();                      // 코드 → {code, name}
-      for (const d of 서류) {
-        for (const it of 제품줄만(d.cipl?.items)) {
-          const code = String(it.code ?? '').trim();
-          if (!code) continue;
-          const name = String(it.name ?? '').trim();
-          const 있던것 = 칸.get(code);
-          if (있던것) { if (!있던것.name && name) 있던것.name = name; }
-          else 칸.set(code, { code, name });
-        }
+  if (!vendor) return { codes: [], 차수수: 0 };
+  const 칸 = new Map();                         // 코드 → {code, name, 차수들[]}
+  const 센차수 = new Set();
+  for (const b of state.batches) {
+    if ((b.vendor || '(루트)') !== vendor) continue;
+    const 서류 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
+    if (!서류.length) continue;                 // 잔액서류 없는 차수는 안 보입니다
+    const 차수 = b.batch ?? '차수 미정';
+    for (const d of 서류) {
+      for (const it of 제품줄만(d.cipl?.items)) {
+        const code = String(it.code ?? '').trim();
+        if (!code) continue;
+        센차수.add(차수);
+        if (!칸.has(code)) 칸.set(code, { code, name: String(it.name ?? '').trim(), 차수들: [] });
+        const 것 = 칸.get(code);
+        if (!것.name && it.name) 것.name = String(it.name).trim();
+        // 한 차수에 같은 코드가 두 서류(원본·수정본)에 있으면 뒤엣것만 둡니다.
+        const 자리 = 것.차수들.findIndex((x) => x.batch === 차수);
+        const 줄 = {
+          batch: 차수,
+          qty: it.qty ?? null,
+          fob: it.price ?? null,
+          size: it.size ?? null,
+          perCtn: it.perCtn ?? null,
+          cbm: it.cbm ?? null,
+        };
+        if (자리 >= 0) 것.차수들[자리] = 줄; else 것.차수들.push(줄);
       }
-      return {
-        batch: b.batch ?? '차수 미정',
-        id: b.id,
-        서류: 서류.length,
-        codes: [...칸.values()].sort((a, z) => a.code.localeCompare(z.code)),
-      };
-    })
-    .sort((a, z) => String(z.batch).localeCompare(String(a.batch)));
+    }
+  }
+  const codes = [...칸.values()]
+    .map((x) => ({ ...x, 차수들: x.차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch))) }))
+    .sort((a, z) => a.code.localeCompare(z.code));
+  return { codes, 차수수: 센차수.size };
 };
 
 window.docsCounts = () => ({

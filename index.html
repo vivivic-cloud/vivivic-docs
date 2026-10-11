@@ -70,6 +70,24 @@
   #docs-items .dit-n{ font-size:13px; flex:1; min-width:0; overflow:hidden;
     text-overflow:ellipsis; white-space:nowrap; }
   #docs-items .dit-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
+  /* 코드 한 줄 = 누르는 단추. 손가락으로 눌러 펴집니다 — :hover 를 쓰지 않습니다. */
+  #docs-items .dit-code{ width:100%; display:flex; align-items:baseline; gap:10px;
+    min-height:44px; padding:6px 2px; border:0; background:none; text-align:left;
+    border-bottom:1px solid var(--vg-edge); cursor:pointer; font:inherit; color:inherit; }
+  #docs-items .dit-code .dit-vp{ font-size:13px; font-weight:700; color:var(--vg-ink); }
+  #docs-items .dit-code .dit-c{ font-size:14px; font-weight:700;
+    font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #docs-items .dit-code .dit-n{ font-size:13px; flex:1; min-width:0; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  #docs-items .dit-code .dit-ar{ font-size:12px; color:var(--vg-muted); }
+  #docs-items .dit-open{ display:none; padding:4px 2px 12px; }
+  #docs-items .dit-code[aria-expanded="true"] + .dit-open{ display:block; }
+  #docs-items .dit-bat{ padding:7px 0; border-bottom:1px solid var(--vg-fill); }
+  #docs-items .dit-bt{ font-size:12px; font-weight:700; color:var(--vg-ink); }
+  #docs-items .dit-vals{ display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:3px; }
+  #docs-items .dit-v{ font-size:12px; color:var(--vg-body);
+    font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+  #docs-items .dit-v b{ color:var(--vg-muted); font-weight:600; }
 
   /* 코드관리 — 거래처 한 덩이, 그 아래 코드 줄 */
   #docs-codes .dcd-v{ margin:0 0 18px; }
@@ -284,7 +302,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.58.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -312,7 +330,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.58.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -424,7 +442,8 @@
       <span class="dhh-sub" id="dit-sub">&nbsp;</span>
     </div>
     <!-- 무엇을 코드열·상품명으로 보았는지 한 줄. 짐작으로 박은 칸 이름이 아닙니다. -->
-    <p class="dhh-foot">코드 = 잔액서류의 Code#·품번·코드 칸 · 상품명 = Item Name·품명 칸</p>
+    <p class="dhh-foot" id="dit-what">코드 = 잔액서류의 Code#·품번·코드 칸 · 상품명 = Item Name·품명 칸<br />
+      Qty pcs · FOB · Packing size(mm) · pcs/ctn · carton Volume (CBM) 칸 그대로 · 같은 코드가 여러 줄이면 수량·부피는 더하고 다르면 빈칸</p>
     <div id="dit-list"></div>
     <p class="dhh-foot"></p>
   </div>
@@ -725,9 +744,8 @@
   /* 단품관리 — 이 거래처의 차수마다, 잔액서류에서 읽어 둔 코드와 상품명.
      코드를 여기서 새로 뽑지 않습니다. 읽어 둔 것을 모아 보일 뿐입니다. */
   function dit단품수(vendor) {
-    const 차수들 = window.docs단품?.(vendor) ?? [];
-    const 코드수 = 차수들.reduce((n, b) => n + b.codes.length, 0);
-    return `차수 ${차수들.length}개 · 코드 ${코드수}개`;
+    const r = window.docs단품?.(vendor) ?? { codes: [], 차수수: 0 };
+    return `코드 ${r.codes.length}개 · 차수 ${r.차수수}개`;
   }
 
   function docsOpenItems() {
@@ -740,28 +758,44 @@
   }
   window.docsOpenItems = docsOpenItems;
 
+  /* 코드 하나를 누르면 그 아래가 펴집니다. 손가락으로 됩니다 — :hover 를 안 씁니다. */
+  function ditToggle(btn) {
+    const 폈나 = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', 폈나 ? 'false' : 'true');
+    const 살 = btn.querySelector('.dit-ar');
+    if (살) 살.textContent = 폈나 ? '▾' : '▴';
+  }
+  window.ditToggle = ditToggle;
+
   function docsItemsRefresh() {
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     const box = document.getElementById('dit-list');
     if (!box) return;
-    const 차수들 = window.docs단품?.(docsVendor) ?? [];
-    const 코드수 = 차수들.reduce((n, b) => n + b.codes.length, 0);
-    const 이름없음 = 차수들.reduce((n, b) => n + b.codes.filter((c) => !c.name).length, 0);
+    const { codes, 차수수 } = window.docs단품?.(docsVendor) ?? { codes: [], 차수수: 0 };
+    const 이름없음 = codes.filter((c) => !c.name).length;
     put('dit-name', docsVendor ?? '단품관리');
-    put('dit-sub', `차수 ${차수들.length}개 · 코드 ${코드수}개${이름없음 ? ` · 이름 없음 ${이름없음}` : ''}`);
-    if (!차수들.length) { box.innerHTML = '<div class="dit-none">차수 없음</div>'; return; }
-    box.innerHTML = 차수들.map((b) => `
-      <section class="dit-b">
-        <div class="dit-bh">
-          <span class="dit-bn">${dhhEsc(b.batch)}</span>
-          <span class="dit-bc">${b.codes.length ? `${b.codes.length}개` : (b.서류 ? '코드 없음' : '잔액서류 없음')}</span>
-        </div>
-        ${b.codes.map((c) => `
-          <div class="dit-row">
-            <span class="dit-c">${dhhEsc(c.code)}</span>
-            <span class="dit-n">${dhhEsc(c.name)}</span>
+    // 차수는 '잔액서류가 온 차수' 만 셉니다 — 안 온 차수는 보이지도 세지도 않습니다.
+    put('dit-sub', `코드 ${codes.length}개 · 잔액서류 온 차수 ${차수수}개${이름없음 ? ` · 이름 없음 ${이름없음}` : ''}`);
+    if (!codes.length) { box.innerHTML = '<div class="dit-none">잔액서류에서 읽은 코드 없음</div>'; return; }
+
+    const 값 = (이름, v) => (v === null || v === undefined || v === ''
+      ? '' : `<span class="dit-v"><b>${이름}</b> ${dhhEsc(String(v))}</span>`);
+    box.innerHTML = codes.map((c, i) => `
+      <button type="button" class="dit-code" aria-expanded="false" onclick="ditToggle(this)">
+        <span class="dit-c">${dhhEsc(c.code)}</span>
+        <span class="dit-n">${dhhEsc(c.name)}</span>
+        <span class="dit-ar">▾</span>
+      </button>
+      <div class="dit-open">
+        ${c.차수들.map((x) => `
+          <div class="dit-bat">
+            <span class="dit-bt">${dhhEsc(x.batch)}</span>
+            <div class="dit-vals">
+              ${값('Qty pcs', x.qty)}${값('FOB', x.fob)}${값('Packing size(mm)', x.size)}
+              ${값('pcs/ctn', x.perCtn)}${값('carton Volume (CBM)', x.cbm)}
+            </div>
           </div>`).join('')}
-      </section>`).join('');
+      </div>`).join('');
   }
 
   function docsCodesRefresh() {

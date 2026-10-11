@@ -484,8 +484,16 @@ const ITEM_COLS = [
   ['qty', [/^quantity$/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
   // 가격 — 거래처마다 머리글이 다릅니다. 한 꼴에 맞춰 박지 않습니다.
   // 없으면 빈칸으로 둡니다. 0 으로 채우지 않습니다 — 공짜와 모름은 다릅니다.
-  ['price', [/^unitprice$/, /^price$/, /^fobprice$/, /^단가$/, /^unitpriceusd$/, /^u\/price$/]],
+  ['price', [/^unitprice$/, /^price$/, /^fobprice$/, /^fob$/, /^fobusd$/, /^단가$/, /^unitpriceusd$/, /^u\/price$/]],
   ['amount', [/^amount$/, /^totalamount$/, /^totalvalue$/, /^amountusd$/, /^금액$/, /^합계금액$/]],
+  /* 사장님 10-11 — 단품관리에서 코드를 누르면 보일 다섯 칸입니다.
+     Qty pcs 는 위 qty 가, FOB 는 위 price 가 이미 받습니다. 아래 셋을 더 받습니다.
+     ⚠ cell() 이 빈칸·마침표·괄호를 털고 소문자로 바꿔 놓고 견줍니다 —
+       「Packing size(mm)」 는 packingsizemm, 「carton Volume (CBM)」 는 cartonvolumecbm 이 됩니다.
+     ⚠ 거래처마다 머리글이 다릅니다. 여기 적은 것은 지금까지 본 꼴이고, 새 꼴이 오면 더합니다. */
+  ['size', [/^packingsize/, /^포장규격$/, /^외箱尺寸$/, /^外箱尺寸$/, /^카톤규격$/]],
+  ['perCtn', [/^pcs\/ctn$/, /^pcsctn$/, /^pcsperctn$/, /^입수$/, /^装箱数$/, /^qty\/ctn$/]],
+  ['cbm', [/^cartonvolume/, /^cbm$/, /^volumecbm$/, /^부피$/, /^立方数$/]],
 ];
 
 /**
@@ -583,6 +591,12 @@ export function readItems(rows) {
     };
     const price = 숫자칸(cols.price);
     const amount = 숫자칸(cols.amount);
+    // ⚠ Packing size(mm) 는 숫자가 아닙니다 —「800*400*250」 처럼 생겼습니다.
+    //   숫자칸으로 읽으면 통째로 빈칸이 됩니다. 글자 그대로 담습니다.
+    const size = cols.size === undefined ? null
+      : (String(row[cols.size] ?? '').trim().slice(0, 40) || null);
+    const perCtn = 숫자칸(cols.perCtn);
+    const cbm = 숫자칸(cols.cbm);
 
     /* 사장님 2026-10-11 규칙 —
        「코드열에 코드가 있다면 그 옆으로 Product model, 가격, 수량 등
@@ -598,7 +612,11 @@ export function readItems(rows) {
       had.qty += qty;
       if (amount !== null) had.amount = (had.amount ?? 0) + amount;
       if (had.price !== price) had.price = null;
-    } else out.set(code, { code, name, qty, price, amount });
+      // 포장 꼴도 단가와 같은 잣대입니다 — 줄마다 다르면 빈칸으로 둡니다.
+      if (had.size !== size) had.size = null;
+      if (had.perCtn !== perCtn) had.perCtn = null;
+      if (cbm !== null) had.cbm = (had.cbm ?? 0) + cbm;
+    } else out.set(code, { code, name, qty, price, amount, size, perCtn, cbm });
   }
   return out.size ? [...out.values()] : null;
 }

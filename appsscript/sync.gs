@@ -13,7 +13,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 4;
+const READ_VERSION = 5;
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -866,8 +866,12 @@ const ITEM_COLS_ = [
   ['name', [/^productmodel$/, /^itemname$/, /^품명$/, /^descriptionofgoods$/]],
   ['qty', [/^quantity$/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
   // 가격 — js/parse.js 의 ITEM_COLS 와 같은 것입니다. 한쪽만 고치면 어긋납니다.
-  ['price', [/^unitprice$/, /^price$/, /^fobprice$/, /^단가$/, /^unitpriceusd$/, /^u\/price$/]],
+  ['price', [/^unitprice$/, /^price$/, /^fobprice$/, /^fob$/, /^fobusd$/, /^단가$/, /^unitpriceusd$/, /^u\/price$/]],
   ['amount', [/^amount$/, /^totalamount$/, /^totalvalue$/, /^amountusd$/, /^금액$/, /^합계금액$/]],
+  // 단품관리 다섯 칸 — js/parse.js 의 ITEM_COLS 와 같은 것입니다. 한쪽만 고치면 어긋납니다.
+  ['size', [/^packingsize/, /^포장규격$/, /^外箱尺寸$/, /^카톤규격$/]],
+  ['perCtn', [/^pcs\/ctn$/, /^pcsctn$/, /^pcsperctn$/, /^입수$/, /^装箱数$/, /^qty\/ctn$/]],
+  ['cbm', [/^cartonvolume/, /^cbm$/, /^volumecbm$/, /^부피$/, /^立方数$/]],
 ];
 
 /* 서류 아래쪽 글귀가 품목 칸으로 겹쳐 들어온 것 — js/parse.js 의 글귀_ 와 같은 것입니다.
@@ -944,14 +948,23 @@ function readItems_(rows) {
     };
     const price = 숫자칸(cols.price);
     const amount = 숫자칸(cols.amount);
+    // Packing size 는 숫자가 아닙니다 —「800*400*250」. 글자 그대로 담습니다.
+    const size = cols.size === undefined ? null
+      : (String(row[cols.size] == null ? '' : row[cols.size]).trim().slice(0, 40) || null);
+    const perCtn = 숫자칸(cols.perCtn);
+    const cbm = 숫자칸(cols.cbm);
     if (!제품꼴_(code)) continue;          // 주소·은행 글귀는 품목이 아닙니다
     if (seen[code]) {
       seen[code].qty += qty;
       if (amount !== null) seen[code].amount = (seen[code].amount == null ? 0 : seen[code].amount) + amount;
       if (seen[code].price !== price) seen[code].price = null;   // 줄마다 단가가 다르면 빈칸
+      if (seen[code].size !== size) seen[code].size = null;
+      if (seen[code].perCtn !== perCtn) seen[code].perCtn = null;
+      if (cbm !== null) seen[code].cbm = (seen[code].cbm == null ? 0 : seen[code].cbm) + cbm;
       continue;
     }
-    seen[code] = { code: code, name: name, qty: qty, price: price, amount: amount };
+    seen[code] = { code: code, name: name, qty: qty, price: price, amount: amount,
+                   size: size, perCtn: perCtn, cbm: cbm };
     order.push(seen[code]);
   }
   return order.length ? order : null;
@@ -967,6 +980,9 @@ function itemsValue_(list) {
       // 못 읽은 칸은 담지 않습니다 — 0 으로 적으면 '공짜' 가 됩니다.
       price: it.price == null ? { nullValue: null } : { doubleValue: Number(it.price) },
       amount: it.amount == null ? { nullValue: null } : { doubleValue: Number(it.amount) },
+      size: it.size == null ? { nullValue: null } : { stringValue: String(it.size).slice(0, 40) },
+      perCtn: it.perCtn == null ? { nullValue: null } : { doubleValue: Number(it.perCtn) },
+      cbm: it.cbm == null ? { nullValue: null } : { doubleValue: Number(it.cbm) },
     } } };
   });
   return { arrayValue: { values: values } };

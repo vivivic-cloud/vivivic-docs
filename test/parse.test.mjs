@@ -606,3 +606,30 @@ test('readItems — 이름 칸에 겹쳐 들어온 글귀는 이름만 비우고
   assert.equal(got[0].name, '', '겹친 글귀는 이름 자리에서 빠집니다');
   assert.equal(got[0].qty, 40);
 });
+
+test('readItems — 단품관리 다섯 칸을 읽는다. Packing size 는 글자 그대로', () => {
+  const rows = [
+    ['Code#', 'Item Name', 'Qty pcs', 'FOB', 'Packing size(mm)', 'pcs/ctn', 'carton Volume (CBM)'],
+    ['myT_3C', '토리 마이토이 3단 교구장', 100, 12.5, '800*400*250', 2, 0.08],
+    ['wdB_5', '우드 벤치', 40, '', '', '', ''],
+  ];
+  const got = readItems(rows);
+  assert.deepEqual([got[0].qty, got[0].price, got[0].size, got[0].perCtn, got[0].cbm],
+    [100, 12.5, '800*400*250', 2, 0.08]);
+  // 못 읽은 칸은 0 이 아니라 빈칸입니다
+  assert.deepEqual([got[1].price, got[1].size, got[1].perCtn, got[1].cbm],
+    [null, null, null, null]);
+});
+
+test('readItems — 같은 코드가 여러 줄이면 포장 꼴이 다를 때 빈칸이다', () => {
+  const got = readItems([
+    ['Code#', '품명', '수량', '단가', 'Packing size(mm)', 'pcs/ctn', 'CBM'],
+    ['A1', '교구장', 10, 12.5, '800*400*250', 2, 0.08],
+    ['A1', '교구장 빨강', 5, 12.5, '900*400*250', 2, 0.09],
+  ]);
+  assert.equal(got.length, 1);
+  assert.equal(got[0].qty, 15);
+  assert.equal(got[0].size, null, '포장 꼴이 다르면 빈칸입니다');
+  assert.equal(got[0].perCtn, 2, '같으면 그대로 둡니다');
+  assert.equal(Math.round(got[0].cbm * 100) / 100, 0.17, '부피는 더합니다');
+});

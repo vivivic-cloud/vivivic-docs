@@ -73,6 +73,24 @@
   #docs-items .dit-n{ font-size:13px; flex:1; min-width:0; overflow:hidden;
     text-overflow:ellipsis; white-space:nowrap; }
   #docs-items .dit-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
+  /* 코드 한 줄 = 누르는 단추. 손가락으로 눌러 펴집니다 — :hover 를 쓰지 않습니다. */
+  #docs-items .dit-code{ width:100%; display:flex; align-items:baseline; gap:10px;
+    min-height:44px; padding:6px 2px; border:0; background:none; text-align:left;
+    border-bottom:1px solid var(--vg-edge); cursor:pointer; font:inherit; color:inherit; }
+  #docs-items .dit-code .dit-vp{ font-size:13px; font-weight:700; color:var(--vg-ink); }
+  #docs-items .dit-code .dit-c{ font-size:14px; font-weight:700;
+    font-variant-numeric:tabular-nums; white-space:nowrap; }
+  #docs-items .dit-code .dit-n{ font-size:13px; flex:1; min-width:0; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  #docs-items .dit-code .dit-ar{ font-size:12px; color:var(--vg-muted); }
+  #docs-items .dit-open{ display:none; padding:4px 2px 12px; }
+  #docs-items .dit-code[aria-expanded="true"] + .dit-open{ display:block; }
+  #docs-items .dit-bat{ padding:7px 0; border-bottom:1px solid var(--vg-fill); }
+  #docs-items .dit-bt{ font-size:12px; font-weight:700; color:var(--vg-ink); }
+  #docs-items .dit-vals{ display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:3px; }
+  #docs-items .dit-v{ font-size:12px; color:var(--vg-body);
+    font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+  #docs-items .dit-v b{ color:var(--vg-muted); font-weight:600; }
 
   /* 코드관리 — 거래처 한 덩이, 그 아래 코드 줄 */
   #docs-codes .dcd-v{ margin:0 0 18px; }
@@ -286,7 +304,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.58.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -314,7 +332,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.57.3</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.58.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -426,7 +444,8 @@
       <span class="dhh-sub" id="dit-sub">&nbsp;</span>
     </div>
     <!-- 무엇을 코드열·상품명으로 보았는지 한 줄. 짐작으로 박은 칸 이름이 아닙니다. -->
-    <p class="dhh-foot">코드 = 잔액서류의 Code#·품번·코드 칸 · 상품명 = Item Name·품명 칸</p>
+    <p class="dhh-foot" id="dit-what">코드 = 잔액서류의 Code#·품번·코드 칸 · 상품명 = Item Name·품명 칸<br />
+      Qty pcs · FOB · Packing size(mm) · pcs/ctn · carton Volume (CBM) 칸 그대로 · 같은 코드가 여러 줄이면 수량·부피는 더하고 다르면 빈칸</p>
     <div id="dit-list"></div>
     <p class="dhh-foot"></p>
   </div>
@@ -727,9 +746,8 @@
   /* 단품관리 — 이 거래처의 차수마다, 잔액서류에서 읽어 둔 코드와 상품명.
      코드를 여기서 새로 뽑지 않습니다. 읽어 둔 것을 모아 보일 뿐입니다. */
   function dit단품수(vendor) {
-    const 차수들 = window.docs단품?.(vendor) ?? [];
-    const 코드수 = 차수들.reduce((n, b) => n + b.codes.length, 0);
-    return `차수 ${차수들.length}개 · 코드 ${코드수}개`;
+    const r = window.docs단품?.(vendor) ?? { codes: [], 차수수: 0 };
+    return `코드 ${r.codes.length}개 · 차수 ${r.차수수}개`;
   }
 
   function docsOpenItems() {
@@ -742,28 +760,44 @@
   }
   window.docsOpenItems = docsOpenItems;
 
+  /* 코드 하나를 누르면 그 아래가 펴집니다. 손가락으로 됩니다 — :hover 를 안 씁니다. */
+  function ditToggle(btn) {
+    const 폈나 = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', 폈나 ? 'false' : 'true');
+    const 살 = btn.querySelector('.dit-ar');
+    if (살) 살.textContent = 폈나 ? '▾' : '▴';
+  }
+  window.ditToggle = ditToggle;
+
   function docsItemsRefresh() {
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     const box = document.getElementById('dit-list');
     if (!box) return;
-    const 차수들 = window.docs단품?.(docsVendor) ?? [];
-    const 코드수 = 차수들.reduce((n, b) => n + b.codes.length, 0);
-    const 이름없음 = 차수들.reduce((n, b) => n + b.codes.filter((c) => !c.name).length, 0);
+    const { codes, 차수수 } = window.docs단품?.(docsVendor) ?? { codes: [], 차수수: 0 };
+    const 이름없음 = codes.filter((c) => !c.name).length;
     put('dit-name', docsVendor ?? '단품관리');
-    put('dit-sub', `차수 ${차수들.length}개 · 코드 ${코드수}개${이름없음 ? ` · 이름 없음 ${이름없음}` : ''}`);
-    if (!차수들.length) { box.innerHTML = '<div class="dit-none">차수 없음</div>'; return; }
-    box.innerHTML = 차수들.map((b) => `
-      <section class="dit-b">
-        <div class="dit-bh">
-          <span class="dit-bn">${dhhEsc(b.batch)}</span>
-          <span class="dit-bc">${b.codes.length ? `${b.codes.length}개` : (b.서류 ? '코드 없음' : '잔액서류 없음')}</span>
-        </div>
-        ${b.codes.map((c) => `
-          <div class="dit-row">
-            <span class="dit-c">${dhhEsc(c.code)}</span>
-            <span class="dit-n">${dhhEsc(c.name)}</span>
+    // 차수는 '잔액서류가 온 차수' 만 셉니다 — 안 온 차수는 보이지도 세지도 않습니다.
+    put('dit-sub', `코드 ${codes.length}개 · 잔액서류 온 차수 ${차수수}개${이름없음 ? ` · 이름 없음 ${이름없음}` : ''}`);
+    if (!codes.length) { box.innerHTML = '<div class="dit-none">잔액서류에서 읽은 코드 없음</div>'; return; }
+
+    const 값 = (이름, v) => (v === null || v === undefined || v === ''
+      ? '' : `<span class="dit-v"><b>${이름}</b> ${dhhEsc(String(v))}</span>`);
+    box.innerHTML = codes.map((c, i) => `
+      <button type="button" class="dit-code" aria-expanded="false" onclick="ditToggle(this)">
+        <span class="dit-c">${dhhEsc(c.code)}</span>
+        <span class="dit-n">${dhhEsc(c.name)}</span>
+        <span class="dit-ar">▾</span>
+      </button>
+      <div class="dit-open">
+        ${c.차수들.map((x) => `
+          <div class="dit-bat">
+            <span class="dit-bt">${dhhEsc(x.batch)}</span>
+            <div class="dit-vals">
+              ${값('Qty pcs', x.qty)}${값('FOB', x.fob)}${값('Packing size(mm)', x.size)}
+              ${값('pcs/ctn', x.perCtn)}${값('carton Volume (CBM)', x.cbm)}
+            </div>
           </div>`).join('')}
-      </section>`).join('');
+      </div>`).join('');
   }
 
   function docsCodesRefresh() {
@@ -1652,8 +1686,16 @@ const ITEM_COLS = [
   ['qty', [/^quantity$/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
   // 가격 — 거래처마다 머리글이 다릅니다. 한 꼴에 맞춰 박지 않습니다.
   // 없으면 빈칸으로 둡니다. 0 으로 채우지 않습니다 — 공짜와 모름은 다릅니다.
-  ['price', [/^unitprice$/, /^price$/, /^fobprice$/, /^단가$/, /^unitpriceusd$/, /^u\/price$/]],
+  ['price', [/^unitprice$/, /^price$/, /^fobprice$/, /^fob$/, /^fobusd$/, /^단가$/, /^unitpriceusd$/, /^u\/price$/]],
   ['amount', [/^amount$/, /^totalamount$/, /^totalvalue$/, /^amountusd$/, /^금액$/, /^합계금액$/]],
+  /* 사장님 10-11 — 단품관리에서 코드를 누르면 보일 다섯 칸입니다.
+     Qty pcs 는 위 qty 가, FOB 는 위 price 가 이미 받습니다. 아래 셋을 더 받습니다.
+     ⚠ cell() 이 빈칸·마침표·괄호를 털고 소문자로 바꿔 놓고 견줍니다 —
+       「Packing size(mm)」 는 packingsizemm, 「carton Volume (CBM)」 는 cartonvolumecbm 이 됩니다.
+     ⚠ 거래처마다 머리글이 다릅니다. 여기 적은 것은 지금까지 본 꼴이고, 새 꼴이 오면 더합니다. */
+  ['size', [/^packingsize/, /^포장규격$/, /^외箱尺寸$/, /^外箱尺寸$/, /^카톤규격$/]],
+  ['perCtn', [/^pcs\/ctn$/, /^pcsctn$/, /^pcsperctn$/, /^입수$/, /^装箱数$/, /^qty\/ctn$/]],
+  ['cbm', [/^cartonvolume/, /^cbm$/, /^volumecbm$/, /^부피$/, /^立方数$/]],
 ];
 
 /**
@@ -1751,6 +1793,12 @@ function readItems(rows) {
     };
     const price = 숫자칸(cols.price);
     const amount = 숫자칸(cols.amount);
+    // ⚠ Packing size(mm) 는 숫자가 아닙니다 —「800*400*250」 처럼 생겼습니다.
+    //   숫자칸으로 읽으면 통째로 빈칸이 됩니다. 글자 그대로 담습니다.
+    const size = cols.size === undefined ? null
+      : (String(row[cols.size] ?? '').trim().slice(0, 40) || null);
+    const perCtn = 숫자칸(cols.perCtn);
+    const cbm = 숫자칸(cols.cbm);
 
     /* 사장님 2026-10-11 규칙 —
        「코드열에 코드가 있다면 그 옆으로 Product model, 가격, 수량 등
@@ -1766,7 +1814,11 @@ function readItems(rows) {
       had.qty += qty;
       if (amount !== null) had.amount = (had.amount ?? 0) + amount;
       if (had.price !== price) had.price = null;
-    } else out.set(code, { code, name, qty, price, amount });
+      // 포장 꼴도 단가와 같은 잣대입니다 — 줄마다 다르면 빈칸으로 둡니다.
+      if (had.size !== size) had.size = null;
+      if (had.perCtn !== perCtn) had.perCtn = null;
+      if (cbm !== null) had.cbm = (had.cbm ?? 0) + cbm;
+    } else out.set(code, { code, name, qty, price, amount, size, perCtn, cbm });
   }
   return out.size ? [...out.values()] : null;
 }
@@ -5399,30 +5451,40 @@ function 제품줄만(items) {
    ⚠ 상품명을 못 찾은 코드는 이름을 비워 둡니다. 지어내지 않습니다.
    ⚠ 잔액서류가 아직 안 온 차수도 빈 채로 그대로 돌려줍니다 — 빠뜨리지 않습니다. */
 window.docs단품 = (vendor) => {
-  if (!vendor) return [];
-  return state.batches
-    .filter((b) => (b.vendor || '(루트)') === vendor)
-    .map((b) => {
-      const 서류 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
-      const 칸 = new Map();                      // 코드 → {code, name}
-      for (const d of 서류) {
-        for (const it of 제품줄만(d.cipl?.items)) {
-          const code = String(it.code ?? '').trim();
-          if (!code) continue;
-          const name = String(it.name ?? '').trim();
-          const 있던것 = 칸.get(code);
-          if (있던것) { if (!있던것.name && name) 있던것.name = name; }
-          else 칸.set(code, { code, name });
-        }
+  if (!vendor) return { codes: [], 차수수: 0 };
+  const 칸 = new Map();                         // 코드 → {code, name, 차수들[]}
+  const 센차수 = new Set();
+  for (const b of state.batches) {
+    if ((b.vendor || '(루트)') !== vendor) continue;
+    const 서류 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
+    if (!서류.length) continue;                 // 잔액서류 없는 차수는 안 보입니다
+    const 차수 = b.batch ?? '차수 미정';
+    for (const d of 서류) {
+      for (const it of 제품줄만(d.cipl?.items)) {
+        const code = String(it.code ?? '').trim();
+        if (!code) continue;
+        센차수.add(차수);
+        if (!칸.has(code)) 칸.set(code, { code, name: String(it.name ?? '').trim(), 차수들: [] });
+        const 것 = 칸.get(code);
+        if (!것.name && it.name) 것.name = String(it.name).trim();
+        // 한 차수에 같은 코드가 두 서류(원본·수정본)에 있으면 뒤엣것만 둡니다.
+        const 자리 = 것.차수들.findIndex((x) => x.batch === 차수);
+        const 줄 = {
+          batch: 차수,
+          qty: it.qty ?? null,
+          fob: it.price ?? null,
+          size: it.size ?? null,
+          perCtn: it.perCtn ?? null,
+          cbm: it.cbm ?? null,
+        };
+        if (자리 >= 0) 것.차수들[자리] = 줄; else 것.차수들.push(줄);
       }
-      return {
-        batch: b.batch ?? '차수 미정',
-        id: b.id,
-        서류: 서류.length,
-        codes: [...칸.values()].sort((a, z) => a.code.localeCompare(z.code)),
-      };
-    })
-    .sort((a, z) => String(z.batch).localeCompare(String(a.batch)));
+    }
+  }
+  const codes = [...칸.values()]
+    .map((x) => ({ ...x, 차수들: x.차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch))) }))
+    .sort((a, z) => a.code.localeCompare(z.code));
+  return { codes, 차수수: 센차수.size };
 };
 
 window.docsCounts = () => ({
