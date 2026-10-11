@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_ } from './parse.js';
+import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드다듬기 } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전 } from './match.js';
 import * as FS from './fsaccess.js';
@@ -2511,7 +2511,11 @@ window.docsCodes = () => {
    같은 자(제품줄인가·글귀_)를 씁니다 — 두 벌로 만들지 않습니다. */
 function 제품줄만(items) {
   return (items ?? [])
-    .filter((x) => 제품줄인가(String(x?.code ?? '').trim()))
+    /* ⚠ 밑줄 꼴도 여기서 맞춥니다 — 서버가 `▁` 로 올려 둔 묵은 자료가 그대로 있습니다.
+         `READ_VERSION` 을 올려 다시 읽히기 전까지는 사장님 화면에 한 제품이 두 줄로 섭니다.
+         셈은 js/parse.js 의 코드다듬기 한 자리입니다 — 여기서 또 만들지 마십시오. */
+    .map((x) => ({ ...x, code: 코드다듬기(x?.code).trim() }))
+    .filter((x) => 제품줄인가(x.code))
     .map((x) => (글귀_.test(String(x.name ?? '')) ? { ...x, name: '' } : x));
 }
 

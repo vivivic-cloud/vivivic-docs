@@ -304,7 +304,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.61.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.61.2</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -332,7 +332,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.61.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.61.2</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -3028,7 +3028,7 @@ async function 벤더피아상품() {
 
 return { APP_ID, CONFIG, FILES, OVERLAY, RULES, VP_상품, WT, authMessage, deleteRule, fileKey, idToken, init, overlayKey, replaceFiles, saveBox, saveCipl, saveKinds, saveLoading, saveOverlay, saveRule, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOrders, watchOverlay, watchRules, 벤더피아상품, 벤더피아줄벗기기 };
 })();
-const { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_ } = PARSE;
+const { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드다듬기 } = PARSE;
 const { progressWord } = PROGRESS;
 const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전 } = MATCH;
 
@@ -5543,7 +5543,11 @@ window.docsCodes = () => {
    같은 자(제품줄인가·글귀_)를 씁니다 — 두 벌로 만들지 않습니다. */
 function 제품줄만(items) {
   return (items ?? [])
-    .filter((x) => 제품줄인가(String(x?.code ?? '').trim()))
+    /* ⚠ 밑줄 꼴도 여기서 맞춥니다 — 서버가 `▁` 로 올려 둔 묵은 자료가 그대로 있습니다.
+         `READ_VERSION` 을 올려 다시 읽히기 전까지는 사장님 화면에 한 제품이 두 줄로 섭니다.
+         셈은 js/parse.js 의 코드다듬기 한 자리입니다 — 여기서 또 만들지 마십시오. */
+    .map((x) => ({ ...x, code: 코드다듬기(x?.code).trim() }))
+    .filter((x) => 제품줄인가(x.code))
     .map((x) => (글귀_.test(String(x.name ?? '')) ? { ...x, name: '' } : x));
 }
 
