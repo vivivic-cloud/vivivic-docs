@@ -1001,6 +1001,17 @@ function readItems_(rows) {
 }
 
 /** 품목 목록을 Firestore 값으로. 너무 길면 앞에서 자릅니다. */
+/* ⚠⚠ **여기가 「셋만 담기는」 자리입니다. 그런데 이 함수는 탈이 없습니다 — 배포가 묵은 것입니다.**
+      10-13 관리자가 화베를 쟀습니다 — `docs_files` 의 `cipl.items` 2003줄에 칸이
+      `code·name·qty` **셋뿐**이고 `cipl.v` 는 109줄 모두 **2** 였습니다.
+      `READ_VERSION 2` 는 **2026-09-22 `3643d99`(v0.40.1)** 판이고, 그 판의 `itemsValue_`
+      (그 커밋의 `sync.gs:908`)가 **딱 그 셋만** 담았습니다. 아래 지금 것은 아홉을 담습니다.
+      → **고칠 코드가 없습니다. `clasp push -f` → `clasp deploy` 로 밀어야 합니다.**
+        `READ_VERSION` 2 → 8 이라 전부 다시 읽습니다(한 번에 4분, sync 서너 번).
+      → 안 민 것이 이것만이 아닙니다 — `제품꼴_` 거르개(v0.57.0)와 밑줄 표식(v0.61.0~)도
+        서버엔 없습니다. 지금은 화면 쪽이 혼자 받치고 있습니다.
+      ⚠ 크기 걱정은 쟀습니다 — 최악(60가지 가득·칸 꽉) **95,487 B = 1MB 의 9.1%**.
+        `slice(0, 60)` 이 위를 자르니 안 넘습니다. */
 function itemsValue_(list) {
   const values = (list || []).slice(0, 60).map(function (it) {
     return { mapValue: { fields: {
