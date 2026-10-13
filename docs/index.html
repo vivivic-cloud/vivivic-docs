@@ -88,6 +88,7 @@
   #docs-items .dit-bat{ padding:7px 0; border-bottom:1px solid var(--vg-fill); }
   #docs-items .dit-bt{ font-size:12px; font-weight:700; color:var(--vg-ink); }
   #docs-items .dit-vals{ display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:3px; }
+  #docs-items .dit-non{ color:var(--vg-muted); }
   #docs-items .dit-v{ font-size:12px; color:var(--vg-body);
     font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
   #docs-items .dit-v b{ color:var(--vg-muted); font-weight:600; }
@@ -304,7 +305,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.62.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.62.1</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -332,7 +333,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.62.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.62.1</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -806,15 +807,21 @@
         <span class="dit-ar">▾</span>
       </button>
       <div class="dit-open">
-        ${c.차수들.map((x) => `
+        ${c.차수들.length ? c.차수들.map((x) => {
+          const 칸 = `${값('Product model', x.model)}${값('Color', x.color)}`
+            + `${값('Qty pcs', x.qty)}${값('FOB', x.fob)}${값('Packing size(mm)', x.size)}`
+            + `${값('pcs/ctn', x.perCtn)}${값('carton Volume (CBM)', x.cbm)}`;
+          /* ⚠ 한 칸도 못 읽은 차수는 **빈 줄로 두지 않습니다.** 조용히 비는 것이 제일 나쁩니다.
+               딱지 한 낱말만 답니다 — 집 규칙대로 문장을 안 씁니다(2026-09-28). */
+          return `
           <div class="dit-bat">
             <span class="dit-bt">${dhhEsc(x.batch)}</span>
-            <div class="dit-vals">
-              ${값('Product model', x.model)}${값('Color', x.color)}
-              ${값('Qty pcs', x.qty)}${값('FOB', x.fob)}${값('Packing size(mm)', x.size)}
-              ${값('pcs/ctn', x.perCtn)}${값('carton Volume (CBM)', x.cbm)}
-            </div>
-          </div>`).join('')}
+            <div class="dit-vals">${칸 || '<span class="dit-v dit-non">값 없음</span>'}</div>
+          </div>`;
+        }).join('')
+        /* ⚠ 차수가 하나도 안 붙은 코드 — 눌러도 아무것도 안 뜨면 고장으로 보이십니다.
+             없는 것을 없다고 적습니다. 되는 척도 안 되는 척도 안 합니다. */
+        : '<div class="dit-bat"><span class="dit-v dit-non">서류에서 읽은 값 없음</span></div>'}
       </div>`).join('');
   }
 
