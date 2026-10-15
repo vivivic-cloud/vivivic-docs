@@ -13,7 +13,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 8;
+const READ_VERSION = 9;
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -915,6 +915,15 @@ function 제품꼴_(code) {
   return true;
 }
 
+/** 글자 앞머리의 숫자만 — 「1pcs/ctn」 → 1. (js/parse.js 의 앞숫자 와 같은 규칙) */
+function 앞숫자_(v) {
+  const 글 = String(v == null ? '' : v).replace(/[,\s]/g, '');
+  const m = 글.match(/^\d+(?:\.\d+)?/);
+  if (!m) return null;
+  const n = Number(m[0]);
+  return isFinite(n) ? n : null;
+}
+
 function readItems_(rows) {
   if (!rows || !rows.length) return null;
 
@@ -968,7 +977,9 @@ function readItems_(rows) {
       : (String(row[cols.color] == null ? '' : row[cols.color]).trim().slice(0, 24) || null);
     const size = cols.size === undefined ? null
       : (String(row[cols.size] == null ? '' : row[cols.size]).trim().slice(0, 40) || null);
-    const perCtn = 숫자칸(cols.perCtn);
+    // ⚠ 입수 칸은 「1pcs/ctn  」 꼴로 옵니다 — 앞 숫자를 읽습니다(js/parse.js 의 앞숫자 와 같은 규칙).
+    //   제헤우드 391줄 가운데 349줄이 그 꼴입니다. 입수 칸에만 씁니다.
+    const perCtn = 앞숫자_(row[cols.perCtn]);
     const cbm = 숫자칸(cols.cbm);
     if (!제품꼴_(code)) continue;          // 주소·은행 글귀는 품목이 아닙니다
     // 맞대는 것은 열쇠, 담는 것은 날것입니다. 밑줄 꼴만 다른 두 줄은 여기서 한 줄이 됩니다.

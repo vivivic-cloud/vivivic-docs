@@ -687,3 +687,23 @@ test('readPdfItems — 밑줄 꼴이 든 코드를 안 버리고, 날것 그대�
   assert.equal(got[0].code, 'myT\u25813C', '서류에 적힌 그대로 둡니다 — 맞대기는 코드열쇠가 합니다');
   assert.equal(got[0].qty, 60);
 });
+
+test('readItems — 입수 칸의 「1pcs/ctn」 에서 앞 숫자를 읽는다', () => {
+  // 10-15 에 제헤우드 20장(품목 391줄)을 세니 349줄이 「1pcs/ctn  」 꼴이었습니다.
+  const got = readItems([
+    ['Code#', 'Product model', 'Qty pcs', 'FOB', 'Packing size(mm)', 'pcs/ctn', 'carton Volume (CBM)'],
+    ['BH_LKB', 'Bjork Head LK', 10, 273.5, '1810*55*800', '1pcs/ctn  ', 0.096],
+    ['ZBY_LKB', 'Bjork Bed LK', 20, 311.0, '2100*60*900', 3, 0.12],
+    ['NO_NUM', '숫자 없는 칸', 5, 1.5, '', 'pcs/ctn', 0.01],
+  ]);
+  assert.equal(got[0].perCtn, 1, '글자가 붙어 있어도 앞 숫자를 읽습니다');
+  assert.equal(got[1].perCtn, 3, '숫자는 그대로입니다');
+  assert.equal(got[2].perCtn, null, '숫자로 시작하지 않으면 빈칸입니다 — 0 이 아닙니다');
+  // ⚠ 입수 칸에만 쓰는 자입니다. 단가·금액·부피는 글자가 섞이면 빈칸이 맞습니다.
+  const 섞임 = readItems([
+    ['Code#', '품명', '수량', '단가', 'CBM'],
+    ['A1', '교구장', 10, '12.5USD', '0.08cbm'],
+  ]);
+  assert.equal(섞임[0].price, null, '단가는 앞숫자로 읽지 않습니다');
+  assert.equal(섞임[0].cbm, null, '부피도 앞숫자로 읽지 않습니다');
+});

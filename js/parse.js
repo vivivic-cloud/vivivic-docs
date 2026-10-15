@@ -564,6 +564,15 @@ export function 제품줄인가(code) {
   return true;
 }
 
+/** 글자 앞머리의 숫자만 뽑습니다 — 「1pcs/ctn」 → 1. 숫자로 시작하지 않으면 빈칸입니다. */
+function 앞숫자(v) {
+  const 글 = String(v ?? '').replace(/[,\s]/g, '');
+  const m = 글.match(/^\d+(?:\.\d+)?/);
+  if (!m) return null;
+  const n = Number(m[0]);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function readItems(rows) {
   if (!Array.isArray(rows)) return null;
 
@@ -621,7 +630,12 @@ export function readItems(rows) {
       : (String(row[cols.color] ?? '').trim().slice(0, 24) || null);
     const size = cols.size === undefined ? null
       : (String(row[cols.size] ?? '').trim().slice(0, 40) || null);
-    const perCtn = 숫자칸(cols.perCtn);
+    /* ⚠ 입수 칸에는 **숫자에 단위가 붙어** 옵니다 — 「1pcs/ctn  」 꼴입니다.
+         10-15 에 제헤우드 20장(품목 391줄)을 세어 보니 **349줄이 그 꼴**이고 숫자는 42줄뿐이라,
+         숫자칸으로 읽으면 pcs/ctn 이 **11%** 만 찼습니다. 앞 숫자를 읽어 100% 로 채웁니다.
+       ⚠ **입수 칸만 이렇게 읽습니다.** 단가·금액·부피까지 이 자로 읽지 마십시오 —
+         거기 글자가 섞이면 값이 아니라 **잘못 읽은 것**이라 빈칸이 맞습니다. */
+    const perCtn = 앞숫자(row[cols.perCtn]);
     const cbm = 숫자칸(cols.cbm);
 
     /* 사장님 2026-10-11 규칙 —
