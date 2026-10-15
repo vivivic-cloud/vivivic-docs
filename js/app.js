@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠 } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -292,13 +292,24 @@ function fileTitle(d) {
  * 번호로 이은 건 확실하고, 선적일로 이은 건 추정입니다.
  */
 function linkBadge(d) {
-  if (d.joinedBy)
-    return `<span class="text-[10px] font-bold text-info bg-chip rounded px-1.5 py-0.5 shrink-0"
-                  title="${esc(`문서번호 ${d.joinedBy} 같음`)}">번호</span>`;
-  if (d.guessed)
+  /* 세 등급을 **한 자**에서 가져옵니다(js/match.js 적합성). 여기서 또 가르지 마십시오.
+     이름·폴더에 차수가 적힌 서류는 딱지를 안 답니다 — 볼 것이 없는데 줄만 늘립니다. */
+  const { 등급, 까닭, 갈자리 } = 적합성(d);
+  if (등급 === '맞음')
+    return d.joinedBy
+      ? `<span class="text-[10px] font-bold text-info bg-chip rounded px-1.5 py-0.5 shrink-0"
+               title="${esc(`${까닭} 같음`)}">번호</span>`
+      : '';
+  if (등급 === '아마')
     return `<span class="text-[10px] font-bold text-warn bg-[#fdf3e3] rounded px-1.5 py-0.5 shrink-0"
-                  title="${esc(`${d.guessed} — 추정`)}">추정</span>`;
-  return '';
+                  title="${esc(`${까닭} — 추정`)}">추정</span>`;
+  /* 못 붙은 서류 — 가까웠던 차수를 딱지에 적습니다.
+     사장님 10-15 「어느 차수에 맞는지 그 차수 이름을 같이 적으십시오」.
+     물음표를 답니다 — 짐작이지 정한 것이 아닙니다. */
+  const 가까운 = 갈자리?.[0];
+  return `<span class="text-[10px] font-bold text-danger bg-[#fdeaea] rounded px-1.5 py-0.5 shrink-0"
+                title="${esc(가까운 ? `${까닭} · ${가까운.batch} 와 ${가까운.gap}일 차이` : 까닭)}">${
+    가까운 ? esc(`${가까운.batch}?`) : '끈 없음'}</span>`;
 }
 
 /**
@@ -556,6 +567,9 @@ function renderDefine() {
         <span data-check="${esc(d.path)}" class="w-3.5 h-3.5 rounded border shrink-0 flex items-center justify-center text-[10px] font-bold
               ${on ? 'bg-ink border-ink text-white' : 'border-line bg-white'}">${on ? '✓' : ''}</span>
         <span class="text-[12px] truncate" title="${esc(fileTitle(d))}">${esc(d.display)}</span>
+        ${/* 못 붙은 서류에 **갈 자리**를 적습니다 — 사장님 10-15.
+             「26-18?」 처럼 물음표를 답니다. 짐작이지 정한 것이 아닙니다. */ ''}
+        ${linkBadge(d)}
         <span class="ml-auto shrink-0 text-[10px] font-bold text-faint">${esc(STAGE_LABEL[d.stageKey] ?? d.stageKey)}</span>
       </li>`;
   }

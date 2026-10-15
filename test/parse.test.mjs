@@ -767,3 +767,29 @@ test('orderIds — 비엘번호를 머리글로 집는다. 선사를 몰라도 �
   assert.equal(bl('TABLE-DJSCTAO260008515.pdf'), null, 'BL 이 낱말 속에 든 것은 비엘이 아닙니다');
   assert.equal(bl('ASSEMBLY_DJSCTAO260008515.pdf'), null, 'BL 이 낱말 속에 든 것은 비엘이 아닙니다');
 });
+
+/* 10-15 사장님 — 「어느 차수에 맞는지 그 차수 이름을 같이 적으십시오」.
+   후보가 비슷하게 둘이면 **붙이지 않습니다**(예전부터 그랬습니다).
+   다만 이제 **가까웠던 차수를 적어 둡니다** — 고르는 것은 사람입니다. */
+test('buildBatches — 못 붙인 선하증권에 「갈 자리」 를 적어 둔다', () => {
+  const 날 = (s) => Date.parse(s);
+  // 진짜 제헤우드 잔액서류 두 장입니다(8.06 · 8.15).
+  const files = [
+    { name: 'ZEHE-ING26 -15   2026.08.06- CI&PL...xls', path: '제헤우드/15.xls',
+      vendor: '제헤우드', size: 1, mtime: 날('2026-08-06') },
+    { name: '날짜수정.ZEHE-ING26 -16 2026.08.15- CI&PL...xls', path: '제헤우드/16.xls',
+      vendor: '제헤우드', size: 1, mtime: 날('2026-08-15') },
+    // 이름 꼴은 진짜 선하증권 그대로이고, 선적일만 **두 차수 가운데**로 두었습니다.
+    // 그래야 1등과 2등이 비슷해져 「못 정하는」 자리가 만들어집니다.
+    { name: 'HBL-SOFRNQB2632134-ING-8.11.pdf', path: '제헤우드/bl.pdf',
+      vendor: '제헤우드', size: 1, mtime: 날('2026-08-20') },
+  ];
+  const { unassigned } = buildBatches(files, {});
+  const 비엘 = unassigned.find((d) => /HBL-/.test(d.name));
+  assert.ok(비엘, '후보가 비슷하면 붙이지 않고 미배정으로 둡니다');
+  assert.ok(비엘.후보?.length >= 2, '가까웠던 차수를 적어 둡니다');
+  assert.ok(비엘.후보.every((x) => ['26-15', '26-16'].includes(x.batch)), '적는 것은 진짜 차수 이름입니다');
+  assert.ok(비엘.후보.every((x) => typeof x.gap === 'number'), '며칠 차이인지도 같이 적습니다');
+  // ⚠ 적어만 둡니다 — 차수에 밀어 넣지 않습니다. 고르는 것은 사람입니다.
+  assert.equal(비엘.batch, null, '적어 둘 뿐 붙이지 않습니다');
+});

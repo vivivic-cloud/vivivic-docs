@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자 } from '../js/match.js';
 import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
@@ -199,4 +199,36 @@ test('itemRows — 발주서와 잔액서류의 밑줄 꼴이 달라도 같은 �
   const 남 = itemRows([{ code: 'BHP8_B', name: '보링 받침 8', qty: 10 }],
                       [{ code: 'BHP_B', name: '보링 받침', qty: 10 }]);
   assert.equal(남.length, 2, 'BHP8_B 와 BHP_B 는 서로 남입니다');
+});
+
+/* 10-15 사장님 — 「원산지co장 또는 선하증권 서류가 도착했을때 … 적합성 검사가 필요해」
+   신호등 셋뿐입니다. 파일은 안 옮깁니다 — 판단만 보여 줍니다. */
+test('적합성 — 신호등 셋. 못 붙은 서류는 갈 자리를 같이 적는다', () => {
+  // 맞음 — 이름·폴더에 차수가 적혔거나, 번호가 같은 서류와 묶였습니다
+  assert.deepEqual(적합성({ batchBy: 'name' }).등급, '맞음');
+  assert.deepEqual(적합성({ batchBy: 'folder' }).등급, '맞음');
+  const 번호 = 적합성({ joinedBy: 'SOFRNQB2638116' });
+  assert.equal(번호.등급, '맞음');
+  assert.match(번호.까닭, /SOFRNQB2638116/);
+
+  // 아마 — 끈이 없어 날짜로 짐작했습니다
+  assert.equal(적합성({ guessed: '선적일 2026-08-15 — 이 차수 서류와 2일 차이' }).등급, '아마');
+
+  // 다름 — 못 붙었습니다. 가까웠던 차수를 같이 적습니다
+  const 다름 = 적합성({ 후보: [{ batch: '26-18', gap: 9 }, { batch: '26-17', gap: 12 }] });
+  assert.equal(다름.등급, '다름');
+  assert.equal(다름.갈자리[0].batch, '26-18', '어느 차수에 맞는지 이름을 적습니다');
+  assert.equal(적합성({}).갈자리, null, '가까운 것조차 없으면 비워 둡니다');
+  assert.equal(적합성(null).등급, '다름', '빈손에서도 안 터집니다');
+
+  // ⚠ 적힌 차수가 가장 셉니다 — 짐작이 그것을 덮으면 안 됩니다
+  assert.equal(적합성({ batchBy: 'name', guessed: '선적일 …', 후보: [] }).등급, '맞음');
+});
+
+/* ⚠⚠ 원산지증명(C/O)은 **부분 발행**됩니다 — 작다고 「다름」 이 되면 안 됩니다.
+      10-15 사장님 말씀입니다. 이 못을 빼지 마십시오. */
+test('맞댈자 — 선하증권은 같아야 하고, 원산지증명은 품기면 된다', () => {
+  assert.equal(맞댈자('bl'), '같음', '선하증권·전신방출은 카톤·중량이 같아야 합니다');
+  assert.equal(맞댈자('fta'), '품음', 'C/O 는 잔액서류에 품기면 됩니다');
+  assert.equal(맞댈자('cipl'), '같음');
 });

@@ -1047,6 +1047,10 @@ export function buildBatches(files, rules = []) {
       d.guessed = `${why} ${when} — 이 차수 서류와 ${Math.round(ranked[0].gap)}일 차이`;
       ranked[0].b.docs.push(d);
     } else {
+      /* 못 붙였어도 **어디가 가까웠는지는 적어 둡니다.**
+         사장님 10-15 — 「어느 차수에 맞는지 그 차수 이름을 같이 적으십시오」.
+         붙이지는 않습니다. 보여 주기만 합니다 — 고르는 것은 사람입니다. */
+      if (ranked.length) d.후보 = ranked.slice(0, 2).map((x) => ({ batch: x.b.batch, gap: Math.round(x.gap) }));
       stillLoose.push(d);
     }
   }
