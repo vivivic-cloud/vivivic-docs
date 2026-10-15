@@ -305,7 +305,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.63.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.63.3</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -333,7 +333,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.63.2</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.63.3</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2087,7 +2087,13 @@ function orderIds(rawName) {
         지어내지 않습니다.
      ⚠ 비엘번호는 **잔액서류에 안 적힙니다**(선적 전에 발행되니까요). 그래서 이것만으로는
         차수를 못 정합니다 — 선적 서류 하나가 차수에 붙으면 나머지가 따라오는 끈입니다. */
-  for (const m of n.matchAll(/(?:^|[^A-Za-z])[SM]?HBL\s*[-–]?\s*([A-Z]{3,}[A-Z0-9]{5,})/gi))
+  /* ⚠ 머리글을 **낱낱이 적습니다.** `[SM]?HBL` 로 줄이면 **`MBL` 이 빠집니다**(H 가 없어서).
+       10-15 에 관리자가 잡았습니다 — `MBL-COSU6412345678.pdf` 가 하나도 안 걸렸습니다.
+     ⚠⚠ **`BL` 두 글자만 받게 넓히지 마십시오.** 아무 말에나 걸립니다.
+     ⚠ 칸띄개에 밑줄을 넣습니다 — 사장님 쪽 이름에 `SHBL_…` 이 섞입니다.
+       (`normalizeName` 은 밑줄을 안 풉니다. 폴더 이름 쪽만 풉니다)
+     ⚠ 뒤 토막 `[A-Z]{3,}[A-Z0-9]{5,}` 는 **그대로 두십시오** — 날짜를 막는 것이 그 부분입니다. */
+  for (const m of n.matchAll(/(?:^|[^A-Za-z])(?:SHBL|MHBL|HBL|MBL)\s*[-–_]?\s*([A-Z]{3,}[A-Z0-9]{5,})/gi))
     out.add(m[1].toUpperCase());
   return [...out];
 }

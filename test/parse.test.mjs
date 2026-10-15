@@ -754,4 +754,16 @@ test('orderIds — 비엘번호를 머리글로 집는다. 선사를 몰라도 �
 
   // 머리글이 붙은 날짜·컨테이너는 번호가 아닙니다
   assert.equal(bl('HBL-2026.08.15.pdf'), null, '날짜를 비엘로 읽으면 안 됩니다');
+
+  /* ⚠ 10-15 에 관리자가 잡은 구멍 둘 — 「헛잡음」 이 아니라 「안 잡힘」 이었습니다.
+       `[SM]?HBL` 은 MBL 을 못 받고, 칸띄개에 밑줄이 빠져 있었습니다. */
+  assert.equal(bl('MBL-COSU6412345678.pdf'), 'COSU6412345678', 'MBL 도 비엘입니다');
+  assert.equal(bl('MHBL-SOFRNQB2638116.pdf'), 'SOFRNQB2638116');
+  assert.equal(bl('SHBL_DJSCTAO260008515.pdf'), 'DJSCTAO260008515', '밑줄로 띄운 이름도 같습니다');
+  assert.equal(bl('HBL SOFRNQB2615115.pdf'), 'SOFRNQB2615115', '칸만 띄운 이름도 같습니다');
+  /* ⚠ 「BL」 두 글자만으로는 받지 않습니다 — 아무 말에나 걸립니다.
+       ⚠ 본보기에 `SOF..QB` 번호를 쓰면 안 됩니다 — 그것은 **원래 있던 선사 예약번호 규칙**이
+         머리글과 상관없이 잡습니다(그게 맞습니다). 그 규칙에 안 걸리는 번호로 재야 합니다. */
+  assert.equal(bl('TABLE-DJSCTAO260008515.pdf'), null, 'BL 이 낱말 속에 든 것은 비엘이 아닙니다');
+  assert.equal(bl('ASSEMBLY_DJSCTAO260008515.pdf'), null, 'BL 이 낱말 속에 든 것은 비엘이 아닙니다');
 });
