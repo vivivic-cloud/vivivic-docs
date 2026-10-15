@@ -305,7 +305,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.63.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.63.2</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -333,7 +333,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.63.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.63.2</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2078,6 +2078,17 @@ function orderIds(rawName) {
   for (const m of n.matchAll(/(XLTTJ\d{8,})/gi)) out.add(m[1].toUpperCase());
   // AMT 문서번호 — 26-085
   for (const m of n.matchAll(/(\d{2}-\d{3})-AMT/gi)) out.add(m[1]);
+  /* 비엘번호 — 선하증권·전신방출·원산지증명이 **같은 선적이면 같은 번호**를 답니다.
+     ⚠⚠ **선사 이름을 늘어놓지 마십시오.** 10-15 에 진짜 드라이브의 비엘 파일 21장을 세어 보니
+        `SOF..QB…` 말고도 `SITTAGPT2635144` · `DJSCTAO260008515` 가 나왔습니다 — 선사마다 다릅니다.
+        그래서 **머리글(HBL/SHBL/MBL)에 걸어** 바로 뒤 토막을 집습니다. 선사를 몰라도 잡힙니다.
+     ⚠ 머리글에 걸어 두었기에 날짜·컨테이너번호를 비엘로 잘못 읽을 일이 없습니다.
+        머리글이 없는 이름(「선하증권 ZH-26-22.pdf」)에서는 **아무것도 안 집습니다** — 없는 것을
+        지어내지 않습니다.
+     ⚠ 비엘번호는 **잔액서류에 안 적힙니다**(선적 전에 발행되니까요). 그래서 이것만으로는
+        차수를 못 정합니다 — 선적 서류 하나가 차수에 붙으면 나머지가 따라오는 끈입니다. */
+  for (const m of n.matchAll(/(?:^|[^A-Za-z])[SM]?HBL\s*[-–]?\s*([A-Z]{3,}[A-Z0-9]{5,})/gi))
+    out.add(m[1].toUpperCase());
   return [...out];
 }
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, readBrief, readItems, readPdfItems, 코드열쇠, 제품줄인가 } from '../js/parse.js';
+import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, readBrief, readItems, readPdfItems, 코드열쇠, 제품줄인가, orderIds } from '../js/parse.js';
 
 /** 실제 드라이브 `중국/제헤우드/` 폴더에서 가져온 파일명입니다. */
 const REAL = [
@@ -729,4 +729,29 @@ test('제품줄인가 — 진짜 서류에 섞여 있던 주소·은행 글귀 �
   // ⚠ 같은 그물이 **진짜 제품**은 그대로 두어야 합니다 — 10-11 에 newX 가 사라진 적이 있습니다.
   for (const c of ['newX', 'BH_LKB', 'ZBY_SSN', 'myT_3C', 'wdB_5', 'BHP8_B', 'CHAIR', '床订单'])
     assert.equal(제품줄인가(c), true, `진짜 제품이 사라졌습니다: ${c}`);
+});
+
+/* 10-15 에 진짜 드라이브의 비엘 파일 **20장**을 세어 짠 그물입니다.
+   ⚠⚠ **선사 이름(SOF·SITT·DJSC…)을 늘어놓지 마십시오.** 선사마다 다릅니다 —
+      머리글(HBL/SHBL/MBL)에 걸어 **바로 뒤 토막**을 집습니다. */
+test('orderIds — 비엘번호를 머리글로 집는다. 선사를 몰라도 잡힌다', () => {
+  const bl = (n) => orderIds(n).find((x) => /^[A-Z]{3,}[A-Z0-9]{5,}$/.test(x)) ?? null;
+  // 진짜 이름 그대로입니다
+  assert.equal(bl('HBL-SOFRNQB2615115-ING-4.29.pdf'), 'SOFRNQB2615115');
+  assert.equal(bl('SHBL-SOFLYHQB0782100-ING(1).pdf'), 'SOFLYHQB0782100');
+  assert.equal(bl('SHBL- SITTAGPT2635144.pdf'), 'SITTAGPT2635144', '선사가 달라도 잡힙니다');
+  assert.equal(bl('SHBL-DJSCTAO260008515(1).pdf'), 'DJSCTAO260008515', '선사가 달라도 잡힙니다');
+
+  // ⚠ 헛잡음 0 — 비엘이 아닌 진짜 이름에서는 아무것도 안 집습니다
+  for (const n of [
+    'ZEHE-ING26 -17 2026.08.28- CI&PL...xls',
+    'TalkFile_AMT(ZH)26-17 Ordersheet_1차 수정 20260713(비요크).pdf',
+    'SS)PI-26-086-AMT-ZH-17_제헤우드 26-17차.pdf',
+    'FTA-ING 26-13.pdf',
+    'SNKO024260502736 SUR H.pdf',
+    '선하증권 ZH-26-22.pdf',          // 머리글이 없으면 없는 것입니다 — 지어내지 않습니다
+  ]) assert.equal(bl(n), null, `헛잡음: ${n}`);
+
+  // 머리글이 붙은 날짜·컨테이너는 번호가 아닙니다
+  assert.equal(bl('HBL-2026.08.15.pdf'), null, '날짜를 비엘로 읽으면 안 됩니다');
 });
