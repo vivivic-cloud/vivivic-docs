@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, readBrief, readItems, readPdfItems, 코드열쇠 } from '../js/parse.js';
+import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, readBrief, readItems, readPdfItems, 코드열쇠, 제품줄인가 } from '../js/parse.js';
 
 /** 실제 드라이브 `중국/제헤우드/` 폴더에서 가져온 파일명입니다. */
 const REAL = [
@@ -706,4 +706,27 @@ test('readItems — 입수 칸의 「1pcs/ctn」 에서 앞 숫자를 읽는다'
   ]);
   assert.equal(섞임[0].price, null, '단가는 앞숫자로 읽지 않습니다');
   assert.equal(섞임[0].cbm, null, '부피도 앞숫자로 읽지 않습니다');
+});
+
+/* 10-15 에 제헤우드 잔액서류 20장을 날것으로 읽어 보니 코드 138가지 가운데 **10가지**가
+   이 글귀였습니다. 배포된 v2 판에는 거르개가 없어 화베에 그대로 담겨 있습니다.
+   ⚠ 이 목록은 **진짜 서류에서 그대로 베낀 것**입니다. 그물을 손보면 여기가 빨개집니다. */
+test('제품줄인가 — 진짜 서류에 섞여 있던 주소·은행 글귀 열 가지를 다 버린다', () => {
+  const 글귀들 = [
+    'Beneficiary: QINGDAO ZEHE WOOD INDUSTRY CO.,LTD',
+    'Beneficiary Address : DATUN 1 VILLAGE,LIREZHUANG,JIAOZHOU,QINGDAO,SHANDONG,CHINA',
+    'SWIFTCODE:ABOCCNBJ380',
+    'BANKNAMEAGRICULTURAL BANK OF CHINA.',
+    'QINGDAO BRANCH',
+    'BANKADD:19 SHANDONGROAD OINGDAO CHINA',
+    'BENESACNO(账号):38140801040007140',
+    'BENESNAME:中国农业银行胶州支行',
+    'ADDRESS(地址)青岛市胶州市郑州东路39号',
+    'TEL(电话):0532-87222370',
+  ];
+  for (const g of 글귀들) assert.equal(제품줄인가(g), false, `글귀가 품목으로 샜습니다: ${g}`);
+
+  // ⚠ 같은 그물이 **진짜 제품**은 그대로 두어야 합니다 — 10-11 에 newX 가 사라진 적이 있습니다.
+  for (const c of ['newX', 'BH_LKB', 'ZBY_SSN', 'myT_3C', 'wdB_5', 'BHP8_B', 'CHAIR', '床订单'])
+    assert.equal(제품줄인가(c), true, `진짜 제품이 사라졌습니다: ${c}`);
 });

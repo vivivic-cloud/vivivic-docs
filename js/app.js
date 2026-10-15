@@ -1640,7 +1640,12 @@ function renderDrawer(id) {
       const before = line[i - 1].cipl.brief;
       const now = line[i].cipl.brief;
       // 무엇이 늘고 줄었는지가 먼저입니다. 합계는 그 아래에 붙입니다.
-      const rows = itemRows(line[i - 1].cipl.items, line[i].cipl.items);
+      /* ⚠ **날것으로 넘기지 마십시오.** 주소·은행 글귀가 품목 줄로 섭니다.
+           사장님 10-15 — 「이런 제품정보 외 정보는 이곳에 나타날 필요가 없다」
+           (「Beneficiary: QINGDAO ZEHE WOOD INDUSTRY」 가 이 표에 떴습니다)
+           거르개는 이미 있습니다 — `제품줄만` 하나를 지나게만 하면 됩니다.
+           **글귀_ 그물을 넓히지 마십시오** — 10-11 에 넓히다 진짜 제품 `newX` 가 사라졌습니다. */
+      const rows = itemRows(제품줄만(line[i - 1].cipl.items), 제품줄만(line[i].cipl.items));
 
       for (const [key, label, isNum] of DIFF_FIELDS) {
         const x = before[key];
@@ -1972,7 +1977,8 @@ function renderDrawer(id) {
 
     // 제품에 관한 것만 적습니다 — 품목이 더해졌는지·빠졌는지·수량이 달라졌는지.
     // 합계(수량·금액·CBM·납기·발주일·컨테이너)는 여기에 넣지 않습니다.
-    const rows = itemRows(발주.cipl.items, d.cipl.items);
+    // ⚠ 여기도 같은 자를 지납니다 — 글귀가 「없던 것」·「빠짐」 으로 서면 안 됩니다.
+    const rows = itemRows(제품줄만(발주.cipl.items), 제품줄만(d.cipl.items));
 
     const key = `확정↔${d.path}`;
     diffPairs.set(key, { before: 발주, now: d, rows, label: `확정 발주서 ↔ 잔액서류` });
