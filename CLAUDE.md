@@ -35,7 +35,7 @@ Apps Script 는 `clasp` 로 밀어넣습니다 (`.clasp.json` 에 scriptId).
 | `js/fsaccess.js` | File System Access API, 폴더 핸들을 IndexedDB에 영속 |
 | `js/firebase.js` | Auth·Firestore. SDK는 동적 import |
 | `js/app.js` | 렌더링·필터·상세 서랍·미리보기·스캔 업로드 |
-| `appsscript/sync.gs` | 드라이브를 10분마다 훑어 Firestore 갱신 (맥이 꺼져 있어도 돎) |
+| `appsscript/sync.gs` | 드라이브를 훑어 Firestore 갱신. **앱이 부를 때만 돕니다** (10-15 사장님) |
 | `data/demo.json` | 데모 데이터. 거래처·제품명은 가명 |
 | `build-single.py` | 멀티파일 → 단일 HTML 번들 |
 

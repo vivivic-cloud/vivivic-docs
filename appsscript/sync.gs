@@ -1,7 +1,11 @@
 /**
  * VIVIVIC 서류 동기화
  * 구글 드라이브 '중국' 폴더를 훑어 Firestore 문서 목록을 갱신합니다.
- * 트리거로 10분마다 자동 실행됩니다. 맥이 꺼져 있어도 돕니다.
+ *
+ * ⚠ **스스로 10분마다 돌지 않습니다.** 사장님 10-15 말씀 —
+ *   「드라이브를 10분마다 훑지말고 프로그램에 있는 드라이브스캔 버튼 작동시만 확인하게」
+ *   앱이 켜질 때와 「드라이브 스캔」 단추를 누르실 때 `/exec` 가 불려서 돕니다.
+ *   되돌리려면 아래 `자동10분걸기_()` 를 손으로 한 번 부르십시오.
  */
 
 const PROJECT_ID = 'vivivic-4b7ef';
@@ -1130,12 +1134,23 @@ function resetMark() {
   console.log('지문을 지웠습니다. 다음 sync 는 전체를 다시 확인합니다.');
 }
 
+/* ⚠⚠ **거는 줄을 뺐습니다. 도로 넣지 마십시오.**
+      사장님 10-15 — 「10분마다 훑지말고 … 드라이브스캔 버튼 작동시만」.
+      이 함수를 불러도 이제 **시간 트리거를 걸지 않고 끄기만** 합니다.
+      ⚠ **이미 걸려 있는 트리거는 코드만 고쳐서는 안 꺼집니다.**
+        앱스 스크립트 편집기에서 `removeTrigger` 를 **한 번 실행**해야 꺼집니다.
+        (`removeTrigger` 는 지금 돌고 있는 판에도 있습니다 — 밀기 전에도 끌 수 있습니다.)
+      ⚠ 되돌릴 때만 아래 `자동10분걸기_()` 를 손으로 부르십시오. 지우지 마십시오. */
 function installTrigger() {
-  ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === 'sync') ScriptApp.deleteTrigger(t);
-  });
+  removeTrigger();
+  console.log('자동 실행은 걸지 않습니다 — 「드라이브 스캔」 단추를 누르실 때만 돕니다.');
+}
+
+/** 되돌릴 때만 손으로 부릅니다. 평소에는 아무 데서도 안 부릅니다. */
+function 자동10분걸기_() {
+  removeTrigger();
   ScriptApp.newTrigger('sync').timeBased().everyMinutes(10).create();
-  console.log('10분마다 자동 실행되도록 설정했습니다.');
+  console.log('10분마다 자동 실행되도록 되돌렸습니다.');
 }
 
 function removeTrigger() {
