@@ -2658,6 +2658,30 @@ window.docs단품수량 = (vendor, code) => {
   return { code, 차수들 };
 };
 
+/* 단품관리를 열 때, 그 거래처의 차수별 수량을 **창고에 한 번 얹습니다.**
+   벤더피아는 `vendorpia.com` 에서 돌아 우리 `window` 를 못 봅니다 — 창고로 건넵니다.
+   ⚠ **수량만** 올립니다. 금액·규격은 담는 쪽(`docs단품수량`)에 칸 자체가 없습니다.
+   ⚠ 바뀐 줄만 적습니다(`수량올리기` 가 한 번 읽어 견줍니다). 열 때마다 다 쓰면 한도가 닳습니다.
+   ⚠ 데모에서는 안 씁니다. 못 써도 화면은 그대로 떠야 합니다 — 여기서 터지면 안 됩니다. */
+let 수량올린거래처 = null;
+window.docs수량건네기 = async (vendor) => {
+  if (state.demo || !vendor || 수량올린거래처 === vendor) return null;
+  수량올린거래처 = vendor;
+  try {
+    const { codes } = window.docs단품(vendor);
+    const rows = codes
+      .map((c) => ({ vendor, code: c.code, 열쇠: 코드열쇠(c.code), ...window.docs단품수량(vendor, c.code) }))
+      .filter((r) => r.차수들.length)
+      .map(({ vendor: v, code, 열쇠, 차수들 }) => ({ vendor: v, code, 열쇠, 차수들 }));
+    const r = await DB.수량올리기(rows);
+    window.docs수량본것 = { vendor, 줄: rows.length, ...r };
+    return window.docs수량본것;
+  } catch (e) {
+    window.docs수량본것 = { vendor, ok: false, why: String(e?.message ?? e) };
+    return window.docs수량본것;
+  }
+};
+
 /* ── 벤더피아 단품명 ───────────────────────────────────
    단품관리를 열 때 **한 번만** 읽습니다. 코드마다 읽으면 문서마다 돈이 듭니다.
    ⚠ 읽기만 합니다. vp_상품목록 에 한 글자도 안 씁니다.

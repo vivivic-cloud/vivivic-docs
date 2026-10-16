@@ -286,6 +286,45 @@ export async function saveRules(rules, email) {
 
 export const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
 
+/* ── 차수별 단품 수량 — 벤더피아가 읽어 갈 칸 ───────────
+   사장님 10-16 — 「수입내역보기 … 관련된 단품의 발주 또는 상차 수량이 표기 되어야 합니다」
+
+   ⚠⚠ **창고를 거쳐야 닿습니다.** 벤더피아는 `vendorpia.com`, 서류관리는 `github.io` —
+      집이 달라 저쪽에서 우리 `window` 를 못 봅니다. 그래서 여기에 적어 둡니다.
+   ⚠ 칸 이름이 **`docs_` 로 시작해야** 합니다. `vp_` 앞가지는 사장님 아이디로 잠겨 있습니다.
+   ⚠⚠ **수량만 적습니다. 금액·규격은 칸 자체를 두지 마십시오.**
+      FOB·단가는 벤더피아 쪽에서 가립니다 — 여기로 흘리면 그 가림이 뚫립니다.
+   ⚠ 사람 이름·전화·주소는 담지 않습니다. 원본 PDF·xlsx 도 안 올립니다. */
+export const 수량칸 = 'docs_단품수량';
+export const 수량열쇠 = (vendor, 열쇠) => `${vendor}~${열쇠}`.replace(/\//g, '~').slice(0, 400);
+
+/**
+ * 바뀐 줄만 적습니다 — 열 때마다 128줄을 다시 쓰면 무료 한도가 닳습니다.
+ * 한 번 읽어(1건) 견주고, 달라진 것만 씁니다. 사라진 줄은 **안 지웁니다** — 늘리기만 합니다.
+ */
+export async function 수량올리기(rows) {
+  if (!Array.isArray(rows) || !rows.length) return { ok: true, 적은줄: 0, 그대로: 0 };
+  try {
+    const snap = await ctx.f.getDocs(col(수량칸));
+    const 있던것 = new Map();
+    snap.forEach((d) => 있던것.set(d.id, JSON.stringify(d.data()?.차수들 ?? null)));
+
+    const 쓸것 = rows.filter((r) => 있던것.get(수량열쇠(r.vendor, r.열쇠)) !== JSON.stringify(r.차수들));
+    for (let i = 0; i < 쓸것.length; i += 450) {
+      const batch = ctx.f.writeBatch(ctx.db);
+      for (const r of 쓸것.slice(i, i + 450)) {
+        // 적는 칸은 **다섯**뿐입니다. 늘리지 마십시오.
+        batch.set(ctx.f.doc(col(수량칸), 수량열쇠(r.vendor, r.열쇠)),
+          { vendor: r.vendor, code: r.code, 차수들: r.차수들, updatedAt: Date.now() }, { merge: true });
+      }
+      await batch.commit();
+    }
+    return { ok: true, 적은줄: 쓸것.length, 그대로: rows.length - 쓸것.length };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 적음' };
+  }
+}
+
 /* ── 벤더피아 상품 ─────────────────────────────────────
    벤더피아상품정리 앱이 적어 둔 자리를 **읽기만** 합니다. 한 글자도 안 씁니다.
    ⚠ 그 자리의 화베 규칙은 사장님 계정만 들여보냅니다. 다른 계정이면 못 읽습니다 —
