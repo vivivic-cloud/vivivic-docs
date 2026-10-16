@@ -558,9 +558,14 @@ function isCipl_(name) {
   return CIPL_EXT.test(name) && CIPL_NAME.test(name) && !/영수증|receipt/i.test(name);
 }
 
-/** 글자가 든 발주서 PDF 인지. 영수증 스캔은 글자가 없어 제외합니다. */
+/* 글자가 든 발주서 PDF 인지. 영수증 스캔은 글자가 없어 제외합니다.
+   ⚠⚠ **낱말은 `js/parse.js` 의 classify 와 같아야 합니다.** 어긋나면 화면엔 발주서인데
+      서버가 **안 읽습니다** — 10-16 에 진짜 이름 11장으로 세니 **6장이 그랬습니다**
+      (`PO_poniel 26-05` · `26-1_PO for Ceramic table` 꼴. `PO`·`발주서`·`주문서` 가 빠져 있었습니다).
+      한쪽만 고치지 마십시오. */
 function isOrderPdf_(name) {
-  return /\.pdf$/i.test(name) && /ordersheet|order\s*sheet|purchase\s*order/i.test(name) &&
+  return /\.pdf$/i.test(name) &&
+    /ordersheet|order\s*sheet|(?:^|[^A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서/i.test(name) &&
     !/영수증|receipt/i.test(name);
 }
 
@@ -834,8 +839,15 @@ function readPdfItems_(text) {
     if (!PDF_MONEY_.test(cells[i])) continue;
     if (!PDF_INT_.test(cells[i + 1]) || !PDF_MONEY_.test(cells[i + 2])) continue;
 
-    const code = cells[i - 2];
-    if (!PDF_CODE_.test(code)) continue;
+    /* 코드는 보통 돈 칸 **두 칸 앞**입니다. 그런데 색이 「내추럴오크 / Natural Oak」 처럼
+       두 칸으로 풀리는 발주서가 있어 그때는 한 칸 더 앞입니다(10-16 에 진짜 발주서로 봤습니다).
+       그래서 **두 칸 앞을 먼저 보고**, 코드 꼴이 아니면 **몇 칸 더 되짚습니다.**
+       ⚠ 되짚는 폭을 넓히지 마십시오 — 멀리 가면 앞 줄의 코드를 집습니다. */
+    let code = '';
+    for (let k = i - 2; k >= i - 5 && k >= 0; k--) {
+      if (PDF_CODE_.test(cells[k])) { code = cells[k]; break; }
+    }
+    if (!code) continue;
 
     // 색만 다른 이어지는 줄은 앞 칸이 비어 있어, 위 품목의 이름을 물려받습니다.
     let name = '';

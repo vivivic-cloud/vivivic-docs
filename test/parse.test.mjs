@@ -793,3 +793,22 @@ test('buildBatches — 못 붙인 선하증권에 「갈 자리」 를 적어 �
   // ⚠ 적어만 둡니다 — 차수에 밀어 넣지 않습니다. 고르는 것은 사람입니다.
   assert.equal(비엘.batch, null, '적어 둘 뿐 붙이지 않습니다');
 });
+
+/* 10-16 에 진짜 발주서 PDF(`AMT(ZH)26-17 Ordersheet…`)를 열어 본 줄 꼴입니다.
+   코드 10개 · 수량 합 266 — PDF 에 적힌 TOTAL 과 같습니다. */
+test('readPdfItems — 색이 두 칸으로 풀린 발주서에서도 코드를 집는다', () => {
+  const 돈 = (v) => `¥${v}`;
+  // 색이 **한 칸**인 꼴 (여태 읽히던 것)
+  const 한칸 = ['', '', 'Bjork Bed w/o Head SS', '1110*2010*200', 'ZBY_SSN', '내추럴오크',
+    돈('467.0'), '30', 돈('14,010.00')].join('\t');
+  // 색이 **두 칸**으로 풀린 꼴 (진짜 발주서에 이렇게 옵니다)
+  const 두칸 = ['', '', 'Bjork Head LK', '1810*55*792', 'BH_LKB', '블랙', 'Black',
+    돈('273.5'), '10', 돈('2,735.00')].join('\t');
+  assert.deepEqual(readPdfItems(한칸)?.map((x) => [x.code, x.qty]), [['ZBY_SSN', 30]]);
+  assert.deepEqual(readPdfItems(두칸)?.map((x) => [x.code, x.qty]), [['BH_LKB', 10]],
+    '색이 두 칸으로 풀려도 코드를 집습니다');
+
+  // ⚠ 멀리까지 되짚으면 **앞 줄의 코드**를 집습니다. 그래서는 안 됩니다.
+  const 먼것 = ['ZBY_LKB', '가', '나', '다', '라', '마', 돈('1.0'), '7', 돈('7.00')].join('\t');
+  assert.equal(readPdfItems(먼것), null, '너무 멀리 있는 코드는 안 집습니다');
+});

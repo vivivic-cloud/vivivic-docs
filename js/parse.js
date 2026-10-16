@@ -706,8 +706,15 @@ export function readPdfItems(text) {
     if (!PDF_MONEY.test(cells[i])) continue;
     if (!PDF_INT.test(cells[i + 1]) || !PDF_MONEY.test(cells[i + 2])) continue;
 
-    const code = cells[i - 2];
-    if (!PDF_CODE.test(code)) continue;
+    /* 코드는 보통 돈 칸 **두 칸 앞**입니다. 그런데 색이 「내추럴오크 / Natural Oak」 처럼
+       두 칸으로 풀리는 발주서가 있어 그때는 한 칸 더 앞입니다(10-16 에 진짜 발주서로 봤습니다).
+       그래서 **두 칸 앞을 먼저 보고**, 코드 꼴이 아니면 **몇 칸 더 되짚습니다.**
+       ⚠ 되짚는 폭을 넓히지 마십시오 — 멀리 가면 앞 줄의 코드를 집습니다. */
+    let code = '';
+    for (let k = i - 2; k >= i - 5 && k >= 0; k--) {
+      if (PDF_CODE.test(cells[k])) { code = cells[k]; break; }
+    }
+    if (!code) continue;
 
     // 이름은 색·코드·치수 앞에 있습니다. 색깔만 다른 이어지는 줄은
     // 앞 칸이 죄다 비어 있어, 바로 위 품목의 이름을 물려받습니다.
