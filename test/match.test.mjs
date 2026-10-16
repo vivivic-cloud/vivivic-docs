@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처 } from '../js/match.js';
 import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
@@ -231,4 +231,15 @@ test('맞댈자 — 선하증권은 같아야 하고, 원산지증명은 품기�
   assert.equal(맞댈자('bl'), '같음', '선하증권·전신방출은 카톤·중량이 같아야 합니다');
   assert.equal(맞댈자('fta'), '품음', 'C/O 는 잔액서류에 품기면 됩니다');
   assert.equal(맞댈자('cipl'), '같음');
+});
+
+/* 10-16 사장님 — 「잔액서류 올라오기전 **발주수량(입고전)** · 잔액서류가 있는 차수는 **상차수량**」
+   ⚠ 글귀를 바꿔 부르지 마십시오. 벤더피아가 이 낱말로 찾습니다. */
+test('수량출처 — 잔액서류가 있으면 상차수량, 없으면 발주수량(입고전)', () => {
+  assert.deepEqual(수량출처(0), { 어디: '발주수량(입고전)', 잔액있음: false });
+  assert.deepEqual(수량출처(1), { 어디: '상차수량', 잔액있음: true });
+  assert.deepEqual(수량출처(3), { 어디: '상차수량', 잔액있음: true }, '여러 장이어도 상차수량입니다');
+  // ⚠ 글귀가 한 글자라도 달라지면 저쪽에서 못 찾습니다
+  assert.equal(수량출처(0).어디, '발주수량(입고전)');
+  assert.equal(수량출처(1).어디, '상차수량');
 });

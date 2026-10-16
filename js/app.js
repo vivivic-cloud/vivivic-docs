@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠 } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -2620,6 +2620,42 @@ window.docs단품 = (vendor) => {
     .sort((a, z) => a.code.localeCompare(z.code));
   return { codes, 차수수: 센차수.size, 맞음: codes.filter((x) => x.vp).length,
            밑줄묶음: codes.filter((x) => x.밑줄꼴).length };
+};
+
+/* ── 단품 하나가 차수마다 몇 개인가 ────────────────────
+   사장님 10-16 — 「잔액서류 올라오기전 **발주수량(입고전)** · 잔액서류가 있는 차수는 **상차수량**」
+   벤더피아가 「수입내역보기」 에서 읽어 갈 것입니다. 저쪽은 **읽기만** 합니다.
+
+   ⚠⚠ **수량만 내줍니다. 금액은 한 글자도 안 내줍니다.**
+      FOB·단가·금액은 벤더피아 쪽에서 가립니다 — 여기서 흘리면 그 가림이 뚫립니다.
+   ⚠ 사람 이름·전화·주소는 애초에 담지도 않습니다.
+   ⚠ 어디서 온 수량인지(`어디`)를 같이 적습니다. 「상차수량」 을 「발주수량」 으로 읽으면 안 됩니다. */
+window.docs단품수량 = (vendor, code) => {
+  if (!vendor || !code) return { code: code ?? null, 차수들: [] };
+  const 열쇠 = 코드열쇠(code);
+  const 차수들 = [];
+  for (const b of state.batches) {
+    if ((b.vendor || '(루트)') !== vendor) continue;
+    const 잔액 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
+    const 발주 = (b.docs ?? []).filter((d) => d.stageKey === 'order');
+    // 잔액서류가 왔으면 그것이 참말입니다 — 실제로 실린 수량입니다.
+    // 어느 서류를 보고 무엇이라 부를지는 js/match.js 의 수량출처 한 자리가 정합니다.
+    const 쪽 = 수량출처(잔액.length);
+    const 고름 = { 서류: 쪽.잔액있음 ? 잔액 : 발주, ...쪽 };
+    let 수량 = null;
+    for (const d of 고름.서류) {
+      for (const it of 제품줄만(d.cipl?.items)) {
+        if (코드열쇠(it.code) !== 열쇠) continue;
+        const n = Number(it.qty);
+        if (Number.isFinite(n)) 수량 = (수량 ?? 0) + n;
+      }
+    }
+    // 그 단품이 안 들어간 차수는 아예 안 내보냅니다 — 0 과 「없음」 은 다릅니다.
+    if (수량 === null) continue;
+    차수들.push({ batch: b.batch ?? '차수 미정', 수량, 어디: 고름.어디, 잔액있음: 고름.잔액있음 });
+  }
+  차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch)));
+  return { code, 차수들 };
 };
 
 /* ── 벤더피아 단품명 ───────────────────────────────────
