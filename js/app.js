@@ -187,6 +187,8 @@ function applyParse() {
   render();
   window.docsHomeRefresh?.();
   saveKindsIfNew();
+  // 차수별 수량을 창고에 얹습니다 — 벤더피아가 읽어 갑니다. 바뀐 것이 없으면 아무 일도 안 합니다.
+  window.docs수량건네기?.().catch(() => {});
 }
 
 /* 갈래를 적어 둡니다 — 새로 들어온 파일 것만. 이미 적힌 것은 그대로 둡니다
@@ -2663,21 +2665,42 @@ window.docs단품수량 = (vendor, code) => {
    ⚠ **수량만** 올립니다. 금액·규격은 담는 쪽(`docs단품수량`)에 칸 자체가 없습니다.
    ⚠ 바뀐 줄만 적습니다(`수량올리기` 가 한 번 읽어 견줍니다). 열 때마다 다 쓰면 한도가 닳습니다.
    ⚠ 데모에서는 안 씁니다. 못 써도 화면은 그대로 떠야 합니다 — 여기서 터지면 안 됩니다. */
-let 수량올린거래처 = null;
+let 수량지문 = '';        // 같은 것을 두 번 올리지 않습니다 — saveKindsIfNew 와 같은 잣대입니다
+
+/* 거래처 하나치 줄을 만듭니다. **수량만** 담깁니다 — 금액·규격은 담는 쪽에 칸이 없습니다. */
+function 수량줄(vendor) {
+  const { codes } = window.docs단품(vendor);
+  return codes
+    .map((c) => ({ vendor, code: c.code, 열쇠: 코드열쇠(c.code),
+                   차수들: window.docs단품수량(vendor, c.code).차수들 }))
+    .filter((r) => r.차수들.length);
+}
+
+/**
+ * 차수별 수량을 창고에 얹습니다. 벤더피아가 거기서 읽어 갑니다
+ * (집이 달라 저쪽이 우리 window 를 못 봅니다).
+ *
+ * ⚠⚠ **서류관리를 열기만 하면 올라갑니다.** 10-17 에 창고가 **0줄**이었습니다 —
+ *    전에는 「거래처 → 단품관리」 를 눌러야만, 그것도 **그 거래처 하나만** 올라갔습니다.
+ *    사장님이 거래처마다 세 번씩 누르셔야 했습니다. 그래서 `applyParse` 에 걸었습니다.
+ * ⚠ 지문이 같으면 **창고를 읽지도 않습니다.** 매번 읽고 쓰면 무료 한도가 닳습니다.
+ * ⚠ 못 올려도 화면은 그대로 떠야 합니다 — 여기서 터지면 안 됩니다.
+ */
 window.docs수량건네기 = async (vendor) => {
-  if (state.demo || !vendor || 수량올린거래처 === vendor) return null;
-  수량올린거래처 = vendor;
+  if (state.demo || !state.user) return null;
   try {
-    const { codes } = window.docs단품(vendor);
-    const rows = codes
-      .map((c) => ({ vendor, code: c.code, 열쇠: 코드열쇠(c.code), ...window.docs단품수량(vendor, c.code) }))
-      .filter((r) => r.차수들.length)
-      .map(({ vendor: v, code, 열쇠, 차수들 }) => ({ vendor: v, code, 열쇠, 차수들 }));
+    const 거래처들 = vendor ? [vendor]
+      : [...new Set(state.batches.map((b) => b.vendor || '(루트)'))];
+    const rows = 거래처들.flatMap(수량줄);
+    if (!rows.length) return null;
+    const 지문 = JSON.stringify(rows);
+    if (지문 === 수량지문) return window.docs수량본것 ?? null;   // 바뀐 것이 없습니다
     const r = await DB.수량올리기(rows);
-    window.docs수량본것 = { vendor, 줄: rows.length, ...r };
+    if (r.ok) 수량지문 = 지문;
+    window.docs수량본것 = { 거래처: 거래처들.length, 줄: rows.length, ...r };
     return window.docs수량본것;
   } catch (e) {
-    window.docs수량본것 = { vendor, ok: false, why: String(e?.message ?? e) };
+    window.docs수량본것 = { ok: false, why: String(e?.message ?? e) };
     return window.docs수량본것;
   }
 };
