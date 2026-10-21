@@ -2489,9 +2489,19 @@ window.docsOrders = () => {
 
 /** 박스 판에서 파일 한 장을 그대로 열어 봅니다 — 원래 쓰던 그 보기 창입니다. */
 window.docsOpenFile = (path) => {
-  const d = state.unassigned.find((x) => x.path === path);
+  const d = state.unassigned.find((x) => x.path === path)
+    ?? state.batches.flatMap((b) => b.docs).find((x) => x.path === path);   // 견적서 판은 차수에 붙은 것도 엽니다
   if (d) openDoc(d);
 };
+
+/* 견적서 — 이름이나 자리에 견적·报价 가 든 파일을, 차수가 붙었든 안 붙었든 한데 모읍니다.
+   판정 규칙은 건드리지 않습니다. 모아 보일 뿐입니다. */
+const 견적말 = /견적|报价|報價|询价|詢價|quotation|quote/i;
+window.docs견적 = () =>
+  [...state.batches.flatMap((b) => b.docs), ...state.unassigned]
+    .filter((d) => 견적말.test(`${d.name ?? ''} ${d.path ?? ''}`))
+    .map((d) => ({ ...slimDoc(d), vendor: d.vendor ?? '', batch: d.batch ?? '' }))
+    .sort((x, y) => x.vendor.localeCompare(y.vendor, 'ko') || String(y.date).localeCompare(String(x.date)));
 
 /* ── 코드관리 ─────────────────────────────────────────────
    발주서 PDF 에서 읽어 둔 코드를 거래처별로 모읍니다.
