@@ -67,11 +67,18 @@
   #docs-prod .dpr-gh{ display:flex; align-items:baseline; gap:8px; margin:0 0 4px; }
   #docs-prod .dpr-gn{ font-size:17px; font-weight:700; color:var(--vg-ink); }
   #docs-prod .dpr-gc{ font-size:12px; color:var(--vg-muted); }
-  #docs-prod .dpr-row{ padding:10px 2px; border-bottom:1px solid var(--vg-edge); }
-  #docs-prod .dpr-c{ font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--vg-ink); }
-  #docs-prod .dpr-vals{ display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:4px; }
-  #docs-prod .dpr-v{ font-size:12px; color:var(--vg-body); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
-  #docs-prod .dpr-v b{ color:var(--vg-muted); font-weight:600; }
+  /* 표 — 굵은 머리줄, 그 아래 굵은 선 하나, 줄마다 옅은 선. 폰에서는 옆으로 밀고 코드 칸은 붙어 섭니다. */
+  #docs-prod .dhh-wrap{ max-width:1100px; }
+  #docs-prod .dpr-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  #docs-prod .dpr-t{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  #docs-prod .dpr-t th{ font-size:13px; font-weight:800; color:var(--vg-ink); text-align:left; vertical-align:bottom;
+    padding:10px 12px; border-bottom:2px solid var(--vg-ink); background:var(--vg-bg); }
+  #docs-prod .dpr-t th.num{ min-width:84px; }
+  #docs-prod .dpr-t td{ font-size:14px; color:var(--vg-body); padding:13px 12px;
+    border-bottom:1px solid #D6D6D3; vertical-align:top; white-space:nowrap; }
+  #docs-prod .dpr-t .num{ text-align:center; }
+  #docs-prod .dpr-t td.dpr-m{ white-space:normal; min-width:140px; }
+  #docs-prod .dpr-t .dpr-k{ position:sticky; left:0; z-index:1; background:var(--vg-bg); font-weight:700; color:var(--vg-ink); }
   #docs-prod .dpr-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
 
   /* 단품관리 — 차수 한 덩이, 그 아래 코드·상품명 줄 */
@@ -319,7 +326,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.68.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.69.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -347,7 +354,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.68.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.69.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -836,22 +843,23 @@
     const 코드수 = 거래처들.reduce((n, x) => n + x.codes.length, 0);
     put('dpr-sub', `거래처 ${거래처들.length}곳 · 코드 ${코드수}개`);
     const 먼저 = (c, k) => c.차수들.map((x) => x[k]).find((v) => v !== null && v !== undefined && v !== '') ?? '';
-    const 칸 = (이름, v) => v === '' ? '' : `<span class="dpr-v"><b>${이름}</b> ${dhhEsc(String(v))}</span>`;
-    const 줄 = (c) => {
-      const 값 = 칸('Product model', 먼저(c, 'model') || c.name) + 칸('COLOR', 먼저(c, 'color'))
-        + 칸('产品号', 먼저(c, 'pno')) + 칸('FOB', 먼저(c, 'fob'))
-        + 칸('Packing size(mm)', 먼저(c, 'size')) + 칸('carton Volume (CBM)', 먼저(c, 'cbm'))
-        + 칸('pcs/ctn', 먼저(c, 'perCtn'));
-      return `
-      <div class="dpr-row">
-        <span class="dpr-c">${dhhEsc(c.code)}</span>
-        <div class="dpr-vals">${값 || '<span class="dpr-v dpr-none">값 없음</span>'}</div>
-      </div>`;
-    };
+    const 칸 = (v, cls = '') => `<td${cls ? ` class="${cls}"` : ''}>${v === '' ? '' : dhhEsc(String(v))}</td>`;
+    const 줄 = (c) => `
+          <tr>
+            <td class="dpr-k">${dhhEsc(c.code)}</td>
+            ${칸(먼저(c, 'model') || c.name, 'dpr-m')}${칸(먼저(c, 'color'))}${칸(먼저(c, 'pno'))}
+            ${칸(먼저(c, 'fob'), 'num')}${칸(먼저(c, 'size'), 'num')}${칸(먼저(c, 'cbm'), 'num')}${칸(먼저(c, 'perCtn'), 'num')}
+          </tr>`;
     if (box) box.innerHTML = 거래처들.length ? 거래처들.map((x) => `
       <section class="dpr-g">
         <div class="dpr-gh"><span class="dpr-gn">${dhhEsc(x.vendor)}</span><span class="dpr-gc">${x.codes.length}개</span></div>
-        ${x.codes.map(줄).join('')}
+        <div class="dpr-scroll"><table class="dpr-t">
+          <thead><tr>
+            <th class="dpr-k">CODE#</th><th>Product model</th><th>COLOR</th><th>产品号</th>
+            <th class="num">FOB</th><th class="num">Packing size(mm)</th><th class="num">carton Volume (CBM)</th><th class="num">pcs/ctn</th>
+          </tr></thead>
+          <tbody>${x.codes.map(줄).join('')}</tbody>
+        </table></div>
       </section>`).join('') : '<div class="dpr-none">잔액서류에서 읽은 코드 없음</div>';
     docsPaint();
     docsFitTop();
