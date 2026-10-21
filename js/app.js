@@ -2734,6 +2734,9 @@ window.벤더피아읽기 = async () => {
 };
 window.벤더피아본것 = () => 벤더피아;
 
+/** 메인 박스판에 서는 거래처 이름들 — 제품관리가 거래처마다 단품을 모을 때 씁니다. */
+window.docs거래처들 = () => BOX_CUTS.vendor().map((v) => v.name);
+
 window.docsCounts = () => ({
   batches: state.batches.length,
   vendors: new Set(state.batches.map((b) => b.vendor)).size,
