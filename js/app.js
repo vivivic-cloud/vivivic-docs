@@ -2600,6 +2600,7 @@ window.docs단품 = (vendor) => {
           size: it.size ?? null,
           perCtn: it.perCtn ?? null,
           cbm: it.cbm ?? null,
+          pno: it.pno ?? null,
         };
         /* ⚠ **한 서류 안에서** 밑줄 꼴만 다른 두 줄이 온 것이면 더합니다 — 뒤엣것으로 덮지 않습니다.
              덮는 규칙은 원본·수정본 **두 서류**를 위한 것입니다. 같은 서류면 둘 다 진짜 수량입니다.
@@ -2612,6 +2613,7 @@ window.docs단품 = (vendor) => {
           if (앞.size !== 줄.size) 앞.size = null;
           if (앞.perCtn !== 줄.perCtn) 앞.perCtn = null;
           if (줄.cbm != null) 앞.cbm = (앞.cbm ?? 0) + 줄.cbm;
+          if (앞.pno !== 줄.pno) 앞.pno = null;
         } else if (자리 >= 0) 것.차수들[자리] = 줄;
         else 것.차수들.push(줄);
       }

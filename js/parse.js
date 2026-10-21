@@ -516,6 +516,8 @@ const ITEM_COLS = [
   ['size', [/^packingsize/, /^포장규격$/, /^외箱尺寸$/, /^外箱尺寸$/, /^카톤규격$/]],
   ['perCtn', [/^pcs\/ctn$/, /^pcsctn$/, /^pcsperctn$/, /^입수$/, /^装箱数$/, /^qty\/ctn$/]],
   ['cbm', [/^cartonvolume/, /^cbm$/, /^volumecbm$/, /^부피$/, /^立方数$/]],
+  // 产品号 — 거래처 쪽 제품번호. 제품정보 박스에 보입니다(사장님 10-21). 글자 그대로 담습니다.
+  ['pno', [/^产品号$/, /^产品编号$/, /^产品编码$/]],
 ];
 
 /**
@@ -637,6 +639,8 @@ export function readItems(rows) {
          거기 글자가 섞이면 값이 아니라 **잘못 읽은 것**이라 빈칸이 맞습니다. */
     const perCtn = 앞숫자(row[cols.perCtn]);
     const cbm = 숫자칸(cols.cbm);
+    const pno = cols.pno === undefined ? null
+      : (String(row[cols.pno] ?? '').trim().slice(0, 40) || null);
 
     /* 사장님 2026-10-11 규칙 —
        「코드열에 코드가 있다면 그 옆으로 Product model, 가격, 수량 등
@@ -665,8 +669,9 @@ export function readItems(rows) {
       if (had.size !== size) had.size = null;
       if (had.perCtn !== perCtn) had.perCtn = null;
       if (cbm !== null) had.cbm = (had.cbm ?? 0) + cbm;
+      if (had.pno !== pno) had.pno = null;
     } else out.set(열쇠, { code, name, qty, price, amount,
-                          colors: color ? [color] : [], size, perCtn, cbm });
+                          colors: color ? [color] : [], size, perCtn, cbm, pno });
   }
   /* 머리에 세울 꼴 — **많이 쓰인 꼴**입니다. 수가 같으면 먼저 본 꼴입니다(sort 가 차례를 지킵니다).
      지어낸 꼴이 아니라 서류에 적힌 꼴 가운데 하나입니다. */

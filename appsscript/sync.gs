@@ -17,7 +17,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 9;
+const READ_VERSION = 10;
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -923,6 +923,8 @@ const ITEM_COLS_ = [
   ['size', [/^packingsize/, /^포장규격$/, /^外箱尺寸$/, /^카톤규격$/]],
   ['perCtn', [/^pcs\/ctn$/, /^pcsctn$/, /^pcsperctn$/, /^입수$/, /^装箱数$/, /^qty\/ctn$/]],
   ['cbm', [/^cartonvolume/, /^cbm$/, /^volumecbm$/, /^부피$/, /^立方数$/]],
+  // 产品号 — js/parse.js 의 ITEM_COLS 와 같은 것입니다. 한쪽만 고치면 어긋납니다.
+  ['pno', [/^产品号$/, /^产品编号$/, /^产品编码$/]],
 ];
 
 /* 서류 아래쪽 글귀가 품목 칸으로 겹쳐 들어온 것 — js/parse.js 의 글귀_ 와 같은 것입니다.
@@ -1018,6 +1020,8 @@ function readItems_(rows) {
     //   제헤우드 391줄 가운데 349줄이 그 꼴입니다. 입수 칸에만 씁니다.
     const perCtn = 앞숫자_(row[cols.perCtn]);
     const cbm = 숫자칸(cols.cbm);
+    const pno = cols.pno === undefined ? null
+      : (String(row[cols.pno] == null ? '' : row[cols.pno]).trim().slice(0, 40) || null);
     if (!제품꼴_(code)) continue;          // 주소·은행 글귀는 품목이 아닙니다
     // 맞대는 것은 열쇠, 담는 것은 날것입니다. 밑줄 꼴만 다른 두 줄은 여기서 한 줄이 됩니다.
     const 열쇠 = 코드열쇠_(code);
@@ -1032,10 +1036,11 @@ function readItems_(rows) {
       if (seen[열쇠].size !== size) seen[열쇠].size = null;
       if (seen[열쇠].perCtn !== perCtn) seen[열쇠].perCtn = null;
       if (cbm !== null) seen[열쇠].cbm = (seen[열쇠].cbm == null ? 0 : seen[열쇠].cbm) + cbm;
+      if (seen[열쇠].pno !== pno) seen[열쇠].pno = null;
       continue;
     }
     seen[열쇠] = { code: code, name: name, qty: qty, price: price, amount: amount,
-                   colors: color ? [color] : [], size: size, perCtn: perCtn, cbm: cbm };
+                   colors: color ? [color] : [], size: size, perCtn: perCtn, cbm: cbm, pno: pno };
     order.push(seen[열쇠]);
   }
   /* 머리에 세울 꼴은 **많이 쓰인 꼴**입니다. 수가 같으면 먼저 본 꼴입니다.
@@ -1074,6 +1079,7 @@ function itemsValue_(list) {
       size: it.size == null ? { nullValue: null } : { stringValue: String(it.size).slice(0, 40) },
       perCtn: it.perCtn == null ? { nullValue: null } : { doubleValue: Number(it.perCtn) },
       cbm: it.cbm == null ? { nullValue: null } : { doubleValue: Number(it.cbm) },
+      pno: it.pno == null ? { nullValue: null } : { stringValue: String(it.pno).slice(0, 40) },
     } } };
   });
   return { arrayValue: { values: values } };

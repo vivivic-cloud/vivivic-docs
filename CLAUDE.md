@@ -69,6 +69,8 @@ Pages 빌드는 1분쯤 걸립니다. `curl -s https://vivivic-cloud.github.io/v
 `tracking-wider` 스팬. `checkForUpdate()` 가 배포본에서 이 문자열을 정규식으로 읽어
 새 버전을 감지하므로, 판올림할 때 두 곳을 같이 고쳐야 합니다.
 
+**2026-10-21 서버를 `clasp push -f` + 고정 배포 `@45` 로 밀었습니다** — 그 전까지 돌던 판은 `READ_VERSION 2`(09-22) 였습니다. `appsscript/붙여넣기.md` 는 이제 안 해도 됩니다. 익명 curl 은 예전 배포들도 403 입니다 — 앱은 로그인된 브라우저에서 부릅니다.
+
 **서류에서 뽑는 규칙을 고치면 `sync.gs` 의 `READ_VERSION` 을 올립니다.**
 `MARK_VERSION` 만 올리면 전체를 다시 훑기는 하지만, 파일별로 "이미 `cipl` 칸이 있다"고
 보고 넘어가 정작 다시 읽지 않습니다. `READ_VERSION` 은 지문에도 들어가고 각 문서에

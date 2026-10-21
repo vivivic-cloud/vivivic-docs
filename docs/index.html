@@ -44,7 +44,7 @@
      색 토큰·타일·알약을 그대로 가져왔고 새로 만든 색은 없습니다.
      이름은 전부 dhh- 로 시작합니다 — 짧은 이름은 텔윈드와 겹칩니다.
      이 블록과 #docs-home / #docs-back 두 덩어리만 빼면 그대로 되돌아갑니다. */
-  #docs-home, #docs-vendor, #docs-files, #docs-orders, #docs-kinds, #docs-codes, #docs-items{
+  #docs-home, #docs-vendor, #docs-files, #docs-orders, #docs-kinds, #docs-codes, #docs-items, #docs-prod{
     --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19;
     --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-fill:#F4F4F2; --vg-red:#FF3B30;
     position:fixed; left:0; right:0; bottom:0; z-index:8000;
@@ -60,6 +60,15 @@
   html[data-docskinds="1"]  #docs-kinds{ display:block; }
   html[data-docscodes="1"]  #docs-codes{ display:block; }
   html[data-docsitems="1"]  #docs-items{ display:block; }
+  html[data-docsprod="1"]   #docs-prod{ display:block; }
+
+  /* 제품정보 — 코드 한 덩이, 그 아래 여덟 칸 */
+  #docs-prod .dpr-row{ padding:10px 2px; border-bottom:1px solid var(--vg-edge); }
+  #docs-prod .dpr-c{ font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--vg-ink); }
+  #docs-prod .dpr-vals{ display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:4px; }
+  #docs-prod .dpr-v{ font-size:12px; color:var(--vg-body); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+  #docs-prod .dpr-v b{ color:var(--vg-muted); font-weight:600; }
+  #docs-prod .dpr-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
 
   /* 단품관리 — 차수 한 덩이, 그 아래 코드·상품명 줄 */
   #docs-items .dit-b{ margin:0 0 18px; }
@@ -255,7 +264,8 @@
   html[data-docskinds="1"] #docs-back,
   html[data-docsfiles="1"] #docs-back,
   html[data-docscodes="1"] #docs-back,
-  html[data-docsitems="1"] #docs-back{ display:block; }
+  html[data-docsitems="1"] #docs-back,
+  html[data-docsprod="1"] #docs-back{ display:block; }
   #docs-back button{ pointer-events:auto; background:#fff; border:1px solid #E2E2DF;
     border-radius:999px; padding:10px 18px; font-size:13px; font-weight:700; color:#111110;
     box-shadow:0 8px 22px -14px rgba(0,0,0,.5); cursor:pointer; }
@@ -305,7 +315,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.66.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.67.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -333,7 +343,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.66.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.67.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -454,6 +464,18 @@
       Product model · Color · Qty pcs · FOB · Packing size(mm) · pcs/ctn · carton Volume (CBM) 칸 그대로 · 같은 코드가 여러 줄이면 수량·부피는 더하고 다르면 빈칸</p>
     <p class="dhh-foot" id="dit-vp"></p>
     <div id="dit-list"></div>
+    <p class="dhh-foot"></p>
+  </div>
+</div>
+
+<!-- 제품정보 — 그 거래처 잔액서류에서 읽어 둔 코드마다 여덟 칸 -->
+<div id="docs-prod" class="dhh-board">
+  <div class="dhh-wrap">
+    <div class="dhh-head">
+      <span class="dhh-day" id="dpr-name">제품정보</span>
+      <span class="dhh-sub" id="dpr-sub">&nbsp;</span>
+    </div>
+    <div id="dpr-list"></div>
     <p class="dhh-foot"></p>
   </div>
 </div>
@@ -700,7 +722,7 @@
     const has = c ? c.has : true;          // 아직 못 읽었으면 첫 화면을 그대로 둡니다
     const on = (name, yes) => yes ? root.setAttribute(name, '1') : root.removeAttribute(name);
     if (!has) {                            // 올라간 목록이 없으면 원래 안내를 보여 줍니다
-      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docsorders','data-docskinds','data-docscodes','data-docsitems']
+      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docsorders','data-docskinds','data-docscodes','data-docsitems','data-docsprod']
         .forEach((n) => root.removeAttribute(n));
       return;
     }
@@ -711,10 +733,11 @@
     on('data-docskinds',  docsLevel === 'kinds');
     on('data-docscodes',  docsLevel === 'codes');
     on('data-docsitems',  docsLevel === 'items');
+    on('data-docsprod',   docsLevel === 'prod');
     on('data-docsv',      !!docsVendor);
     if (docsLevel !== 'box') root.removeAttribute('data-docsbox');
     const back = document.getElementById('dhh-back');
-    if (back) back.textContent = (docsLevel === 'items' && docsVendor) ? '← ' + docsVendor
+    if (back) back.textContent = ((docsLevel === 'items' || docsLevel === 'prod') && docsVendor) ? '← ' + docsVendor
                                : (docsLevel === 'box' && docsVendor) ? '← ' + docsVendor
                                : (docsLevel === 'files' && docsKindWhere) ? '← ' + docsKindWhere
                                : (docsLevel === 'files' || docsLevel === 'kinds') ? '← ' + (docsVendor ?? '거래처')
@@ -795,6 +818,35 @@
     window.docs수량건네기?.(docsVendor).catch(() => {});
   }
   window.docsOpenItems = docsOpenItems;
+
+  /* 제품정보 — 잔액서류에서 읽어 둔 것을 코드마다 여덟 칸으로. 새로 뽑지 않습니다.
+     값은 가장 늦은 차수 것부터 봅니다. 어느 차수에도 없는 칸은 빈칸입니다. */
+  function docsOpenProd() {
+    if (!docsVendor) return;
+    docsLevel = 'prod';
+    const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    const box = document.getElementById('dpr-list');
+    const { codes } = window.docs단품?.(docsVendor) ?? { codes: [] };
+    put('dpr-name', docsVendor + ' · 제품정보');
+    put('dpr-sub', `코드 ${codes.length}개`);
+    const 먼저 = (c, k) => c.차수들.map((x) => x[k]).find((v) => v !== null && v !== undefined && v !== '') ?? '';
+    const 칸 = (이름, v) => v === '' ? '' : `<span class="dpr-v"><b>${이름}</b> ${dhhEsc(String(v))}</span>`;
+    if (box) box.innerHTML = codes.length ? codes.map((c) => {
+      const 값 = 칸('Product model', 먼저(c, 'model') || c.name) + 칸('COLOR', 먼저(c, 'color'))
+        + 칸('产品号', 먼저(c, 'pno')) + 칸('FOB', 먼저(c, 'fob'))
+        + 칸('Packing size(mm)', 먼저(c, 'size')) + 칸('carton Volume (CBM)', 먼저(c, 'cbm'))
+        + 칸('pcs/ctn', 먼저(c, 'perCtn'));
+      return `
+      <div class="dpr-row">
+        <span class="dpr-c">${dhhEsc(c.code)}</span>
+        <div class="dpr-vals">${값 || '<span class="dpr-v dpr-none">값 없음</span>'}</div>
+      </div>`;
+    }).join('') : '<div class="dpr-none">잔액서류에서 읽은 코드 없음</div>';
+    docsPaint();
+    docsFitTop();
+    window.scrollTo(0, 0);
+  }
+  window.docsOpenProd = docsOpenProd;
 
   /* 코드 하나를 누르면 그 아래가 펴집니다. 손가락으로 됩니다 — :hover 를 안 씁니다. */
   function ditToggle(btn) {
@@ -913,7 +965,7 @@
     if (docsLevel === 'files' && docsKindWhere) { docsKindOpen(docsKindWhere, docsKindList); return; }
     if (docsLevel === 'kinds') { docsKindWhere = ''; docsLevel = 'vendor'; }
     else if (docsLevel === 'files') docsLevel = 'vendor';
-    else if (docsLevel === 'items' && docsVendor) docsLevel = 'vendor';
+    else if ((docsLevel === 'items' || docsLevel === 'prod') && docsVendor) docsLevel = 'vendor';
     else if (docsLevel === 'box' && docsVendor) docsLevel = 'vendor';
     else { docsLevel = 'home'; docsVendor = null; }
     if (docsLevel === 'vendor') docsVendorRefresh();
@@ -1003,6 +1055,11 @@
           <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
           <span><span class="dhh-nm">단품관리</span>
             <span class="dhh-pct">${dit단품수(docsVendor)}</span></span>
+        </button>
+        <button type="button" class="dhh-tile dhh-white" onclick="docsOpenProd()">
+          <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+          <span><span class="dhh-nm">제품정보</span>
+            <span class="dhh-pct">코드 ${(window.docs단품?.(docsVendor)?.codes ?? []).length}개</span></span>
         </button>` +
         // 이 거래처 안에 손으로 만든 박스 — 뒤에 이어 섭니다
         (v.mine ?? []).map((m, i) => `
@@ -1773,6 +1830,8 @@ const ITEM_COLS = [
   ['size', [/^packingsize/, /^포장규격$/, /^외箱尺寸$/, /^外箱尺寸$/, /^카톤규격$/]],
   ['perCtn', [/^pcs\/ctn$/, /^pcsctn$/, /^pcsperctn$/, /^입수$/, /^装箱数$/, /^qty\/ctn$/]],
   ['cbm', [/^cartonvolume/, /^cbm$/, /^volumecbm$/, /^부피$/, /^立方数$/]],
+  // 产品号 — 거래처 쪽 제품번호. 제품정보 박스에 보입니다(사장님 10-21). 글자 그대로 담습니다.
+  ['pno', [/^产品号$/, /^产品编号$/, /^产品编码$/]],
 ];
 
 /**
@@ -1894,6 +1953,8 @@ function readItems(rows) {
          거기 글자가 섞이면 값이 아니라 **잘못 읽은 것**이라 빈칸이 맞습니다. */
     const perCtn = 앞숫자(row[cols.perCtn]);
     const cbm = 숫자칸(cols.cbm);
+    const pno = cols.pno === undefined ? null
+      : (String(row[cols.pno] ?? '').trim().slice(0, 40) || null);
 
     /* 사장님 2026-10-11 규칙 —
        「코드열에 코드가 있다면 그 옆으로 Product model, 가격, 수량 등
@@ -1922,8 +1983,9 @@ function readItems(rows) {
       if (had.size !== size) had.size = null;
       if (had.perCtn !== perCtn) had.perCtn = null;
       if (cbm !== null) had.cbm = (had.cbm ?? 0) + cbm;
+      if (had.pno !== pno) had.pno = null;
     } else out.set(열쇠, { code, name, qty, price, amount,
-                          colors: color ? [color] : [], size, perCtn, cbm });
+                          colors: color ? [color] : [], size, perCtn, cbm, pno });
   }
   /* 머리에 세울 꼴 — **많이 쓰인 꼴**입니다. 수가 같으면 먼저 본 꼴입니다(sort 가 차례를 지킵니다).
      지어낸 꼴이 아니라 서류에 적힌 꼴 가운데 하나입니다. */
@@ -5835,6 +5897,7 @@ window.docs단품 = (vendor) => {
           size: it.size ?? null,
           perCtn: it.perCtn ?? null,
           cbm: it.cbm ?? null,
+          pno: it.pno ?? null,
         };
         /* ⚠ **한 서류 안에서** 밑줄 꼴만 다른 두 줄이 온 것이면 더합니다 — 뒤엣것으로 덮지 않습니다.
              덮는 규칙은 원본·수정본 **두 서류**를 위한 것입니다. 같은 서류면 둘 다 진짜 수량입니다.
@@ -5847,6 +5910,7 @@ window.docs단품 = (vendor) => {
           if (앞.size !== 줄.size) 앞.size = null;
           if (앞.perCtn !== 줄.perCtn) 앞.perCtn = null;
           if (줄.cbm != null) 앞.cbm = (앞.cbm ?? 0) + 줄.cbm;
+          if (앞.pno !== 줄.pno) 앞.pno = null;
         } else if (자리 >= 0) 것.차수들[자리] = 줄;
         else 것.차수들.push(줄);
       }

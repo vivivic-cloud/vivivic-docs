@@ -621,6 +621,16 @@ test('readItems — 단품관리 다섯 칸을 읽는다. Packing size 는 글�
     [null, null, null, null]);
 });
 
+test('readItems — 产品号 칸을 글자 그대로 읽는다. 없으면 빈칸', () => {
+  const got = readItems([
+    ['CODE#', 'Product model', 'Color', 'Qty pcs', 'FOB', '产品号'],
+    ['myT_3C', '3단 교구장', 'WHITE', 100, 12.5, 'ZH-1088'],
+    ['wdB_5', '우드 벤치', '', 40, '', ''],
+  ]);
+  assert.equal(got[0].pno, 'ZH-1088');
+  assert.equal(got[1].pno, null, '빈 칸은 null 입니다');
+});
+
 test('readItems — 같은 코드가 여러 줄이면 포장 꼴이 다를 때 빈칸이다', () => {
   const got = readItems([
     ['Code#', '품명', '수량', '단가', 'Packing size(mm)', 'pcs/ctn', 'CBM'],
