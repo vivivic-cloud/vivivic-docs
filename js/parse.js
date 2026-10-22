@@ -20,6 +20,13 @@ export const ASIDE = [
   { key: 'etc', label: '미분류' },
 ];
 
+/** 차수 폴더 안의 하위폴더 — 폴더째로 한 칸에 모읍니다. 7단계 진행에는 안 셉니다.
+    상차이미지 바로 아래에 섭니다. */
+export const SUBDIRS = [
+  { key: 'inspect', label: '검수', dir: '검수' },
+  { key: 'sample', label: '샘플', dir: '샘플' },
+];
+
 export const STAGE_BY_KEY = Object.fromEntries(STAGES.map((s) => [s.key, s]));
 
 /** 카카오톡 다운로드 접두사, 중복 확장자 등을 걷어냅니다. */
@@ -849,6 +856,21 @@ export function batchFromPath(path) {
 }
 
 /**
+ * 차수 폴더 바로 밑 하위폴더(검수·샘플)에 든 파일이면 그 갈래를 돌려줍니다.
+ * "제헤우드/zh-26-07/검수/a.jpg" → SUBDIRS 의 검수. 그 밑에 폴더가 더 있어도 검수입니다.
+ */
+export function subdirOf(path) {
+  const parts = String(path).split('/').slice(0, -1);
+  for (let i = parts.length - 2; i >= 0; i--) {
+    const seg = parts[i].replace(/_/g, '-').replace(/(^|[^\d])20(2[4-9])\s*-/g, '$1$2-');
+    if (!parseBatch(seg)) continue;
+    const next = parts[i + 1].normalize('NFC').trim();
+    return SUBDIRS.find((x) => x.dir === next) ?? null;
+  }
+  return null;
+}
+
+/**
  * 한 발주에서 나온 서류들을 잇는 번호를 뽑습니다.
  * 차수 표기가 없어도 이 번호가 같으면 같은 발주입니다.
  */
@@ -927,6 +949,9 @@ export function buildBatches(files, rules = []) {
     // 차수 폴더에 올린 사진은 상차 이미지입니다. 파일명이 해시라도 이걸로 잡힙니다.
     if (fromPath && cls.key === 'etc' && IMAGE_EXT.has(extOf(f.name)))
       cls = { key: 'loading', stage: STAGE_BY_KEY.loading.id, why: '차수 폴더에 올린 사진' };
+    // 검수·샘플 폴더에 든 것은 이름이 무엇이든 그 칸입니다. 사진이 상차로 새지 않습니다.
+    const sub = subdirOf(f.path);
+    if (sub) cls = { key: sub.key, stage: null, why: `${sub.label} 폴더` };
 
     const named = parseVendor(f.name, vendors, f);
     let doc = {
@@ -1089,6 +1114,7 @@ export function summarize(raw) {
     docs: b.docs.filter((d) => d.stageKey === s.key),
   }));
   const aside = ASIDE.map((a) => ({ ...a, docs: b.docs.filter((d) => d.stageKey === a.key) }));
+  const sub = SUBDIRS.map((x) => ({ ...x, docs: b.docs.filter((d) => d.stageKey === x.key) }));
 
   const done = stages.filter((s) => s.docs.length > 0).length;
   const issues = findIssues(b, stages);
@@ -1101,6 +1127,7 @@ export function summarize(raw) {
     ...b,
     stages,
     aside,
+    sub,
     done,
     total: STAGES.length,
     percent: Math.round((done / STAGES.length) * 100),

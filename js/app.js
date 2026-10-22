@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠 } from './parse.js';
+import { STAGES, ASIDE, buildBatches, extOf, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠 } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처 } from './match.js';
 import * as FS from './fsaccess.js';
@@ -2012,6 +2012,8 @@ function renderDrawer(id) {
   const docLink = (d) => `
     <li class="dhh-dbox${확정발주서?.path === d.path && 발주서들.length > 1 ? ' ring-1 ring-ink' : ''}">
       <div class="flex items-start gap-2">
+        ${/^(inspect|sample)$/.test(d.stageKey)
+          ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-chip text-muted uppercase shrink-0 mt-px">${esc(extOf(d.name ?? '') || '파일')}</span>` : ''}
         <button data-doc="${esc(d.path)}" class="dnm text-left text-info hover:underline break-words" title="${esc(fileTitle(d))}">
           ${esc(d.display)}
         </button>
@@ -2082,13 +2084,30 @@ function renderDrawer(id) {
       <section>
         <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">7단계 진행</h3>
         <ol class="space-y-1">
-          ${b.stages.map((s) => {
+          ${b.stages.flatMap((s) => (s.key === 'loading' ? [s, ...(b.sub ?? [])] : [s])).map((s, 순번) => {
             const on = s.docs.length > 0;
+            /* 검수·샘플 — 상차이미지 바로 밑. 7단계에는 안 들고, 번호는 놓인 차례대로 붙입니다.
+               사진은 작은 그림으로, 나머지(ppt·pdf·엑셀…)는 종류 딱지 + 이름으로. */
+            if (s.dir) {
+              const 사진 = s.docs.filter((d) => PHOTO_EXT.test(d.name));
+              const 문서 = s.docs.filter((d) => !PHOTO_EXT.test(d.name));
+              return `
+            <li class="rounded-lg ${on ? '' : 'opacity-60'}">
+              <div class="flex items-center gap-2.5 px-3 py-2">
+                <span class="w-5 h-5 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0
+                      ${on ? 'bg-ink text-white' : 'bg-chip text-faint'}">${순번 + 1}</span>
+                <span class="text-[13px] font-semibold">${esc(s.label)}</span>
+                <span class="ml-auto text-[11px] text-faint font-semibold">${on ? `${s.docs.length}건` : '없음'}</span>
+              </div>
+              ${사진.length ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(사진, s.key)}</div>` : ''}
+              ${문서.length ? `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${((diffs = new Map()), 문서.map((d) => docLink(d)).join(''))}</ul>` : ''}
+            </li>`;
+            }
             return `
             <li class="rounded-lg ${on ? '' : 'opacity-60'}">
               <div class="flex items-center gap-2.5 px-3 py-2">
                 <span class="w-5 h-5 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0
-                      ${on ? 'bg-ink text-white' : 'bg-chip text-faint'}">${s.id}</span>
+                      ${on ? 'bg-ink text-white' : 'bg-chip text-faint'}">${순번 + 1}</span>
                 <span class="text-[13px] font-semibold">${esc(s.label)}</span>
                 <span class="ml-auto text-[11px] text-faint font-semibold">${on ? `${s.docs.length}건` : '없음'}</span>
               </div>
@@ -2181,7 +2200,9 @@ function renderDrawer(id) {
   }
   for (const el of $('#drawerBody').querySelectorAll('[data-photo]')) {
     el.onclick = () => {
-      const list = b.stages.find((s) => s.key === el.dataset.photo).docs;
+      // 검수·샘플 칸은 사진만 격자에 섭니다 — 넘겨 보기도 사진끼리만.
+      const list = [...b.stages, ...(b.sub ?? [])].find((s) => s.key === el.dataset.photo).docs
+        .filter((d) => PHOTO_EXT.test(d.name));
       openDoc(list[Number(el.dataset.idx)], list);
     };
   }

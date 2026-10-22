@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, readBrief, readItems, readPdfItems, 코드열쇠, 제품줄인가, orderIds } from '../js/parse.js';
+import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 제품줄인가, orderIds } from '../js/parse.js';
 
 /** 실제 드라이브 `중국/제헤우드/` 폴더에서 가져온 파일명입니다. */
 const REAL = [
@@ -212,6 +212,34 @@ test('buildBatches — 차수 폴더에 올린 사진은 상차로 본다', () =
   const loading = batches[0].stages.find((s) => s.key === 'loading').docs;
   assert.equal(loading.length, 1);
   assert.equal(loading[0].batchBy, 'folder');
+});
+
+test('buildBatches — 차수 폴더의 검수·샘플 폴더는 그 칸으로, 상차로 새지 않는다', () => {
+  const files = [
+    { name: 'AMT(ZH)26-18 Ordersheet_20260730.pdf', path: '제헤우드/AMT(ZH)26-18 Ordersheet_20260730.pdf', size: 1, vendor: '제헤우드' },
+    { name: 'a1b2c3.jpg', path: '제헤우드/Zh-26-18차/검수/a1b2c3.jpg', size: 2, vendor: '제헤우드' },
+    { name: '검수보고서.pdf', path: '제헤우드/Zh-26-18차/검수/검수보고서.pdf', size: 3, vendor: '제헤우드' },
+    { name: '샘플 견적.pptx', path: '제헤우드/Zh-26-18차/샘플/샘플 견적.pptx', size: 4, vendor: '제헤우드' },
+    { name: 'x.png', path: '베이지아/bj-26-04/샘플/x.png', size: 5, vendor: '베이지아' },
+  ];
+  const { batches } = buildBatches(files);
+  const zh = batches.find((b) => b.vendor === '제헤우드');
+  assert.equal(zh.sub.find((s) => s.key === 'inspect').docs.length, 2);
+  assert.equal(zh.sub.find((s) => s.key === 'sample').docs.length, 1);
+  assert.equal(zh.stages.find((s) => s.key === 'loading').docs.length, 0, '상차로 안 샌다');
+  assert.equal(zh.done, 1, '7단계 진행에는 안 센다');
+  const bj = batches.find((b) => b.vendor === '베이지아');
+  assert.equal(bj.batch, '26-04');
+  assert.equal(bj.sub.find((s) => s.key === 'sample').docs.length, 1);
+});
+
+test('subdirOf — 차수 폴더 바로 밑 검수·샘플만', () => {
+  assert.equal(subdirOf('제헤우드/zh-26-07/검수/a.jpg')?.key, 'inspect');
+  assert.equal(subdirOf('제헤우드/zh-26-25 (1)/샘플/b.pdf')?.key, 'sample');
+  assert.equal(subdirOf('제헤우드/zh-26-07/샘플/더/c.xlsx')?.key, 'sample');
+  assert.equal(subdirOf('제헤우드/zh-26-07/a.jpg'), null);
+  assert.equal(subdirOf('제헤우드/검수/a.jpg'), null, '차수 폴더 밑이 아니면 아님');
+  assert.equal(subdirOf('제헤우드/zh-26-07/검수'.normalize('NFD') + '/a.jpg')?.key, 'inspect', '맥 자모');
 });
 
 test('batchFromPath — 폴더 이름에서 차수를 읽는다', () => {
