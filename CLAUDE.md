@@ -97,6 +97,17 @@ CODE# · Product model(없으면 단품명) · 产品号 를 소문자로 붙여
 스타일도 `:is(#docs-prod, .dpr-pop) .dpr-t` 로 함께 — 팝업 쪽 감싸개 `.dpr-pop` 이 색 토큰·글꼴을 들고 있습니다
 (`--vg-*` 토큰은 판들(`#docs-prod` 등)에만 걸려 있어 `#diffView` 안에서는 비기 때문). 칸을 바꾸면 `dpr표` 한 곳만.
 
+**잔액서류 내용보기 팝업은 원본 양식 그대로입니다 (v0.73.0, `d4c777d`, 10-26).** 사장님 「잔액서류 내용보기 양식은 잔액서류의 양식을 따라야지」.
+v0.72.0 의 제품관리 여덟 칸(`dpr표`)을 버리고, 서버 `원본표_(rows, sheet)` 가 **품목 표가 처음 나오는 시트**에서
+머리줄(수량 칸 + 코드/이름 칸)부터 은행·`Signature` 글귀 앞까지를 `getDisplayValues()` 글자 그대로 떠
+`cipl.sheet = { name, rows: [{c:[...]}], h, f }` 로 담습니다(빈 칸·빈 줄은 뺌). `h` 머리줄 수(베이지아는 「(PCS) CNY」 줄까지 2),
+`f` 합계줄이 시작하는 자리(TOTAL 낱말 또는 코드·이름 칸이 빈 줄 — 제헤우드는 합계·Deposit·Balance 셋).
+⚠ Firestore 는 배열 안 배열이 안 돼 줄마다 `{c:[]}` 로 감쌉니다. `READ_VERSION` 10 → 11.
+`openCiplView()`(`js/app.js`)는 그 차수 「잔액서류」 단계 서류의 `cipl.sheet` 만 그립니다 — 같은 표 서류가 둘이면 하나, 다르면 파일 이름 딱지 밑에 따로.
+모양은 `.dpr-t` 그대로, 합계줄만 `.dpr-pop .dpr-t tr.dpr-f` 로 굵게. `dpr표` 는 이제 제품관리만 씁니다.
+서버는 **고정 배포 주소 그대로** `clasp deploy -i AKfycbx0V…` 로 `@46` 에 올렸습니다(주소가 안 바뀌어 `docs_config/sync` 손댈 것 없음).
+`clasp run sync` 는 안 됩니다(API 실행 배포 없음 → NOT_FOUND). 다 읽히려면 앱을 서너 번 열어야 합니다 — 그 전엔 「읽은 값 없음」.
+
 **서류에서 뽑는 규칙을 고치면 `sync.gs` 의 `READ_VERSION` 을 올립니다.**
 `MARK_VERSION` 만 올리면 전체를 다시 훑기는 하지만, 파일별로 "이미 `cipl` 칸이 있다"고
 보고 넘어가 정작 다시 읽지 않습니다. `READ_VERSION` 은 지문에도 들어가고 각 문서에
