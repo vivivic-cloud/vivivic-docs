@@ -1075,7 +1075,7 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
         const renderSheet = (name) => {
           const html = XLSX.utils.sheet_to_html(wb.Sheets[name], { editable: false });
           const m = /<table[\s\S]*<\/table>/.exec(html);
-          return (m ? m[0] : html).replace('<table', '<table class="vv-sheet"');
+          return `<div class="vv-x">${(m ? m[0] : html).replace('<table', '<table class="vv-sheet"')}</div>`;
         };
         const tabsHtml =
           names.length > 1
@@ -1089,7 +1089,7 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
                </div>`
             : '';
         box.className = 'flex-1 min-h-[420px] rounded-lg border border-line bg-white overflow-auto';
-        box.innerHTML = `<div class="w-full h-full flex flex-col">${tabsHtml}<div id="${ns}Sheet" class="flex-1 overflow-auto p-2">${renderSheet(names[0])}</div></div>`;
+        box.innerHTML = `<div class="w-full h-full flex flex-col">${tabsHtml}<div id="${ns}Sheet" class="flex-1 overflow-y-auto overflow-x-hidden p-2">${renderSheet(names[0])}</div></div>`;
         for (const btn of box.querySelectorAll('[data-sheet]')) {
           btn.onclick = () => {
             for (const b of box.querySelectorAll('[data-sheet]'))
@@ -1434,7 +1434,7 @@ function 제품표(auto) {
           금액있는것.length ? ` · ${fmtNum(Math.round(금액합 * 100) / 100)}` : ''}</span>
         ${못읽은칸 ? `<span class="text-[11px] text-faint ml-auto">빈칸 ${못읽은칸}</span>` : ''}
       </div>
-      <div class="overflow-x-auto">
+      <div class="vv-x">
         <table class="w-full text-[11px] border border-line rounded-lg overflow-hidden tabular-nums">
           <thead>
             <tr class="bg-hover text-faint text-left">
@@ -1573,7 +1573,7 @@ function renderDrawer(id) {
     };
 
     return `
-      <div class="mt-1.5 overflow-x-auto">
+      <div class="mt-1.5 vv-x">
         <table class="w-full text-[11px] border border-line rounded-lg overflow-hidden tabular-nums">
           <thead>
             <tr class="bg-hover text-faint text-left">
@@ -1809,7 +1809,7 @@ function renderDrawer(id) {
       const h = t.h ?? 1, f = t.f ?? rows.length;
       const 칸 = (v, tag) => `<${tag}${숫자.test(v) ? ' class="num"' : ''}>${esc(v)}</${tag}>`;
       return `
-        <div class="dpr-scroll"><table class="dpr-t">
+        <div class="dpr-scroll vv-x"><table class="dpr-t">
           <thead>${rows.slice(0, h).map((r) => `<tr>${r.map((v) => 칸(v, 'th')).join('')}</tr>`).join('')}</thead>
           <tbody>${rows.slice(h).map((r, i) => `<tr${h + i >= f ? ' class="dpr-f"' : ''}>${r.map((v) => 칸(v, 'td')).join('')}</tr>`).join('')}</tbody>
         </table></div>`;

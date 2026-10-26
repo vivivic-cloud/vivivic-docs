@@ -35,6 +35,20 @@
   .vv-sheet td, .vv-sheet th { border:1px solid #ededeb; padding:3px 6px; white-space:nowrap; }
   .vv-sheet tr:nth-child(even) { background:#fafaf9; }
   [hidden] { display: none !important; }
+  /* 표 가로 넘침 — 모든 표가 같이 씁니다(.vv-x 로 감싸면 끝).
+     사장님 10-26 「표만들때 가로스크롤좀 현위치에서 보이게 해주세요 전체화면 스크롤은 좀 만들지 말고」.
+     넘침은 표 상자 안에서만. 막대는 화면 아래에 붙어 따라오고(sticky), 표 끝에 닿으면 표 밑에 섭니다.
+     맥 트랙패드는 기본 막대를 숨기니 기본 막대는 끄고 늘 보이는 막대를 따로 그립니다. */
+  .vv-x { overflow-x:auto; overflow-y:hidden; max-width:100%; -webkit-overflow-scrolling:touch;
+          scrollbar-width:none; overscroll-behavior-x:contain; }
+  .vv-x::-webkit-scrollbar { display:none; }
+  .vv-xw { max-width:100%; min-width:0; }
+  .vv-xbar { position:sticky; bottom:0; z-index:3; height:14px; padding:3px 0; background:rgba(255,255,255,.92);
+             touch-action:none; cursor:pointer; }
+  .vv-xbar[hidden] { display:none !important; }
+  .vv-xbar > i { position:absolute; top:3px; bottom:3px; left:0; border-radius:4px; background:#c7c7c4; }
+  .vv-xbar::before { content:''; position:absolute; left:0; right:0; top:3px; bottom:3px; border-radius:4px; background:#f1f1ef; }
+  .vv-xbar:hover > i, .vv-xbar.on > i { background:#8f8e8a; }
 
   /* ═══ 박스 판 — 기존 화면 위에 얹는 한 겹 ══════════════════════════
      작업대(viggle)·에이엠티·조혼가구에 있는 것과 같은 모양입니다.
@@ -66,7 +80,6 @@
   #docs-prod .dpr-gc{ font-size:12px; color:var(--vg-muted); }
   /* 표 — 굵은 머리줄, 그 아래 굵은 선 하나, 줄마다 옅은 선. 폰에서는 옆으로 밀고 코드 칸은 붙어 섭니다. */
   #docs-prod .dhh-wrap{ max-width:1100px; }
-  :is(#docs-prod, .dpr-pop) .dpr-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
   :is(#docs-prod, .dpr-pop) .dpr-t{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
   :is(#docs-prod, .dpr-pop) .dpr-t th{ font-size:13px; font-weight:800; color:var(--vg-ink); text-align:left; vertical-align:bottom;
     padding:10px 12px; border-bottom:2px solid var(--vg-ink); background:var(--vg-bg); }
@@ -332,7 +345,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.74.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.75.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -360,7 +373,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.74.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.75.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -852,7 +865,7 @@
             ${칸(먼저(c, 'fob'), 'num')}${칸(먼저(c, 'size'), 'num')}${칸(먼저(c, 'cbm'), 'num')}${칸(먼저(c, 'perCtn'), 'num')}
           </tr>`;
     return `
-        <div class="dpr-scroll"><table class="dpr-t">
+        <div class="dpr-scroll vv-x"><table class="dpr-t">
           <thead><tr>
             <th class="dpr-k">CODE#</th><th>Product model</th><th>COLOR</th><th>产品号</th>
             <th class="num">FOB</th><th class="num">Packing size(mm)</th><th class="num">carton Volume (CBM)</th><th class="num">pcs/ctn</th>
@@ -1337,6 +1350,57 @@
   document.getElementById('wo-close')?.addEventListener('click', () => woOpen(false));
 </script>
 
+<!-- 표 가로 막대 — .vv-x 를 찾아 감싸고, 늘 보이는 막대를 밑에 붙입니다. 표가 새로 그려지면 알아서 다시 붙습니다. -->
+<script>
+(() => {
+  const 막대달기 = (x) => {
+    x.dataset.vvx = '1';
+    const w = document.createElement('div');
+    w.className = 'vv-xw';
+    x.before(w);
+    w.append(x);
+    const bar = document.createElement('div');
+    bar.className = 'vv-xbar';
+    bar.innerHTML = '<i></i>';
+    w.append(bar);
+    const 손잡이 = bar.firstChild;
+    const 맞추기 = () => {
+      const 넘침 = x.scrollWidth - x.clientWidth;
+      bar.hidden = 넘침 <= 1;
+      if (bar.hidden) return;
+      const 길이 = bar.clientWidth;
+      const 손 = Math.max(36, 길이 * x.clientWidth / x.scrollWidth);
+      손잡이.style.width = 손 + 'px';
+      손잡이.style.transform = `translateX(${(길이 - 손) * x.scrollLeft / 넘침}px)`;
+    };
+    x.addEventListener('scroll', 맞추기, { passive: true });
+    new ResizeObserver(맞추기).observe(x);
+    if (x.firstElementChild) new ResizeObserver(맞추기).observe(x.firstElementChild);
+    /* 막대를 끌거나 누르면 표가 그만큼 움직입니다. */
+    bar.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const 길이 = bar.clientWidth, 손 = 손잡이.offsetWidth;
+      const 비율 = (x.scrollWidth - x.clientWidth) / Math.max(1, 길이 - 손);
+      const 왼 = bar.getBoundingClientRect().left;
+      if (e.target !== 손잡이) x.scrollLeft = (e.clientX - 왼 - 손 / 2) * 비율;
+      const 시작X = e.clientX, 시작 = x.scrollLeft;
+      bar.setPointerCapture(e.pointerId);
+      bar.classList.add('on');
+      const 움직 = (m) => { x.scrollLeft = 시작 + (m.clientX - 시작X) * 비율; };
+      const 끝 = () => { bar.classList.remove('on'); bar.removeEventListener('pointermove', 움직); };
+      bar.addEventListener('pointermove', 움직);
+      bar.addEventListener('pointerup', 끝, { once: true });
+      bar.addEventListener('pointercancel', 끝, { once: true });
+    });
+    맞추기();
+  };
+  const 훑기 = () => document.querySelectorAll('.vv-x:not([data-vvx])').forEach(막대달기);
+  let 잡힘 = 0;
+  new MutationObserver(() => { if (!잡힘) 잡힘 = requestAnimationFrame(() => { 잡힘 = 0; 훑기(); }); })
+    .observe(document.body, { childList: true, subtree: true });
+  훑기();
+})();
+</script>
 <script src="./js/vendor/xlsx.full.min.js"></script>
 <script type="module" src="./js/app.js"></script>
     <!-- 바이글 손잡이 — 주소에 ?viggle=1 이 있을 때만 켜진다 -->
