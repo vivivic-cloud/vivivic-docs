@@ -17,7 +17,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 11;
+const READ_VERSION = 12;
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -362,7 +362,7 @@ function updateWrite_(f) {
             supplier: { stringValue: c.supplier || '' },
             brief: briefValue_(c.brief),
             items: itemsValue_(c.items),
-            sheet: sheetValue_(c.sheet),
+            sheets: { arrayValue: { values: (c.sheets || []).map(sheetValue_) } },
             v: { integerValue: String(READ_VERSION) },
           },
         },
@@ -700,11 +700,12 @@ function ciplOf_(fileId, name) {
     let meta = null;
     let brief = null;
     let items = null;
-    let sheet = null;
+    const 표들 = [];
     for (let i = 0; i < sheets.length; i++) {
       const rows = sheets[i].getDataRange().getValues();
-      // 내용보기 팝업이 원본 양식 그대로 그릴 표 — 품목 표가 처음 나오는 시트 하나만.
-      if (!sheet) sheet = 원본표_(rows, sheets[i]);
+      // 내용보기 팝업이 원본 양식 그대로 그릴 표 — 품목 표가 있는 시트마다(CI · PL). 팝업에서 시트 칩으로 고릅니다.
+      const 표 = 원본표_(rows, sheets[i]);
+      if (표) 표들.push(표);
       const got = readCipl_(rows);
       // 중량은 보통 PL 시트에만 있습니다.
       if (got && (!best || (got.gross && !best.gross))) best = got;
@@ -712,9 +713,9 @@ function ciplOf_(fileId, name) {
       if (!brief) brief = readBrief_(rows);
       if (!items) items = readItems_(rows);
     }
-    if (!best && !meta && !brief && !items && !sheet) return null;
+    if (!best && !meta && !brief && !items && !표들.length) return null;
     const out = best || {};
-    if (sheet) out.sheet = sheet;
+    if (표들.length) out.sheets = 표들;
     if (meta) {
       if (meta.orderNo) out.orderNo = meta.orderNo;
       if (meta.invoiceDate) out.invoiceDate = meta.invoiceDate;

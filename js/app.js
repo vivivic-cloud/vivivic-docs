@@ -1788,14 +1788,21 @@ function renderDrawer(id) {
   }
 
   /* 잔액서류 내용보기 — 사장님 10-26 「잔액서류 내용보기 양식은 잔액서류의 양식을 따라야지」.
-     칸·순서·머리줄·합계줄은 서버가 원본에서 그대로 떠 둔 d.cipl.sheet(rows·h·f)를 씁니다. 새로 뽑지 않습니다.
+     칸·순서·머리줄·합계줄은 서버가 원본에서 그대로 떠 둔 d.cipl.sheets(시트마다 name·rows·h·f)를 씁니다. 새로 뽑지 않습니다.
+     사장님 10-26 「잔액 서류에는 항상 ci pl 두가지 시트가 있으니 내용보기에서도 두가지 시트필터로 보여줘」 —
+     위에 시트 칩(CI · PL)을 두고 고른 시트만 그립니다. 예전 판(READ_VERSION 11)이 떠 둔 d.cipl.sheet 는 시트 하나로 봅니다.
      모양만 제품관리 표(.dpr-t)와 같습니다. 같은 표를 담은 서류가 둘이면 하나만 보입니다.
      떠 둔 표가 없으면 「읽은 값 없음」 입니다. 틀은 상세보기(#diffView)와 같습니다. */
-  function openCiplView() {
+  function openCiplView(고른) {
+    const 시트들 = (d) => (d.cipl?.sheets ?? (d.cipl?.sheet ? [d.cipl.sheet] : [])).filter((t) => t?.rows?.length);
+    const 서류들 = (b.stages.find((s) => s.key === 'cipl')?.docs ?? []).filter((d) => 시트들(d).length);
+    const 이름들 = [...new Set(서류들.flatMap((d) => 시트들(d).map((t) => t.name)))];
+    if (!이름들.includes(고른)) 고른 = 이름들[0];
     const 본것 = new Set();
-    const 표들 = (b.stages.find((s) => s.key === 'cipl')?.docs ?? [])
-      .filter((d) => d.cipl?.sheet?.rows?.length)
-      .filter((d) => { const k = JSON.stringify(d.cipl.sheet.rows); return !본것.has(k) && 본것.add(k); });
+    const 표들 = 서류들
+      .map((d) => ({ d, t: 시트들(d).find((t) => t.name === 고른) }))
+      .filter(({ t }) => t)
+      .filter(({ t }) => { const k = JSON.stringify(t.rows); return !본것.has(k) && 본것.add(k); });
     const 숫자 = /^[-\d,.$¥%]+$/;
     const 표 = (t) => {
       const rows = t.rows.map((r) => r.c ?? []);
@@ -1817,13 +1824,16 @@ function renderDrawer(id) {
           <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px] ml-auto">닫기</button>
         </div>
         <div class="dpr-pop">
-          ${표들.length ? 표들.map((d) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${표(d.cipl.sheet)}`).join('')
+          ${이름들.length > 1 ? `<div class="dpr-tabs">${이름들.map((n) =>
+            `<button type="button" class="chip ${n === 고른 ? 'chip-on' : 'chip-off'}" data-ciplsheet="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
+          ${표들.length ? 표들.map(({ d, t }) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${표(t)}`).join('')
             : '<div class="dpr-none">읽은 값 없음</div>'}
         </div>
       </div>`;
     $('#diffView').hidden = false;
     $('#diffView').scrollTop = 0;
     document.documentElement.setAttribute('data-docsdiff', '1');
+    for (const btn of $('#diffBody').querySelectorAll('[data-ciplsheet]')) btn.onclick = () => openCiplView(btn.dataset.ciplsheet);
     $('#diffClose').onclick = () => {
       $('#diffView').hidden = true;
       document.documentElement.removeAttribute('data-docsdiff');
@@ -2227,7 +2237,7 @@ function renderDrawer(id) {
     el.onclick = () => openDoc(b.docs.find((d) => d.path === el.dataset.doc));
   }
   const ciplView = $('#ciplView');
-  if (ciplView) ciplView.onclick = openCiplView;
+  if (ciplView) ciplView.onclick = () => openCiplView();
   for (const el of $('#drawerBody').querySelectorAll('[data-diff]')) {
     el.onclick = () => openDiffDetail(diffPairs.get(el.dataset.diff));
   }
