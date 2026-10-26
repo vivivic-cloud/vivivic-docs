@@ -66,17 +66,20 @@
   #docs-prod .dpr-gc{ font-size:12px; color:var(--vg-muted); }
   /* 표 — 굵은 머리줄, 그 아래 굵은 선 하나, 줄마다 옅은 선. 폰에서는 옆으로 밀고 코드 칸은 붙어 섭니다. */
   #docs-prod .dhh-wrap{ max-width:1100px; }
-  #docs-prod .dpr-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  #docs-prod .dpr-t{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
-  #docs-prod .dpr-t th{ font-size:13px; font-weight:800; color:var(--vg-ink); text-align:left; vertical-align:bottom;
+  :is(#docs-prod, .dpr-pop) .dpr-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  :is(#docs-prod, .dpr-pop) .dpr-t{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  :is(#docs-prod, .dpr-pop) .dpr-t th{ font-size:13px; font-weight:800; color:var(--vg-ink); text-align:left; vertical-align:bottom;
     padding:10px 12px; border-bottom:2px solid var(--vg-ink); background:var(--vg-bg); }
-  #docs-prod .dpr-t th.num{ min-width:84px; }
-  #docs-prod .dpr-t td{ font-size:14px; color:var(--vg-body); padding:13px 12px;
+  :is(#docs-prod, .dpr-pop) .dpr-t th.num{ min-width:84px; }
+  :is(#docs-prod, .dpr-pop) .dpr-t td{ font-size:14px; color:var(--vg-body); padding:13px 12px;
     border-bottom:1px solid #D6D6D3; vertical-align:top; white-space:nowrap; }
-  #docs-prod .dpr-t .num{ text-align:center; }
-  #docs-prod .dpr-t td.dpr-m{ white-space:normal; min-width:140px; }
-  #docs-prod .dpr-t .dpr-k{ position:sticky; left:0; z-index:1; background:var(--vg-bg); font-weight:700; color:var(--vg-ink); }
-  #docs-prod .dpr-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
+  :is(#docs-prod, .dpr-pop) .dpr-t .num{ text-align:center; }
+  :is(#docs-prod, .dpr-pop) .dpr-t td.dpr-m{ white-space:normal; min-width:140px; }
+  :is(#docs-prod, .dpr-pop) .dpr-t .dpr-k{ position:sticky; left:0; z-index:1; background:var(--vg-bg); font-weight:700; color:var(--vg-ink); }
+  :is(#docs-prod, .dpr-pop) .dpr-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
+  /* 차수 서랍 「7. 잔액서류」 내용보기 팝업 — 제품관리 표를 그대로 씁니다. 색·글꼴도 제품관리 판과 같게. */
+  .dpr-pop{ --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19; --vg-muted:#9C9C98;
+    color:var(--vg-body); font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif; }
   #docs-prod .dpr-q{ max-width:360px; margin:0 0 14px; font-size:14px; }
 
   /* 단품관리 — 차수 한 덩이, 그 아래 코드·상품명 줄 */
@@ -325,7 +328,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.71.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.72.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -353,7 +356,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.71.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.72.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -831,6 +834,30 @@
   }
   window.docsOpenItems = docsOpenItems;
 
+  /* 제품관리 표 한 장 — 제품관리 판과 차수 서랍의 잔액서류 내용보기가 함께 씁니다.
+     codes 는 docs단품 의 꼴입니다. 값은 c.차수들 가운데 가장 늦은 차수 것부터 봅니다 —
+     한 차수만 넘기면 그 차수 값만 나옵니다. 어느 차수에도 없는 칸은 빈칸입니다. */
+  function dpr표(codes) {
+    const 먼저 = (c, k) => c.차수들.map((x) => x[k]).find((v) => v !== null && v !== undefined && v !== '') ?? '';
+    const 칸 = (v, cls = '') => `<td${cls ? ` class="${cls}"` : ''}>${v === '' ? '' : dhhEsc(String(v))}</td>`;
+    const 찾을글 = (c) => [c.code, 먼저(c, 'model') || c.name, 먼저(c, 'pno')].join(' ').toLowerCase();
+    const 줄 = (c) => `
+          <tr data-q="${dhhEsc(찾을글(c))}">
+            <td class="dpr-k">${dhhEsc(c.code)}</td>
+            ${칸(먼저(c, 'model') || c.name, 'dpr-m')}${칸(먼저(c, 'color'))}${칸(먼저(c, 'pno'))}
+            ${칸(먼저(c, 'fob'), 'num')}${칸(먼저(c, 'size'), 'num')}${칸(먼저(c, 'cbm'), 'num')}${칸(먼저(c, 'perCtn'), 'num')}
+          </tr>`;
+    return `
+        <div class="dpr-scroll"><table class="dpr-t">
+          <thead><tr>
+            <th class="dpr-k">CODE#</th><th>Product model</th><th>COLOR</th><th>产品号</th>
+            <th class="num">FOB</th><th class="num">Packing size(mm)</th><th class="num">carton Volume (CBM)</th><th class="num">pcs/ctn</th>
+          </tr></thead>
+          <tbody>${codes.map(줄).join('')}</tbody>
+        </table></div>`;
+  }
+  window.dpr표 = dpr표;
+
   /* 제품관리 — 모든 거래처의 잔액서류에서 읽어 둔 것을 코드마다 여덟 칸으로. 새로 뽑지 않습니다.
      값은 가장 늦은 차수 것부터 봅니다. 어느 차수에도 없는 칸은 빈칸입니다. */
   function docsOpenProd() {
@@ -843,25 +870,10 @@
       .filter((x) => x.codes.length);
     const 코드수 = 거래처들.reduce((n, x) => n + x.codes.length, 0);
     put('dpr-sub', `거래처 ${거래처들.length}곳 · 코드 ${코드수}개`);
-    const 먼저 = (c, k) => c.차수들.map((x) => x[k]).find((v) => v !== null && v !== undefined && v !== '') ?? '';
-    const 칸 = (v, cls = '') => `<td${cls ? ` class="${cls}"` : ''}>${v === '' ? '' : dhhEsc(String(v))}</td>`;
-    const 찾을글 = (c) => [c.code, 먼저(c, 'model') || c.name, 먼저(c, 'pno')].join(' ').toLowerCase();
-    const 줄 = (c) => `
-          <tr data-q="${dhhEsc(찾을글(c))}">
-            <td class="dpr-k">${dhhEsc(c.code)}</td>
-            ${칸(먼저(c, 'model') || c.name, 'dpr-m')}${칸(먼저(c, 'color'))}${칸(먼저(c, 'pno'))}
-            ${칸(먼저(c, 'fob'), 'num')}${칸(먼저(c, 'size'), 'num')}${칸(먼저(c, 'cbm'), 'num')}${칸(먼저(c, 'perCtn'), 'num')}
-          </tr>`;
     if (box) box.innerHTML = 거래처들.length ? 거래처들.map((x) => `
       <section class="dpr-g">
         <div class="dpr-gh"><span class="dpr-gn">${dhhEsc(x.vendor)}</span><span class="dpr-gc">${x.codes.length}개</span></div>
-        <div class="dpr-scroll"><table class="dpr-t">
-          <thead><tr>
-            <th class="dpr-k">CODE#</th><th>Product model</th><th>COLOR</th><th>产品号</th>
-            <th class="num">FOB</th><th class="num">Packing size(mm)</th><th class="num">carton Volume (CBM)</th><th class="num">pcs/ctn</th>
-          </tr></thead>
-          <tbody>${x.codes.map(줄).join('')}</tbody>
-        </table></div>
+        ${dpr표(x.codes)}
       </section>`).join('') : '<div class="dpr-none">잔액서류에서 읽은 코드 없음</div>';
     dprFind();
     docsPaint();

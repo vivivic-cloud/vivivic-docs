@@ -1787,6 +1787,37 @@ function renderDrawer(id) {
     };
   }
 
+  /* 잔액서류 내용보기 — 이 차수 잔액서류에서 읽어 둔 코드를 제품관리 표 그대로(window.dpr표).
+     값은 docs단품 이 모은 것 가운데 **이 차수 줄만** 씁니다. 새로 뽑지 않습니다.
+     읽어 둔 값이 없으면 빈 표 대신 「읽은 값 없음」 입니다. 틀은 상세보기(#diffView)와 같습니다. */
+  function openCiplView() {
+    const 차수 = b.batch ?? '차수 미정';
+    const codes = (window.docs단품?.(b.vendor || '(루트)')?.codes ?? [])
+      .map((c) => ({ ...c, 차수들: c.차수들.filter((x) => x.batch === 차수) }))
+      .filter((c) => c.차수들.length);
+    $('#diffBody').innerHTML = `
+      <div class="p-5">
+        <div class="flex items-center justify-between gap-3 mb-4">
+          <div class="min-w-0">
+            <div class="text-[11px] font-bold text-faint tracking-wide">잔액서류</div>
+            <div class="text-[16px] font-bold leading-tight break-words">${esc(b.vendor)} ${esc(b.batch)}차</div>
+          </div>
+          <span class="ml-auto text-[12px] text-faint font-semibold">${codes.length ? `코드 ${codes.length}개` : ''}</span>
+          <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px]">닫기</button>
+        </div>
+        <div class="dpr-pop">
+          ${codes.length ? window.dpr표(codes) : '<div class="dpr-none">읽은 값 없음</div>'}
+        </div>
+      </div>`;
+    $('#diffView').hidden = false;
+    $('#diffView').scrollTop = 0;
+    document.documentElement.setAttribute('data-docsdiff', '1');
+    $('#diffClose').onclick = () => {
+      $('#diffView').hidden = true;
+      document.documentElement.removeAttribute('data-docsdiff');
+    };
+  }
+
   /* 서류 한 장을 박스 하나로 — 박스 이름이 곧 그 서류의 이름입니다.
      모양은 작업대(viggle)의 박스 값을 그대로 씁니다(.dhh-dbox).
      이름은 자르지 않고 다 보여 줍니다. 누르는 자리는 전과 같습니다. */
@@ -2115,6 +2146,14 @@ function renderDrawer(id) {
                 ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
                 : `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${((diffs = diffNotes(s.docs)), s.docs.map((d) => docLink(d)).join(''))}</ul>`}
               ${s.key === 'order' ? 상차일칸() : ''}
+              ${s.key === 'cipl' && on ? `
+              <div class="pl-[42px] pr-3 pb-2">
+                <button type="button" id="ciplView"
+                        class="w-full min-h-[44px] rounded-lg border border-line bg-white
+                               text-[12px] font-bold text-ink flex items-center justify-center">
+                  내용보기
+                </button>
+              </div>` : ''}
             </li>`;
           }).join('')}
         </ol>
@@ -2175,6 +2214,8 @@ function renderDrawer(id) {
   for (const el of $('#drawerBody').querySelectorAll('[data-doc]')) {
     el.onclick = () => openDoc(b.docs.find((d) => d.path === el.dataset.doc));
   }
+  const ciplView = $('#ciplView');
+  if (ciplView) ciplView.onclick = openCiplView;
   for (const el of $('#drawerBody').querySelectorAll('[data-diff]')) {
     el.onclick = () => openDiffDetail(diffPairs.get(el.dataset.diff));
   }
