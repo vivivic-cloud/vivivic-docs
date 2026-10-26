@@ -80,6 +80,7 @@
   #docs-prod .dpr-t td.dpr-m{ white-space:normal; min-width:140px; }
   #docs-prod .dpr-t .dpr-k{ position:sticky; left:0; z-index:1; background:var(--vg-bg); font-weight:700; color:var(--vg-ink); }
   #docs-prod .dpr-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
+  #docs-prod .dpr-q{ max-width:360px; margin:0 0 14px; font-size:14px; }
 
   /* 단품관리 — 차수 한 덩이, 그 아래 코드·상품명 줄 */
   #docs-items .dit-b{ margin:0 0 18px; }
@@ -326,7 +327,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.70.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.71.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -354,7 +355,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.70.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.71.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -486,6 +487,8 @@
       <span class="dhh-day">제품관리</span>
       <span class="dhh-sub" id="dpr-sub">&nbsp;</span>
     </div>
+    <!-- CODE# · Product model · 产品号 를 한 칸으로 찾습니다 -->
+    <input id="dpr-q" type="search" class="field dpr-q" placeholder="코드 · Product model · 产品号 검색" oninput="dprFind()" />
     <div id="dpr-list"></div>
     <p class="dhh-foot"></p>
   </div>
@@ -844,8 +847,9 @@
     put('dpr-sub', `거래처 ${거래처들.length}곳 · 코드 ${코드수}개`);
     const 먼저 = (c, k) => c.차수들.map((x) => x[k]).find((v) => v !== null && v !== undefined && v !== '') ?? '';
     const 칸 = (v, cls = '') => `<td${cls ? ` class="${cls}"` : ''}>${v === '' ? '' : dhhEsc(String(v))}</td>`;
+    const 찾을글 = (c) => [c.code, 먼저(c, 'model') || c.name, 먼저(c, 'pno')].join(' ').toLowerCase();
     const 줄 = (c) => `
-          <tr>
+          <tr data-q="${dhhEsc(찾을글(c))}">
             <td class="dpr-k">${dhhEsc(c.code)}</td>
             ${칸(먼저(c, 'model') || c.name, 'dpr-m')}${칸(먼저(c, 'color'))}${칸(먼저(c, 'pno'))}
             ${칸(먼저(c, 'fob'), 'num')}${칸(먼저(c, 'size'), 'num')}${칸(먼저(c, 'cbm'), 'num')}${칸(먼저(c, 'perCtn'), 'num')}
@@ -861,11 +865,27 @@
           <tbody>${x.codes.map(줄).join('')}</tbody>
         </table></div>
       </section>`).join('') : '<div class="dpr-none">잔액서류에서 읽은 코드 없음</div>';
+    dprFind();
     docsPaint();
     docsFitTop();
     window.scrollTo(0, 0);
   }
   window.docsOpenProd = docsOpenProd;
+
+  /* 검색칸 — 코드·Product model·产品号 어디에든 들어 있으면 그 줄만 남깁니다. 맞는 줄이 없는 거래처는 접습니다. */
+  function dprFind() {
+    const q = (document.getElementById('dpr-q')?.value ?? '').trim().toLowerCase();
+    document.querySelectorAll('#dpr-list .dpr-g').forEach((g) => {
+      let n = 0;
+      g.querySelectorAll('tbody tr').forEach((tr) => {
+        const 맞음 = !q || tr.dataset.q.includes(q);
+        tr.hidden = !맞음;
+        if (맞음) n++;
+      });
+      g.hidden = !n;
+    });
+  }
+  window.dprFind = dprFind;
 
   /* 코드 하나를 누르면 그 아래가 펴집니다. 손가락으로 됩니다 — :hover 를 안 씁니다. */
   function ditToggle(btn) {
