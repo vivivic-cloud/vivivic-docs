@@ -82,6 +82,13 @@ Pages 빌드는 1분쯤 걸립니다. `curl -s https://vivivic-cloud.github.io/v
 서버(`sync.gs`)는 안 고쳤습니다 — `walk_` 가 이미 깊이 4까지 내려가 `거래처/차수/검수/파일` 을 읽습니다.
 10-22 현재 두 폴더는 24곳(베이지아 3 · 제헤우드 21) 모두 비어 있습니다.
 
+**제품관리 표 위에 검색칸이 있습니다 (v0.71.0, `cfd8f56`, 10-26).**
+`index.html` 의 `#dpr-q` → `dprFind()`. `docsOpenProd()` 가 줄마다 `data-q` 에
+CODE# · Product model(없으면 단품명) · 产品号 를 소문자로 붙여 두고, `dprFind` 가 거기서 찾아
+`tr.hidden` · 거래처 덩이(`.dpr-g`) `hidden` 을 켭니다. `docsOpenProd` 끝에서 `dprFind()` 를 다시 불러
+친 글자가 남아 있으면 다시 열어도 걸러진 채 뜹니다. 칸을 늘리면 `찾을글` 도 같이 고칩니다.
+10-26 현재 `npm test` 에 `buildBatches — 잔액서류가 이미 있으면 추정으로 얹지 않는다` 하나가 깨져 있습니다(이 일과 무관, 그 전부터).
+
 **서류에서 뽑는 규칙을 고치면 `sync.gs` 의 `READ_VERSION` 을 올립니다.**
 `MARK_VERSION` 만 올리면 전체를 다시 훑기는 하지만, 파일별로 "이미 `cipl` 칸이 있다"고
 보고 넘어가 정작 다시 읽지 않습니다. `READ_VERSION` 은 지문에도 들어가고 각 문서에
