@@ -1787,14 +1787,26 @@ function renderDrawer(id) {
     };
   }
 
-  /* 잔액서류 내용보기 — 이 차수 잔액서류에서 읽어 둔 코드를 제품관리 표 그대로(window.dpr표).
-     값은 docs단품 이 모은 것 가운데 **이 차수 줄만** 씁니다. 새로 뽑지 않습니다.
-     읽어 둔 값이 없으면 빈 표 대신 「읽은 값 없음」 입니다. 틀은 상세보기(#diffView)와 같습니다. */
+  /* 잔액서류 내용보기 — 사장님 10-26 「잔액서류 내용보기 양식은 잔액서류의 양식을 따라야지」.
+     칸·순서·머리줄·합계줄은 서버가 원본에서 그대로 떠 둔 d.cipl.sheet(rows·h·f)를 씁니다. 새로 뽑지 않습니다.
+     모양만 제품관리 표(.dpr-t)와 같습니다. 같은 표를 담은 서류가 둘이면 하나만 보입니다.
+     떠 둔 표가 없으면 「읽은 값 없음」 입니다. 틀은 상세보기(#diffView)와 같습니다. */
   function openCiplView() {
-    const 차수 = b.batch ?? '차수 미정';
-    const codes = (window.docs단품?.(b.vendor || '(루트)')?.codes ?? [])
-      .map((c) => ({ ...c, 차수들: c.차수들.filter((x) => x.batch === 차수) }))
-      .filter((c) => c.차수들.length);
+    const 본것 = new Set();
+    const 표들 = (b.stages.find((s) => s.key === 'cipl')?.docs ?? [])
+      .filter((d) => d.cipl?.sheet?.rows?.length)
+      .filter((d) => { const k = JSON.stringify(d.cipl.sheet.rows); return !본것.has(k) && 본것.add(k); });
+    const 숫자 = /^[-\d,.$¥%]+$/;
+    const 표 = (t) => {
+      const rows = t.rows.map((r) => r.c ?? []);
+      const h = t.h ?? 1, f = t.f ?? rows.length;
+      const 칸 = (v, tag) => `<${tag}${숫자.test(v) ? ' class="num"' : ''}>${esc(v)}</${tag}>`;
+      return `
+        <div class="dpr-scroll"><table class="dpr-t">
+          <thead>${rows.slice(0, h).map((r) => `<tr>${r.map((v) => 칸(v, 'th')).join('')}</tr>`).join('')}</thead>
+          <tbody>${rows.slice(h).map((r, i) => `<tr${h + i >= f ? ' class="dpr-f"' : ''}>${r.map((v) => 칸(v, 'td')).join('')}</tr>`).join('')}</tbody>
+        </table></div>`;
+    };
     $('#diffBody').innerHTML = `
       <div class="p-5">
         <div class="flex items-center justify-between gap-3 mb-4">
@@ -1802,11 +1814,11 @@ function renderDrawer(id) {
             <div class="text-[11px] font-bold text-faint tracking-wide">잔액서류</div>
             <div class="text-[16px] font-bold leading-tight break-words">${esc(b.vendor)} ${esc(b.batch)}차</div>
           </div>
-          <span class="ml-auto text-[12px] text-faint font-semibold">${codes.length ? `코드 ${codes.length}개` : ''}</span>
-          <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px]">닫기</button>
+          <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px] ml-auto">닫기</button>
         </div>
         <div class="dpr-pop">
-          ${codes.length ? window.dpr표(codes) : '<div class="dpr-none">읽은 값 없음</div>'}
+          ${표들.length ? 표들.map((d) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${표(d.cipl.sheet)}`).join('')
+            : '<div class="dpr-none">읽은 값 없음</div>'}
         </div>
       </div>`;
     $('#diffView').hidden = false;

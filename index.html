@@ -77,7 +77,10 @@
   :is(#docs-prod, .dpr-pop) .dpr-t td.dpr-m{ white-space:normal; min-width:140px; }
   :is(#docs-prod, .dpr-pop) .dpr-t .dpr-k{ position:sticky; left:0; z-index:1; background:var(--vg-bg); font-weight:700; color:var(--vg-ink); }
   :is(#docs-prod, .dpr-pop) .dpr-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
-  /* 차수 서랍 「7. 잔액서류」 내용보기 팝업 — 제품관리 표를 그대로 씁니다. 색·글꼴도 제품관리 판과 같게. */
+  /* 차수 서랍 「7. 잔액서류」 내용보기 팝업 — 칸은 원본 서류 그대로, 모양은 제품관리 표(.dpr-t)와 같게. 합계줄은 굵게. */
+  .dpr-pop .dpr-t tr.dpr-f td{ font-weight:700; color:var(--vg-ink); }
+  .dpr-pop .dpr-sn{ font-size:11px; font-weight:700; color:var(--vg-muted); margin:18px 0 6px; }
+  .dpr-pop .dpr-sn:first-child{ margin-top:0; } */
   .dpr-pop{ --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19; --vg-muted:#9C9C98;
     color:var(--vg-body); font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif; }
   #docs-prod .dpr-q{ max-width:360px; margin:0 0 14px; font-size:14px; }
@@ -328,7 +331,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.72.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.73.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -356,7 +359,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.72.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.73.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">

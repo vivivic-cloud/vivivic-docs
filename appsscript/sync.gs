@@ -17,7 +17,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 10;
+const READ_VERSION = 11;
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -362,6 +362,7 @@ function updateWrite_(f) {
             supplier: { stringValue: c.supplier || '' },
             brief: briefValue_(c.brief),
             items: itemsValue_(c.items),
+            sheet: sheetValue_(c.sheet),
             v: { integerValue: String(READ_VERSION) },
           },
         },
@@ -699,8 +700,11 @@ function ciplOf_(fileId, name) {
     let meta = null;
     let brief = null;
     let items = null;
+    let sheet = null;
     for (let i = 0; i < sheets.length; i++) {
       const rows = sheets[i].getDataRange().getValues();
+      // 내용보기 팝업이 원본 양식 그대로 그릴 표 — 품목 표가 처음 나오는 시트 하나만.
+      if (!sheet) sheet = 원본표_(rows, sheets[i]);
       const got = readCipl_(rows);
       // 중량은 보통 PL 시트에만 있습니다.
       if (got && (!best || (got.gross && !best.gross))) best = got;
@@ -708,8 +712,9 @@ function ciplOf_(fileId, name) {
       if (!brief) brief = readBrief_(rows);
       if (!items) items = readItems_(rows);
     }
-    if (!best && !meta && !brief && !items) return null;
+    if (!best && !meta && !brief && !items && !sheet) return null;
     const out = best || {};
+    if (sheet) out.sheet = sheet;
     if (meta) {
       if (meta.orderNo) out.orderNo = meta.orderNo;
       if (meta.invoiceDate) out.invoiceDate = meta.invoiceDate;
@@ -1083,6 +1088,89 @@ function itemsValue_(list) {
     } } };
   });
   return { arrayValue: { values: values } };
+}
+
+/* ── 원본 표 (잔액서류 내용보기) ──
+   사장님 10-26 — 「잔액서류 내용보기 양식은 잔액서류의 양식을 따라야지」.
+   그래서 칸을 골라 담지 않고, 품목 표의 **머리줄부터 합계줄까지** 화면에 보이는 글자 그대로 담습니다.
+   거래처마다 양식이 다릅니다 — 제헤우드 CI 12칸, 베이지아 CI 5칸에 머리줄 두 줄(「(PCS) CNY」).
+   h = 머리줄 수, f = 합계·잔금 줄이 시작하는 자리(없으면 줄 수). 둘 다 rows 안의 번호입니다.
+   ⚠ Firestore 는 배열 안에 배열을 못 둡니다 — 줄마다 { c: [...] } 로 감쌉니다. */
+function 원본표_(rows, sh) {
+  if (!rows || !rows.length) return null;
+  let head = -1;
+  let cols = {};
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const found = {};
+    (rows[i] || []).forEach(function (v, c) {
+      const t = cellKey_(v);
+      if (!t) return;
+      ITEM_COLS_.forEach(function (pair) {
+        if (found[pair[0]] === undefined && pair[1].some(function (re) { return re.test(t); })) found[pair[0]] = c;
+      });
+    });
+    if (found.qty !== undefined && (found.code !== undefined || found.alt !== undefined || found.name !== undefined)) {
+      head = i; cols = found; break;
+    }
+  }
+  if (head < 0) return null;
+
+  // 보이는 글자 그대로 — 14.056000000000001 이 아니라 14.056.
+  const shown = sh.getDataRange().getDisplayValues();
+  const 글 = function (v) { return String(v == null ? '' : v).replace(/\s*\n\s*/g, ' ').trim().slice(0, 60); };
+  const 빈줄 = function (r) { return !(r || []).some(function (v) { return 글(v); }); };
+
+  // 은행·서명 글귀가 나오면 표가 끝난 것입니다. 빈 줄이 셋 이어져도 끝입니다.
+  let end = head + 1;
+  let 빈 = 0;
+  for (let i = head + 1; i < shown.length && i < head + 300; i++) {
+    const r = shown[i] || [];
+    if (빈줄(r)) { if (++빈 >= 3) break; continue; }
+    const 첫 = r.map(글).filter(Boolean)[0] || '';
+    if (글귀_RE_.test(첫) || /^signature/i.test(첫)) break;
+    빈 = 0;
+    end = i + 1;
+  }
+  const body = shown.slice(head, end);
+
+  // 표 안에서 한 번도 안 쓴 칸은 뺍니다.
+  let width = 0;
+  body.forEach(function (r) { width = Math.max(width, (r || []).length); });
+  const keep = [];
+  for (let c = 0; c < width; c++) {
+    if (body.some(function (r) { return 글((r || [])[c]); })) keep.push(c);
+  }
+  const out = body.filter(function (r) { return !빈줄(r); }).map(function (r) {
+    return keep.map(function (c) { return 글((r || [])[c]); });
+  });
+  const 원 = body.filter(function (r) { return !빈줄(r); });
+
+  // 머리줄이 두 줄인 양식 — 수량 칸이 숫자가 아닌 「(PCS)」 꼴이면 그 줄도 머리입니다.
+  let h = 1;
+  const q2 = 원[1] ? 글(원[1][cols.qty]) : '';
+  if (q2 && !/^[\d,.\-]+$/.test(q2)) h = 2;
+
+  // 합계줄 — TOTAL 낱말이 있거나, 코드·이름 칸이 비었는데 숫자가 있는 줄부터.
+  const 코드칸 = cols.code !== undefined ? cols.code : cols.alt;
+  let f = 원.length;
+  for (let i = h; i < 원.length; i++) {
+    const r = 원[i];
+    const 비었나 = function (c) { return c === undefined || !글(r[c]); };
+    if (r.some(function (v) { return TOTAL_ROW_.test(글(v)); }) || (비었나(코드칸) && 비었나(cols.name))) { f = i; break; }
+  }
+  return { name: String(sh.getName()).slice(0, 40), rows: out, h: h, f: f };
+}
+
+function sheetValue_(t) {
+  if (!t) return { nullValue: null };
+  return { mapValue: { fields: {
+    name: { stringValue: t.name },
+    h: { integerValue: String(t.h) },
+    f: { integerValue: String(t.f) },
+    rows: { arrayValue: { values: t.rows.map(function (r) {
+      return { mapValue: { fields: { c: { arrayValue: { values: r.map(function (v) { return { stringValue: v }; }) } } } } };
+    }) } },
+  } } };
 }
 
 /* ── 서류 간추리기 (js/parse.js 의 readBrief 와 같은 규칙) ── */
