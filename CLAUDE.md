@@ -108,6 +108,13 @@ v0.72.0 의 제품관리 여덟 칸(`dpr표`)을 버리고, 서버 `원본표_(r
 서버는 **고정 배포 주소 그대로** `clasp deploy -i AKfycbx0V…` 로 `@46` 에 올렸습니다(주소가 안 바뀌어 `docs_config/sync` 손댈 것 없음).
 `clasp run sync` 는 안 됩니다(API 실행 배포 없음 → NOT_FOUND). 다 읽히려면 앱을 서너 번 열어야 합니다 — 그 전엔 「읽은 값 없음」.
 
+**잔액서류 내용보기 위에 CI · PL 시트 칩이 있습니다 (v0.74.0, `32c632d`, 10-26).** 사장님 「잔액 서류에는 항상 ci pl 두가지 시트가 있으니 내용보기에서도 두가지 시트필터로 보여줘」.
+실제 파일(제헤우드 .xls/.xlsx · 베이지아 · 삐에노)은 시트 이름이 모두 `CI` · `PL` 입니다. `원본표_` 머리줄 찾기는 PL 에도 맞습니다(`CODE#`+`Qty pcs`, `Description of Goods`+`Quantity`).
+서버 `ciplOf_` 가 이제 시트마다 `원본표_` 를 떠 **`cipl.sheets: [{name,rows,h,f}, …]`** 로 담습니다(예전 `cipl.sheet` 하나는 안 씀). `READ_VERSION` 11 → 12, 고정 배포 주소 그대로 `@47`.
+`openCiplView(고른)`(`js/app.js`)는 서류들의 시트 이름을 모아 둘 이상이면 앱 필터 칩(`.chip chip-on/off`, 감싸개 `.dpr-tabs`)을 띄우고, 누르면 `openCiplView(이름)` 으로 다시 그립니다.
+예전 판이 떠 둔 `cipl.sheet` 는 시트 하나로 읽으니, 다시 읽히기 전엔 칩 없이 CI 표만 보입니다.
+⚠ `index.html` `.dpr-sn:first-child` 줄 끝에 떠돌던 `*/` 가 다음 `.dpr-pop{…}` 규칙(색 토큰·글꼴)을 통째로 버리게 하고 있어 같이 걷었습니다. CSS 에 주석 닫는 표만 남기지 마세요.
+
 **서류에서 뽑는 규칙을 고치면 `sync.gs` 의 `READ_VERSION` 을 올립니다.**
 `MARK_VERSION` 만 올리면 전체를 다시 훑기는 하지만, 파일별로 "이미 `cipl` 칸이 있다"고
 보고 넘어가 정작 다시 읽지 않습니다. `READ_VERSION` 은 지문에도 들어가고 각 문서에
