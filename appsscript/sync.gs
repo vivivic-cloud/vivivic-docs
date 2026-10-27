@@ -17,7 +17,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 12;
+const READ_VERSION = 13;
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -29,6 +29,8 @@ const BASE = 'https://firestore.googleapis.com/v1/' + NAME;
 let ciplOk = 0;
 let ciplNone = 0;
 let ciplCut = 0;
+let poOk = 0;
+let poAll = 0;
 let lastNote = '';
 let runStart = new Date();
 let lastCiplError = '';
@@ -39,6 +41,8 @@ function sync() {
   ciplOk = 0;
   ciplNone = 0;
   ciplCut = 0;
+  poOk = 0;
+  poAll = 0;
   lastCiplError = '';
   const root = findRoot_();
   const files = [];
@@ -87,7 +91,7 @@ function sync() {
 
   const secs = (new Date() - started) / 1000;
   const note = '파일 ' + files.length + '건 · 쓰기 ' + writes.length + '건 · 서류 읽음 ' + ciplOk +
-    '건, 읽을 표 없음 ' + ciplNone + '건' + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
+    '건, 읽을 표 없음 ' + ciplNone + '건' + (poAll ? ' · 발주서 표 ' + poOk + '/' + poAll + '건' : '') + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
     ' · ' + secs + '초' + (lastCiplError ? ' · 마지막 오류: ' + lastCiplError : '');
   console.log(note);
   lastNote = note;
@@ -322,12 +326,18 @@ function updateWrite_(f) {
       ciplCut++;
       return baseWrite_(f, fields);
     }
-    const text = pdfText_(f.driveId);
+    const doc = pdfText_(f.driveId) || {};
+    const text = doc.text;
     const pb = readPdfBrief_(text);
     const pi = readPdfItems_(text);
     if (pb || pi) ciplOk++; else ciplNone++;
+    // 발주서 내용보기 — 원본 양식 그대로의 표. 칸 모양은 잔액서류 sheets 와 같습니다.
+    const pt = pdfTable_(doc.html);
+    poAll++;
+    if (pt) poOk++;
     fields.cipl = { mapValue: { fields: {
       brief: briefValue_(pb), invoiceDate: { stringValue: '' }, items: itemsValue_(pi),
+      sheets: { arrayValue: { values: pt ? [sheetValue_(pt)] : [] } },
       v: { integerValue: String(READ_VERSION) },
     } } };
     return { update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields } };
@@ -763,6 +773,8 @@ function authorize() {
 /**
  * PDF 를 구글 문서로 잠깐 바꿔 글자를 꺼냅니다. 복사본은 지웁니다.
  * 발주서는 스캔이 아니라 글자가 든 PDF라 이렇게 하면 내용이 나옵니다.
+ * { text, html } 을 돌려줍니다 — 글자는 품목 읽기에, html 은 원본 표(pdfTable_)에 씁니다.
+ * 글자 내보내기에서는 줄 경계가 사라져 표를 다시 짤 수 없습니다. html 에는 <tr> 이 남습니다.
  */
 function pdfText_(fileId) {
   let copyId = null;
@@ -789,7 +801,14 @@ function pdfText_(fileId) {
       lastCiplError = 'PDF 내보내기 실패 ' + txt.getResponseCode() + ' ' + txt.getContentText().slice(0, 120);
       return null;
     }
-    return txt.getContentText();
+    const htm = UrlFetchApp.fetch(
+      'https://www.googleapis.com/drive/v3/files/' + copyId + '/export?mimeType=text%2Fhtml',
+      { headers: { Authorization: 'Bearer ' + token_() }, muteHttpExceptions: true }
+    );
+    return {
+      text: txt.getContentText(),
+      html: htm.getResponseCode() === 200 ? htm.getContentText('UTF-8') : '',
+    };
   } catch (err) {
     lastCiplError = 'PDF 읽기 실패: ' + err.message;
     return null;
@@ -1160,6 +1179,110 @@ function 원본표_(rows, sh) {
     if (r.some(function (v) { return TOTAL_ROW_.test(글(v)); }) || (비었나(코드칸) && 비었나(cols.name))) { f = i; break; }
   }
   return { name: String(sh.getName()).slice(0, 40), rows: out, h: h, f: f };
+}
+
+/* ── 발주서 원본 표 (발주서 내용보기) ──
+   사장님 10-27 — 「발주서 칸에 내용보기 버튼으로 잔액서류처럼 텍스트화된 내용 볼 수 있게」.
+   잔액서류(원본표_)처럼 칸을 골라 담지 않고, 품목 표의 **머리줄부터 TOTAL 줄까지** 원본 칸 차례 그대로 담습니다.
+   구글 문서로 바꾼 html 의 <table> 을 읽습니다. 합친 칸(colspan·rowspan)은 빈 칸으로 채워 줄을 맞춥니다.
+   머리줄은 수량 칸 + 코드/이름 칸이 있는 줄 — 제헤우드 ZH#·code#·ORDER QTY, 베이지아 no.·code#, 세라믹 no.·ITEM NAME·QTY.
+   단가가 빈 발주서도 칸 이름으로 찾으니 놓치지 않습니다. 이름이 두 줄이면 한 칸 안에 띄어 붙입니다.
+   돌려주는 꼴은 원본표_ 와 같습니다 — { name, rows: [[…]], h, f }. */
+function html글_(v) {
+  return String(v)
+    .replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, function (m, n) { return String.fromCharCode(Number(n)); })
+    .replace(/&#x([0-9a-f]+);/gi, function (m, n) { return String.fromCharCode(parseInt(n, 16)); })
+    .replace(/&amp;/g, '&')
+    .replace(/\u00a0/g, ' ').replace(/\s*\n\s*/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+/** html 의 표들을 칸 격자로 — 표마다 [[글, …], …]. 합친 칸은 빈 칸으로 채웁니다. */
+function html표들_(html) {
+  const out = [];
+  const tables = String(html || '').match(/<table[\s\S]*?<\/table>/gi) || [];
+  tables.forEach(function (tb) {
+    const grid = [];
+    const 아래 = {}; // 칸 번호 → 아직 내려와 있는 rowspan 남은 줄 수
+    (tb.match(/<tr[\s\S]*?<\/tr>/gi) || []).forEach(function (tr) {
+      const row = [];
+      let c = 0;
+      const 채움 = function () { while (아래[c] > 0) { 아래[c]--; row[c] = ''; c++; } };
+      (tr.match(/<t[dh][^>]*>[\s\S]*?<\/t[dh]>/gi) || []).forEach(function (td) {
+        채움();
+        const 열 = Number((/colspan="?(\d+)/i.exec(td) || [])[1] || 1);
+        const 행 = Number((/rowspan="?(\d+)/i.exec(td) || [])[1] || 1);
+        row[c] = html글_(td.replace(/^<t[dh][^>]*>/i, '').replace(/<\/t[dh]>$/i, ''));
+        for (let k = 0; k < 열; k++) {
+          if (k) row[c + k] = '';
+          if (행 > 1) 아래[c + k] = 행 - 1;
+        }
+        c += 열;
+      });
+      채움();
+      grid.push(row);
+    });
+    out.push(grid);
+  });
+  return out;
+}
+
+function pdfTable_(html) {
+  const 빈줄 = function (r) { return !(r || []).some(function (v) { return v; }); };
+  const 표들 = html표들_(html);
+  for (let t = 0; t < 표들.length; t++) {
+    const rows = 표들[t];
+    let head = -1;
+    let cols = {};
+    for (let i = 0; i < rows.length; i++) {
+      const found = {};
+      rows[i].forEach(function (v, c) {
+        const k = cellKey_(v);
+        if (!k) return;
+        ITEM_COLS_.forEach(function (pair) {
+          if (found[pair[0]] === undefined && pair[1].some(function (re) { return re.test(k); })) found[pair[0]] = c;
+        });
+      });
+      if (found.qty !== undefined && (found.code !== undefined || found.alt !== undefined || found.name !== undefined)) {
+        head = i; cols = found; break;
+      }
+    }
+    if (head < 0) continue;
+
+    // 맨 끝 TOTAL(합계) 줄까지. S/TOTAL 은 중간 합계라 계속 갑니다. 못 찾으면 표 끝까지.
+    let end = rows.length;
+    for (let i = head + 1; i < rows.length; i++) {
+      const 첫 = rows[i].filter(Boolean)[0] || '';
+      if (/^(?:grand\s*)?total$|^합계$|^总计$|^合计$/i.test(첫)) { end = i + 1; break; }
+    }
+    const body = rows.slice(head, end).filter(function (r) { return !빈줄(r); });
+    if (body.length < 2) continue;
+
+    // 머리 밑으로 한 번도 안 쓴 칸은 뺍니다 — 그림(IMAGE) 칸은 글자로 안 나옵니다.
+    let width = 0;
+    body.forEach(function (r) { width = Math.max(width, r.length); });
+    const keep = [];
+    for (let c = 0; c < width; c++) {
+      if (body.slice(1).some(function (r) { return r[c]; })) keep.push(c);
+    }
+    const out = body.map(function (r) { return keep.map(function (c) { return r[c] || ''; }); });
+
+    let h = 1;
+    const q2 = body[1][cols.qty] || '';
+    if (q2 && !/^[\d,.\-]+$/.test(q2)) h = 2;
+
+    // 합계줄 — 끝에서부터 이어지는 TOTAL·코드/이름 빈 줄 덩이만. 중간 S/TOTAL 뒤 품목이 굵어지지 않게.
+    const 코드칸 = cols.code !== undefined ? cols.code : cols.alt;
+    const 합계인가 = function (r) {
+      const 비었나 = function (c) { return c === undefined || !r[c]; };
+      return r.some(function (v) { return TOTAL_ROW_.test(v); }) || (비었나(코드칸) && 비었나(cols.name));
+    };
+    let f = body.length;
+    while (f - 1 >= h && 합계인가(body[f - 1])) f--;
+    return { name: '발주서', rows: out, h: h, f: f };
+  }
+  return null;
 }
 
 function sheetValue_(t) {
