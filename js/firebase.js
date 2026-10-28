@@ -32,7 +32,7 @@ export async function init() {
     import(`${SDK}/firebase-firestore.js`),
   ]);
   const app = appMod.initializeApp(firebaseConfig);
-  ctx = { auth: authMod.getAuth(app), db: fsMod.getFirestore(app), a: authMod, f: fsMod };
+  ctx = { auth: authMod.getAuth(app), db: 창고열기(fsMod, app), a: authMod, f: fsMod };
   // 로그인 유지 — 브라우저를 닫아도 남게 한다. (지정하지 않으면 가끔 조용히 풀린다)
   // 반드시 기다린다. 아이폰처럼 IndexedDB 가 막히는 곳에서는 이것이 끝나기 전에
   // 로그인을 시작하면 저장 자리가 정해지지 않은 채로 실패한다.
@@ -50,6 +50,20 @@ export async function init() {
     }
   }
   return ctx;
+}
+
+/* 받은 것을 브라우저에 담아 둡니다(탭 여럿이 함께 씀). 다시 열면 바뀐 것만 받습니다 —
+   안 담으면 열 때마다 docs_files 900건을 통째로 다시 읽어 무료 한도(하루 5만)가 닳습니다.
+   못 담는 브라우저(사파리 사생활 창 등)면 SDK 가 알아서 예전처럼 메모리로 돕니다. */
+function 창고열기(f, app) {
+  try {
+    return f.initializeFirestore(app, {
+      localCache: f.persistentLocalCache({ tabManager: f.persistentMultipleTabManager() }),
+    });
+  } catch (e) {
+    console.warn('캐시 못 켬:', e?.message);
+    return f.getFirestore(app);
+  }
 }
 
 const col = (name) => ctx.f.collection(ctx.db, 'artifacts', APP_ID, 'public', 'data', name);
@@ -96,8 +110,22 @@ export function authMessage(code) {
 /** 문서 ID로 쓸 수 있게 경로를 다듬습니다 (슬래시 금지). */
 export const fileKey = (path) => path.replace(/\//g, '~').slice(0, 400);
 
+/* 캐시에서 먼저 뜬 값인지(두 번째 인자 true)를 같이 건넵니다. 쓰기는 서버 값을 본 뒤에만 합니다 —
+   오래된 캐시로 쓰면 남이 방금 고친 것을 덮습니다.
+   캐시가 서버와 같으면 SDK 가 다시 안 부르니 메타 변화까지 듣되, 문서가 바뀌었거나
+   캐시 → 서버로 넘어갈 때만 부릅니다. */
+function 듣기(ref, cb) {
+  let 전 = null;
+  return ctx.f.onSnapshot(ref, { includeMetadataChanges: true }, (s) => {
+    const 캐시 = s.metadata.fromCache;
+    if (캐시 === 전 && s.docChanges && !s.docChanges().length) return;
+    전 = 캐시;
+    cb(s, 캐시);
+  });
+}
+
 export function watchFiles(cb) {
-  return ctx.f.onSnapshot(col(FILES), (s) => cb(s.docs.map((d) => d.data())));
+  return 듣기(col(FILES), (s, 캐시) => cb(s.docs.map((d) => d.data()), 캐시));
 }
 
 /**
@@ -217,9 +245,9 @@ export async function saveLoading(batchId, patch, email) {
    드라이브는 건드리지 않습니다 — 우리 쪽 기록일 뿐입니다. */
 
 export function watchKinds(cb) {
-  return ctx.f.onSnapshot(ctx.f.doc(col(CONFIG), 'kinds'), (s) => {
+  return 듣기(ctx.f.doc(col(CONFIG), 'kinds'), (s, 캐시) => {
     const list = s.exists() ? (s.data().list ?? []) : [];
-    cb(Object.fromEntries(list.map((x) => [x.p, x.k])));
+    cb(Object.fromEntries(list.map((x) => [x.p, x.k])), 캐시);
   });
 }
 
@@ -254,8 +282,8 @@ export async function saveBox(box, email) {
 export const RULES = 'docs_rules';
 
 export function watchRules(cb) {
-  return ctx.f.onSnapshot(col(RULES), (s) =>
-    cb(s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '')))
+  return 듣기(col(RULES), (s, 캐시) =>
+    cb(s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '')), 캐시)
   );
 }
 
@@ -300,11 +328,20 @@ export const 수량열쇠 = (vendor, 열쇠) => `${vendor}~${열쇠}`.replace(/\
 
 /**
  * 바뀐 줄만 적습니다 — 열 때마다 128줄을 다시 쓰면 무료 한도가 닳습니다.
- * 한 번 읽어(1건) 견주고, 달라진 것만 씁니다. 사라진 줄은 **안 지웁니다** — 늘리기만 합니다.
+ * 한 번 읽어 견주고, 달라진 것만 씁니다. 사라진 줄은 **안 지웁니다** — 늘리기만 합니다.
+ *
+ * `표` 를 주면(전체 거래처 줄의 지문) 먼저 `docs_config/수량` **한 건**만 봅니다.
+ * 지난번 다 적은 지문과 같으면 창고(128건)를 읽지도 않습니다. 다 적은 뒤에 지문을 남깁니다.
  */
-export async function 수량올리기(rows) {
+export async function 수량올리기(rows, 표) {
   if (!Array.isArray(rows) || !rows.length) return { ok: true, 적은줄: 0, 그대로: 0 };
   try {
+    const 표자리 = ctx.f.doc(col(CONFIG), '수량');
+    if (표) {
+      const t = await ctx.f.getDoc(표자리);
+      if (t.exists() && t.data().h === 표 && t.data().n === rows.length)
+        return { ok: true, 적은줄: 0, 그대로: rows.length };
+    }
     const snap = await ctx.f.getDocs(col(수량칸));
     const 있던것 = new Map();
     snap.forEach((d) => 있던것.set(d.id, JSON.stringify(d.data()?.차수들 ?? null)));
@@ -319,6 +356,8 @@ export async function 수량올리기(rows) {
       }
       await batch.commit();
     }
+    // 지문을 못 남겨도 적은 것은 적은 것입니다 — 다음에 창고를 한 번 더 읽을 뿐입니다.
+    if (표) await ctx.f.setDoc(표자리, { h: 표, n: rows.length, at: Date.now() }).catch(() => {});
     return { ok: true, 적은줄: 쓸것.length, 그대로: rows.length - 쓸것.length };
   } catch (e) {
     return { ok: false, why: e?.code || e?.message || '못 적음' };
@@ -361,6 +400,7 @@ export async function 벤더피아상품() {
    여기서는 읽기만 합니다. */
 export const QUOTES = 'docs_quotes';
 
+/* 견적서 판(과 그 건수를 보이는 제품관리)에 있을 때만 듣습니다 — 나가면 끕니다. */
 export function watchQuotes(cb) {
   return ctx.f.onSnapshot(col(QUOTES), (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => cb([]));
 }

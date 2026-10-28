@@ -353,7 +353,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.77.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.78.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -381,7 +381,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.77.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.78.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -776,6 +776,7 @@
   let docsFiles = [];         // 지금 보고 있는 파일 목록
 
   function docsPaint() {
+    window.docs견적듣기?.(docsLevel === 'prod' || docsLevel === 'quote');   // 견적서는 이 두 판에서만 듣습니다
     const root = document.documentElement;
     const c = window.docsCounts?.();
     const has = c ? c.has : true;          // 아직 못 읽었으면 첫 화면을 그대로 둡니다
@@ -916,7 +917,7 @@
       .filter((x) => x.codes.length);
     const 코드수 = 거래처들.reduce((n, x) => n + x.codes.length, 0);
     put('dpr-sub', `거래처 ${거래처들.length}곳 · 코드 ${코드수}개`);
-    put('dpr-qn', `${(window.docs견적서들?.() ?? []).length}건`);
+    put('dpr-qn', window.docs견적읽음?.() ? `${(window.docs견적서들?.() ?? []).length}건` : '—');
     if (box) box.innerHTML = 거래처들.length ? 거래처들.map((x) => `
       <section class="dpr-g">
         <div class="dpr-gh"><span class="dpr-gn">${dhhEsc(x.vendor)}</span><span class="dpr-gc">${x.codes.length}개</span></div>

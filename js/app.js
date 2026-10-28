@@ -26,6 +26,7 @@ const state = {
   ciplBusy: new Set(),
   viewer: { list: [], idx: 0 },
   unsub: [],
+  캐시: { files: true, rules: true, kinds: true },   // 아직 서버 값을 못 봤으면 true — 그동안은 안 씁니다
 };
 
 const $ = (s) => document.querySelector(s);
@@ -108,6 +109,7 @@ async function boot() {
 function showLogin() {
   for (const u of state.unsub) u();
   state.unsub = [];
+  window.docs견적듣기(false);
   $('#login').hidden = false;
   $('#app').hidden = true;
 }
@@ -130,16 +132,29 @@ async function enterApp(user) {
   askSync();
 
   state.unsub.push(
-    DB.watchFiles((files) => { state.files = files; applyParse(); }),
+    DB.watchFiles((files, 캐시) => { state.files = files; state.캐시.files = 캐시; applyParse(); }),
     DB.watchOverlay((ov) => { state.overlay = ov; render(); }),
-    DB.watchRules((rules) => { state.rules = rules; applyParse(); }),
+    DB.watchRules((rules, 캐시) => { state.rules = rules; state.캐시.rules = 캐시; applyParse(); }),
     DB.watchBoxes((boxes) => { state.boxes = boxes; window.docsBoxesChanged?.(); }),
     DB.watchOrders((msgs) => { state.orders = msgs; window.docsOrdersChanged?.(); }),
-    DB.watchKinds((map) => { state.kinds = map; window.docsBoxesChanged?.(); }),
-    DB.watchLoading((map) => { state.loading = map; if (state.openId) renderDrawer(state.openId); }),
-    DB.watchQuotes((list) => { state.quotes = list; window.docsQuotesChanged?.(); })
+    DB.watchKinds((map, 캐시) => { state.kinds = map; state.캐시.kinds = 캐시; window.docsBoxesChanged?.(); saveKindsIfNew(); }),
+    DB.watchLoading((map) => { state.loading = map; if (state.openId) renderDrawer(state.openId); })
   );
+  // docs_quotes 는 견적서 판·제품관리에 있을 때만 듣습니다 (index.html docsPaint).
 }
+
+/* 견적서 듣기 켜고 끄기 — 다른 판에서는 안 듣습니다(읽기 비용). 끈 뒤에도 마지막 목록은 남겨 둡니다. */
+let 견적끄기 = null;
+let 견적읽음 = false;
+window.docs견적듣기 = (켜기) => {
+  if (켜기 && !견적끄기 && state.user && !state.demo) {
+    견적끄기 = DB.watchQuotes((list) => { state.quotes = list; 견적읽음 = true; window.docsQuotesChanged?.(); });
+  } else if (!켜기 && 견적끄기) {
+    견적끄기();
+    견적끄기 = null;
+  }
+};
+window.docs견적읽음 = () => 견적읽음 || state.demo;
 
 async function doSignIn(e) {
   e.preventDefault();
@@ -199,6 +214,7 @@ function applyParse() {
 let 갈래쓴적 = '';     // 같은 것을 두 번 쓰지 않게 — 실패해도 매번 다시 쓰지 않습니다
 async function saveKindsIfNew() {
   if (state.demo || !state.user) return;
+  if (state.캐시.files || state.캐시.rules || state.캐시.kinds) return;   // 캐시 값으로 쓰면 남이 고친 갈래를 덮습니다
   const 적힌것 = state.kinds ?? {};
   const 새것 = {};
   for (const d of state.unassigned)
@@ -2883,7 +2899,22 @@ window.docs단품수량 = (vendor, code) => {
    ⚠ **수량만** 올립니다. 금액·규격은 담는 쪽(`docs단품수량`)에 칸 자체가 없습니다.
    ⚠ 바뀐 줄만 적습니다(`수량올리기` 가 한 번 읽어 견줍니다). 열 때마다 다 쓰면 한도가 닳습니다.
    ⚠ 데모에서는 안 씁니다. 못 써도 화면은 그대로 떠야 합니다 — 여기서 터지면 안 됩니다. */
-let 수량지문 = '';        // 같은 것을 두 번 올리지 않습니다 — saveKindsIfNew 와 같은 잣대입니다
+const 수량올린것 = new Map();   // 열쇠 → 차수들 JSON — 창고와 같다고 아는 줄. 이것과 같으면 창고를 읽지도 않습니다
+let 수량도는중 = null;           // 도는 중이면 또 부르지 않습니다 — 끝나고 한 번 더 봅니다
+let 수량또 = false;
+
+/* 줄 전체의 짧은 지문 — `docs_config/수량` 에 남겨 다음에 열 때 견줍니다. */
+function 수량표(글) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < 글.length; i++) {
+    const c = 글.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(36) + (h1 >>> 0).toString(36) + ':' + 글.length;
+}
 
 /* 거래처 하나치 줄을 만듭니다. **수량만** 담깁니다 — 금액·규격은 담는 쪽에 칸이 없습니다. */
 function 수량줄(vendor) {
@@ -2906,22 +2937,35 @@ function 수량줄(vendor) {
  */
 window.docs수량건네기 = async (vendor) => {
   if (state.demo || !state.user) return null;
+  if (state.캐시.files || state.캐시.rules) return null;   // 서버 값을 보기 전엔 안 올립니다 — 곧 다시 불립니다
+  if (수량도는중) { 수량또 = true; return 수량도는중; }   // 파일·규칙이 따로 와서 겹쳐 불립니다
+  수량도는중 = 수량한번(vendor);
+  try { return await 수량도는중; }
+  finally {
+    수량도는중 = null;
+    if (수량또) { 수량또 = false; window.docs수량건네기().catch(() => {}); }   // 그사이 바뀐 것 — 전체로 한 번 더
+  }
+};
+
+async function 수량한번(vendor) {
   try {
     const 거래처들 = vendor ? [vendor]
       : [...new Set(state.batches.map((b) => b.vendor || '(루트)'))];
     const rows = 거래처들.flatMap(수량줄);
     if (!rows.length) return null;
-    const 지문 = JSON.stringify(rows);
-    if (지문 === 수량지문) return window.docs수량본것 ?? null;   // 바뀐 것이 없습니다
-    const r = await DB.수량올리기(rows);
-    if (r.ok) 수량지문 = 지문;
+    const 열쇠 = (r) => DB.수량열쇠(r.vendor, r.열쇠);
+    if (rows.every((r) => 수량올린것.get(열쇠(r)) === JSON.stringify(r.차수들)))
+      return window.docs수량본것 ?? null;   // 바뀐 것이 없습니다
+    // 전체일 때만 지문을 견줍니다 — 같으면 창고를 안 읽습니다
+    const r = await DB.수량올리기(rows, vendor ? null : 수량표(JSON.stringify(rows)));
+    if (r.ok) for (const x of rows) 수량올린것.set(열쇠(x), JSON.stringify(x.차수들));
     window.docs수량본것 = { 거래처: 거래처들.length, 줄: rows.length, ...r };
     return window.docs수량본것;
   } catch (e) {
     window.docs수량본것 = { ok: false, why: String(e?.message ?? e) };
     return window.docs수량본것;
   }
-};
+}
 
 /* ── 벤더피아 단품명 ───────────────────────────────────
    단품관리를 열 때 **한 번만** 읽습니다. 코드마다 읽으면 문서마다 돈이 듭니다.
@@ -2929,14 +2973,18 @@ window.docs수량건네기 = async (vendor) => {
    ⚠ 못 읽어도 단품관리는 그대로 떠야 합니다 — 여기서 터지면 안 됩니다.
    읽은 결과는 화면이 그대로 적습니다(맞음 N / 전체 M). 숨기지 않습니다. */
 let 벤더피아 = null;              // { ok, 사전, 줄수, 단품수, why }
+let 벤더피아읽는중 = null;        // 겹쳐 불려도 한 번만 읽습니다
 
 window.벤더피아읽기 = async () => {
-  if (벤더피아) return 벤더피아;                  // 열 때 한 번
-  const r = await DB.벤더피아상품();
-  벤더피아 = r.ok
-    ? { ok: true, ...벤더피아사전(r.rows) }
-    : { ok: false, why: r.why };
-  return 벤더피아;
+  if (벤더피아) return 벤더피아;                  // 창이 열려 있는 동안 한 번
+  벤더피아읽는중 ??= DB.벤더피아상품().then((r) => {
+    벤더피아 = r.ok
+      ? { ok: true, ...벤더피아사전(r.rows) }
+      : { ok: false, why: r.why };
+    벤더피아읽는중 = null;
+    return 벤더피아;
+  });
+  return 벤더피아읽는중;
 };
 window.벤더피아본것 = () => 벤더피아;
 
