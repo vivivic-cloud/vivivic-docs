@@ -355,3 +355,12 @@ export async function 벤더피아상품() {
     return { ok: false, why: e?.code || e?.message || '못 읽음' };
   }
 }
+
+/* ── 견적서 (제품관리 → 견적서 관리) ─────────────────────
+   서버(sync.gs 견적읽기_)가 드라이브 견적 파일을 글자로 바꿔 driveId 마다 한 문서로 적습니다.
+   여기서는 읽기만 합니다. */
+export const QUOTES = 'docs_quotes';
+
+export function watchQuotes(cb) {
+  return ctx.f.onSnapshot(col(QUOTES), (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => cb([]));
+}

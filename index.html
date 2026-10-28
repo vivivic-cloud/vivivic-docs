@@ -55,7 +55,7 @@
      색 토큰·타일·알약을 그대로 가져왔고 새로 만든 색은 없습니다.
      이름은 전부 dhh- 로 시작합니다 — 짧은 이름은 텔윈드와 겹칩니다.
      이 블록과 #docs-home / #docs-back 두 덩어리만 빼면 그대로 되돌아갑니다. */
-  #docs-home, #docs-vendor, #docs-files, #docs-orders, #docs-kinds, #docs-codes, #docs-items, #docs-prod{
+  #docs-home, #docs-vendor, #docs-files, #docs-orders, #docs-kinds, #docs-codes, #docs-items, #docs-prod, #docs-quote{
     --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19;
     --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-fill:#F4F4F2; --vg-red:#FF3B30;
     position:fixed; left:0; right:0; bottom:0; z-index:8000;
@@ -72,6 +72,9 @@
   html[data-docscodes="1"]  #docs-codes{ display:block; }
   html[data-docsitems="1"]  #docs-items{ display:block; }
   html[data-docsprod="1"]   #docs-prod{ display:block; }
+  html[data-docsquote="1"]  #docs-quote{ display:block; }
+  /* 견적서 관리에서 여는 팝업(#diffView)은 판 위로 */
+  html[data-docsquote="1"]  #diffView{ z-index:8250; }
 
   /* 제품관리 — 거래처 한 덩이, 그 아래 코드마다 여덟 칸 */
   #docs-prod .dpr-g{ margin:0 0 18px; }
@@ -98,6 +101,11 @@
   .dpr-pop{ --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19; --vg-muted:#9C9C98;
     color:var(--vg-body); font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif; }
   #docs-prod .dpr-q{ max-width:360px; margin:0 0 14px; font-size:14px; }
+  #docs-prod .dpr-in{ max-width:360px; margin:0 0 14px; }
+
+  /* 견적서 관리 — 불러오기 칸, 그 아래 불러온 파일 줄. 글자는 줄을 지켜 그대로, 옆으로 넘치지 않게 접습니다. */
+  #docs-quote .dhh-list{ margin-top:12px; }
+  .dpr-pop .dpr-txt{ margin:0; white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; font-size:14px; line-height:1.6; }
 
   /* 단품관리 — 차수 한 덩이, 그 아래 코드·상품명 줄 */
   #docs-items .dit-b{ margin:0 0 18px; }
@@ -345,7 +353,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.76.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.77.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -373,7 +381,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.76.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.77.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -505,9 +513,28 @@
       <span class="dhh-day">제품관리</span>
       <span class="dhh-sub" id="dpr-sub">&nbsp;</span>
     </div>
+    <div class="dhh-list dpr-in">
+      <button type="button" class="dhh-row" onclick="docsOpen견적관리()">
+        <span class="dhh-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#111110" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg></span>
+        <span class="dhh-t">견적서 관리<i id="dpr-qn">—</i></span>
+      </button>
+    </div>
     <!-- CODE# · Product model · 产品号 를 한 칸으로 찾습니다 -->
     <input id="dpr-q" type="search" class="field dpr-q" placeholder="코드 · Product model · 产品号 검색" oninput="dprFind()" />
     <div id="dpr-list"></div>
+    <p class="dhh-foot"></p>
+  </div>
+</div>
+
+<!-- 견적서 관리 — 제품관리에서 들어갑니다. 드라이브에서 고른 견적 파일을 글자로 바꿔 둔 것 -->
+<div id="docs-quote" class="dhh-board">
+  <div class="dhh-wrap">
+    <div class="dhh-head">
+      <span class="dhh-day">견적서 관리</span>
+      <span class="dhh-sub" id="dqt-sub">&nbsp;</span>
+    </div>
+    <button type="button" class="dhh-newbox" onclick="docs견적고르기()"><b>＋</b><span>구글 드라이브에서 불러오기</span></button>
+    <div class="dhh-list" id="dqt-list"></div>
     <p class="dhh-foot"></p>
   </div>
 </div>
@@ -754,7 +781,7 @@
     const has = c ? c.has : true;          // 아직 못 읽었으면 첫 화면을 그대로 둡니다
     const on = (name, yes) => yes ? root.setAttribute(name, '1') : root.removeAttribute(name);
     if (!has) {                            // 올라간 목록이 없으면 원래 안내를 보여 줍니다
-      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docsorders','data-docskinds','data-docscodes','data-docsitems','data-docsprod']
+      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docsorders','data-docskinds','data-docscodes','data-docsitems','data-docsprod','data-docsquote']
         .forEach((n) => root.removeAttribute(n));
       return;
     }
@@ -766,6 +793,7 @@
     on('data-docscodes',  docsLevel === 'codes');
     on('data-docsitems',  docsLevel === 'items');
     on('data-docsprod',   docsLevel === 'prod');
+    on('data-docsquote',  docsLevel === 'quote');
     on('data-docsv',      !!docsVendor);
     if (docsLevel !== 'box') root.removeAttribute('data-docsbox');
     const back = document.getElementById('dhh-back');
@@ -773,6 +801,7 @@
                                : (docsLevel === 'box' && docsVendor) ? '← ' + docsVendor
                                : (docsLevel === 'files' && docsKindWhere) ? '← ' + docsKindWhere
                                : (docsLevel === 'files' || docsLevel === 'kinds') ? '← ' + (docsVendor ?? '거래처')
+                               : docsLevel === 'quote' ? '← 제품관리'
                                : '← 박스판';
   }
 
@@ -887,6 +916,7 @@
       .filter((x) => x.codes.length);
     const 코드수 = 거래처들.reduce((n, x) => n + x.codes.length, 0);
     put('dpr-sub', `거래처 ${거래처들.length}곳 · 코드 ${코드수}개`);
+    put('dpr-qn', `${(window.docs견적서들?.() ?? []).length}건`);
     if (box) box.innerHTML = 거래처들.length ? 거래처들.map((x) => `
       <section class="dpr-g">
         <div class="dpr-gh"><span class="dpr-gn">${dhhEsc(x.vendor)}</span><span class="dpr-gc">${x.codes.length}개</span></div>
@@ -913,6 +943,37 @@
     });
   }
   window.dprFind = dprFind;
+
+  /* 견적서 관리 — 사장님 10-28 「제품관리 페이지에 견적서를 관리 하는 페이지를 새로 만들어줘」.
+     불러오기(＋)는 드라이브 견적 파일을 골라 글자로 바꿉니다(js/app.js docs견적고르기). 줄을 누르면 그 내용.
+     가격 관리는 아직 없습니다 — 불러오기와 글자 보기까지. */
+  function docsOpen견적관리() {
+    docsLevel = 'quote';
+    docsVendor = null;
+    docsQuoteRefresh();
+    docsPaint();
+    docsFitTop();
+    window.scrollTo(0, 0);
+  }
+  window.docsOpen견적관리 = docsOpen견적관리;
+
+  function docsQuoteRefresh() {
+    const list = window.docs견적서들?.() ?? [];
+    const sub = document.getElementById('dqt-sub');
+    if (sub) sub.textContent = `${list.length}건`;
+    const box = document.getElementById('dqt-list');
+    if (box) box.innerHTML = list.map((q) => `
+      <button type="button" class="dhh-row" onclick="docs견적보기('${dhhEsc(q.id).replace(/'/g, "\\'")}')">
+        <span class="dhh-ico">${DHH_ICO_FILE}</span>
+        <span class="dhh-t">${dhhEsc(q.name)}<i>${dhhEsc(q.modified ?? '')}</i></span>
+      </button>`).join('');
+  }
+  // 서버가 새로 적으면 — 견적서 관리를 보고 있을 때만 다시 그립니다. 제품관리의 건수는 늘 고칩니다.
+  window.docsQuotesChanged = () => {
+    const n = document.getElementById('dpr-qn');
+    if (n) n.textContent = `${(window.docs견적서들?.() ?? []).length}건`;
+    if (docsLevel === 'quote') docsQuoteRefresh();
+  };
 
   /* 코드 하나를 누르면 그 아래가 펴집니다. 손가락으로 됩니다 — :hover 를 안 씁니다. */
   function ditToggle(btn) {
@@ -1029,6 +1090,7 @@
     docsFitTop();
     // 파일 목록에서 구분 박스로 왔으면 구분 박스로 한 걸음만 물러납니다.
     if (docsLevel === 'files' && docsKindWhere) { docsKindOpen(docsKindWhere, docsKindList); return; }
+    if (docsLevel === 'quote') { docsOpenProd(); return; }
     if (docsLevel === 'kinds') { docsKindWhere = ''; docsLevel = 'vendor'; }
     else if (docsLevel === 'files') docsLevel = 'vendor';
     else if (docsLevel === 'items' && docsVendor) docsLevel = 'vendor';

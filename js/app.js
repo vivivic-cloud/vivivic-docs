@@ -15,6 +15,7 @@ const state = {
   kinds: {},            // 파일 갈래 구분저장 — 경로 → cad/spread/ppt/pdf/etc
   loading: {},          // 차수별 상차일 — 고른 날(pick) · 확정한 날(fixed)
   orders: [],           // 작업대에 오간 지시와 답 — 읽기만 합니다
+  quotes: [],           // 견적서 관리 — 드라이브에서 불러와 글자로 바꿔 둔 견적 파일
   overlay: {},
   rules: [],
   excluded: [],
@@ -135,7 +136,8 @@ async function enterApp(user) {
     DB.watchBoxes((boxes) => { state.boxes = boxes; window.docsBoxesChanged?.(); }),
     DB.watchOrders((msgs) => { state.orders = msgs; window.docsOrdersChanged?.(); }),
     DB.watchKinds((map) => { state.kinds = map; window.docsBoxesChanged?.(); }),
-    DB.watchLoading((map) => { state.loading = map; if (state.openId) renderDrawer(state.openId); })
+    DB.watchLoading((map) => { state.loading = map; if (state.openId) renderDrawer(state.openId); }),
+    DB.watchQuotes((list) => { state.quotes = list; window.docsQuotesChanged?.(); })
   );
 }
 
@@ -1806,17 +1808,7 @@ function renderDrawer(id) {
       .map((d) => ({ d, t: 시트들(d).find((t) => t.name === 고른) }))
       .filter(({ t }) => t)
       .filter(({ t }) => { const k = JSON.stringify(t.rows); return !본것.has(k) && 본것.add(k); });
-    const 숫자 = /^[-\d,.$¥%]+$/;
-    const 표 = (t) => {
-      const rows = t.rows.map((r) => r.c ?? []);
-      const h = t.h ?? 1, f = t.f ?? rows.length;
-      const 칸 = (v, tag) => `<${tag}${숫자.test(v) ? ' class="num"' : ''}>${esc(v)}</${tag}>`;
-      return `
-        <div class="dpr-scroll vv-x"><table class="dpr-t">
-          <thead>${rows.slice(0, h).map((r) => `<tr>${r.map((v) => 칸(v, 'th')).join('')}</tr>`).join('')}</thead>
-          <tbody>${rows.slice(h).map((r, i) => `<tr${h + i >= f ? ' class="dpr-f"' : ''}>${r.map((v) => 칸(v, 'td')).join('')}</tr>`).join('')}</tbody>
-        </table></div>`;
-    };
+    const 표 = 원본표;
     $('#diffBody').innerHTML = `
       <div class="p-5">
         <div class="flex items-center justify-between gap-3 mb-4">
@@ -2595,6 +2587,127 @@ window.docs견적 = () =>
     .filter((d) => 견적말.test(`${d.name ?? ''} ${d.path ?? ''}`))
     .map((d) => ({ ...slimDoc(d), vendor: d.vendor ?? '', batch: d.batch ?? '' }))
     .sort((x, y) => x.vendor.localeCompare(y.vendor, 'ko') || String(y.date).localeCompare(String(x.date)));
+
+/* 내용보기 표 한 장 — 서버가 떠 둔 { name, rows: [{c:[…]}], h, f } 를 원본 칸 차례 그대로.
+   잔액서류·발주서 내용보기(openCiplView)와 견적서 관리가 함께 씁니다. 모양은 .dpr-t, 감싸개는 .dpr-pop. */
+function 원본표(t) {
+  const 숫자 = /^[-\d,.$¥%]+$/;
+  const rows = t.rows.map((r) => r.c ?? []);
+  const h = t.h ?? 1, f = t.f ?? rows.length;
+  const 칸 = (v, tag) => `<${tag}${숫자.test(v) ? ' class="num"' : ''}>${esc(v)}</${tag}>`;
+  return `
+        <div class="dpr-scroll vv-x"><table class="dpr-t">
+          <thead>${rows.slice(0, h).map((r) => `<tr>${r.map((v) => 칸(v, 'th')).join('')}</tr>`).join('')}</thead>
+          <tbody>${rows.slice(h).map((r, i) => `<tr${h + i >= f ? ' class="dpr-f"' : ''}>${r.map((v) => 칸(v, 'td')).join('')}</tr>`).join('')}</tbody>
+        </table></div>`;
+}
+
+/* ── 견적서 관리 ──────────────────────────────────────────
+   사장님 10-28 「제품관리 페이지에 견적서를 관리 하는 페이지를 새로 만들어줘 … 일단 견적관련 파일을
+   구글드라이브에서 불러올 수 있는 버튼 만들어주고 파일을 불러오면 어떤 방식으로든 텍스트화 하여 보여 줄 수 있도록」.
+   드라이브 파일 고르기도, 글자로 바꾸기도 웹앱(sync.gs 견적_)이 합니다 — 사장님 드라이브를 그 계정으로 봅니다.
+   바꾼 것은 서버가 docs_quotes 에 적고, 여기서는 그걸 읽어 보여 줍니다. 원본 파일은 안 옮깁니다.
+   ⚠ 가격 관리(제품별 가격 칸·비교)는 아직 없습니다. 「일단」 — 불러오기와 글자 보기까지. */
+window.docs견적서들 = () => [...state.quotes].sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? '')));
+
+const 견적종류 = (mime = '') =>
+  /sheet|excel|csv/.test(mime) ? '엑셀' : /pdf/.test(mime) ? 'PDF' : /^image\//.test(mime) ? '이미지' : '문서';
+const 견적탈 = { off: '꺼짐', who: '권한 없음', list: '목록 실패', bad: '못 찾음', kind: '안 되는 종류', big: '너무 큼', read: '못 읽음', save: '저장 실패', net: '연결 실패' };
+
+/* 웹앱에 묻습니다 — 파일내주기와 같은 길(text/plain, 로그인 표). 글자로 바꾸기는 몇십 초 걸립니다. */
+async function 견적묻기(body) {
+  const 그만 = new AbortController();
+  const 시계 = setTimeout(() => 그만.abort(), 180_000);
+  try {
+    const [url, idToken] = await Promise.all([DB.syncUrl(), DB.idToken()]);
+    if (!url || !idToken) return { ok: false, why: 'who' };
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ idToken, ...body }),
+      signal: 그만.signal,
+    });
+    return res.ok ? await res.json() : { ok: false, why: 'net' };
+  } catch {
+    return { ok: false, why: 'net' };
+  } finally {
+    clearTimeout(시계);
+  }
+}
+
+/* 팝업 — 상세보기·내용보기와 같은 #diffView. 견적서 관리 판(z 8000) 위로 올라오게 data-docsquote 로 띄웁니다. */
+function 견적팝업(머리, 이름, 몸) {
+  $('#diffBody').innerHTML = `
+      <div class="p-5">
+        <div class="flex items-center justify-between gap-3 mb-4">
+          <div class="min-w-0">
+            <div class="text-[11px] font-bold text-faint tracking-wide">${esc(머리)}</div>
+            <div class="text-[16px] font-bold leading-tight break-words">${esc(이름)}</div>
+          </div>
+          <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px] ml-auto">닫기</button>
+        </div>
+        <div class="dpr-pop">${몸}</div>
+      </div>`;
+  $('#diffView').hidden = false;
+  $('#diffView').scrollTop = 0;
+  document.documentElement.setAttribute('data-docsdiff', '1');
+  $('#diffClose').onclick = () => {
+    $('#diffView').hidden = true;
+    document.documentElement.removeAttribute('data-docsdiff');
+  };
+}
+
+/* 불러온 견적 하나 — 표(시트마다 · PDF 안의 표마다)는 칩으로 골라 보고, PDF·이미지·문서는 「글자」 칩에 글자 그대로. */
+function 견적보기(q, 고른) {
+  const 표들 = (q.sheets ?? []).filter((t) => t?.rows?.length);
+  const 칩들 = [...표들.map((t) => t.name), ...(q.text ? ['글자'] : [])];
+  if (!칩들.includes(고른)) 고른 = 칩들[0];
+  const t = 표들.find((x) => x.name === 고른);
+  견적팝업(`${견적종류(q.mime)} · ${q.modified ?? ''}`, q.name ?? '', `
+          ${칩들.length > 1 ? `<div class="dpr-tabs">${칩들.map((n) =>
+            `<button type="button" class="chip ${n === 고른 ? 'chip-on' : 'chip-off'}" data-qtab="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
+          ${t ? 원본표({ ...t, h: t.h ?? 0 }) : 고른 === '글자' ? `<pre class="dpr-txt">${esc(q.text)}</pre>` : '<div class="dpr-none">읽은 글자 없음</div>'}`);
+  for (const btn of $('#diffBody').querySelectorAll('[data-qtab]')) btn.onclick = () => 견적보기(q, btn.dataset.qtab);
+}
+window.docs견적보기 = (id) => {
+  const q = state.quotes.find((x) => x.id === id);
+  if (q) 견적보기(q);
+};
+
+/* 「구글 드라이브에서 불러오기」 — 견적 파일 목록(찾기 칸)에서 하나 누르면 글자로 바꿔 바로 보여 줍니다. */
+window.docs견적고르기 = () => {
+  견적팝업('구글 드라이브', '견적 파일', `
+          <input id="qtQ" type="search" class="field w-full mb-3" placeholder="파일 이름" />
+          <div id="qtList" class="flex flex-col gap-2"></div>`);
+  let 차례 = 0;
+  const 찾기 = async () => {
+    const 나 = ++차례;
+    const box = $('#qtList');
+    if (!box) return;
+    box.innerHTML = '<div class="dpr-none">찾는 중</div>';
+    const r = await 견적묻기({ 일: '견적목록', q: $('#qtQ')?.value ?? '' });
+    if (나 !== 차례 || !$('#qtList')) return;
+    if (!r?.ok) { box.innerHTML = `<div class="dpr-none">${esc(견적탈[r?.why] ?? '실패')}</div>`; return; }
+    const 있음 = new Set(state.quotes.map((q) => q.id));
+    box.innerHTML = r.files.map((f) => `
+            <button type="button" class="dhh-dbox w-full" data-qfile="${esc(f.id)}">
+              <span class="dnm break-words">${esc(f.name)}</span>
+              <span class="dmt">${esc([견적종류(f.mime), f.modified, 있음.has(f.id) ? '불러옴' : ''].filter(Boolean).join(' · '))}</span>
+            </button>`).join('') || '<div class="dpr-none">파일 없음</div>';
+    for (const btn of box.querySelectorAll('[data-qfile]')) btn.onclick = () => 읽기(btn.dataset.qfile, btn.querySelector('.dnm').textContent);
+  };
+  const 읽기 = async (driveId, 이름) => {
+    차례++;
+    견적팝업('구글 드라이브', 이름, '<div class="dpr-none">읽는 중</div>');
+    const r = await 견적묻기({ 일: '견적읽기', driveId });
+    if ($('#diffView').hidden) return;
+    if (r?.ok && r.quote) { 견적보기({ id: driveId, ...r.quote }); return; }
+    견적팝업('구글 드라이브', 이름, `<div class="dpr-none">${esc(견적탈[r?.why] ?? '실패')}</div>`);
+  };
+  let 쉼 = 0;
+  $('#qtQ').oninput = () => { clearTimeout(쉼); 쉼 = setTimeout(찾기, 500); };
+  찾기();
+};
 
 /* ── 코드관리 ─────────────────────────────────────────────
    발주서 PDF 에서 읽어 둔 코드를 거래처별로 모읍니다.

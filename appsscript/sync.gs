@@ -438,7 +438,10 @@ function doPost(e) {
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     // 보링은 제 갈래로 갑니다. 서류 쪽 길(파일내주기_)은 한 줄도 안 건드립니다.
-    out = (req && req['일'] === '보링파일') ? 보링파일내주기_(req) : 파일내주기_(req);
+    // 견적서 관리(견적목록·견적읽기)도 제 갈래입니다 — 아래 「견적서 불러오기」.
+    out = (req && req['일'] === '보링파일') ? 보링파일내주기_(req)
+        : (req && /^견적(목록|읽기)$/.test(String(req['일']))) ? 견적_(req)
+        : 파일내주기_(req);
   } catch (err) {
     out = { ok: false, why: 'bad' };
   }
@@ -1295,6 +1298,188 @@ function sheetValue_(t) {
       return { mapValue: { fields: { c: { arrayValue: { values: r.map(function (v) { return { stringValue: v }; }) } } } } };
     }) } },
   } } };
+}
+
+/* ── 견적서 불러오기 (제품관리 → 견적서 관리) ──
+   사장님 10-28 — 「일단 견적관련 파일을 구글드라이브에서 불러올 수 있는 버튼 만들어주고
+   파일을 불러오면 어떤 방식으로든 텍스트화 하여 보여 줄 수 있도록」.
+   견적목록 — 드라이브(중국 폴더 밖도)에서 견적 파일을 찾아 이름만 돌려줍니다.
+   견적읽기 — 고른 파일을 글자로 바꿔 docs_quotes/{driveId} 에 적고 그대로 돌려줍니다.
+     엑셀·시트 → 시트마다 보이는 글자 그대로 표. PDF·이미지·문서 → 구글 문서로 바꿔(pdfText_, 이미지는 OCR)
+     글자 전부 + 그 안의 표들. 꼴은 내용보기와 같은 { name, rows: [{c:[…]}], h, f }.
+   ⚠ 읽기만 합니다. 원본은 옮기지도 고치지도 않습니다 — 글자로 바꿀 때 만든 임시 사본은 바로 지웁니다.
+   ⚠ 드라이브 전체를 찾으니 파일내주기_ 와 같은 자물쇠(shareAllow + 로그인 표)를 겁니다. 빼지 마세요. */
+const QUOTES = 'artifacts/vivivic-4b7ef/public/data/docs_quotes';
+const 견적시트꼴_ = [SHEET_MIME, 'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'];
+const 견적꼴_ = 견적시트꼴_.concat(['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/bmp',
+  'application/vnd.google-apps.document', 'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain']);
+const 견적낱말_ = ['견적', '报价', 'quotation', 'quote'];
+const 견적줄_ = 400;      // 시트·표 하나에 담는 줄
+const 견적칸_ = 40;       // 칸
+const 견적크기_ = 800000; // Firestore 문서 하나는 1MB 까지 — 넉넉히 덜어 둡니다
+
+function 견적_(req) {
+  const props = PropertiesService.getScriptProperties();
+  const allow = String(props.getProperty('shareAllow') || '')
+    .split(/[,\s]+/).filter(String).map(function (x) { return x.toLowerCase(); });
+  if (!allow.length) return { ok: false, why: 'off' };
+  const email = 표확인_(req && req.idToken, props);
+  if (!email || allow.indexOf(email.toLowerCase()) < 0) return { ok: false, why: 'who' };
+  return req['일'] === '견적읽기' ? 견적읽기_(req, email) : 견적목록_(req);
+}
+
+function 드라이브_(path) {
+  const res = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/' + path,
+    { headers: { Authorization: 'Bearer ' + token_() }, muteHttpExceptions: true });
+  return res.getResponseCode() === 200 ? JSON.parse(res.getContentText()) : null;
+}
+
+/** 찾을 글이 없으면 견적·报价·quotation·quote. 이름 안 어디에 있어도 걸리게 최근 파일도 같이 훑습니다. */
+function 견적목록_(req) {
+  const 찾 = String((req && req.q) || '').trim().slice(0, 60);
+  const 낱말 = 찾 ? [찾] : 견적낱말_;
+  const 따옴 = function (w) { return "'" + w.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'"; };
+  const 꼴 = '(' + 견적꼴_.map(function (m) { return 'mimeType = ' + 따옴(m); }).join(' or ') + ')';
+  const 칸 = '&supportsAllDrives=true&includeItemsFromAllDrives=true&fields='
+    + encodeURIComponent('files(id,name,mimeType,modifiedTime,size)');
+  const 이름 = '(' + 낱말.map(function (w) { return 'name contains ' + 따옴(w) + ' or fullText contains ' + 따옴(w); }).join(' or ') + ')';
+  const 하나 = 드라이브_('files?pageSize=100' + 칸 + '&q=' + encodeURIComponent('trashed = false and ' + 꼴 + ' and ' + 이름));
+  // 「VIVIVIC견적서」 처럼 붙여 쓴 이름은 name contains 가 못 찾습니다(낱말 앞머리만 봅니다).
+  const 둘 = 드라이브_('files?pageSize=500&orderBy=modifiedTime%20desc' + 칸 + '&q=' + encodeURIComponent('trashed = false and ' + 꼴));
+  if (!하나 && !둘) return { ok: false, why: 'list' };
+  const 작 = 낱말.map(function (w) { return w.toLowerCase(); });
+  const 본것 = {};
+  const files = ((하나 && 하나.files) || [])
+    .concat(((둘 && 둘.files) || []).filter(function (f) {
+      const n = String(f.name).toLowerCase();
+      return 작.some(function (w) { return n.indexOf(w) >= 0; });
+    }))
+    .filter(function (f) { return !본것[f.id] && (본것[f.id] = true); })
+    .sort(function (a, b) { return String(b.modifiedTime).localeCompare(String(a.modifiedTime)); })
+    .slice(0, 100)
+    .map(function (f) {
+      return { id: f.id, name: f.name, mime: f.mimeType, modified: String(f.modifiedTime || '').slice(0, 10), size: Number(f.size || 0) };
+    });
+  return { ok: true, files: files };
+}
+
+/** 칸 격자 → 내용보기 표. 빈 줄·한 번도 안 쓴 칸은 뺍니다. 머리줄은 따로 가리지 않습니다(h 0). */
+function 견적표_(grid, name) {
+  const 글 = function (v) { return String(v == null ? '' : v).replace(/\s*\n\s*/g, ' ').trim().slice(0, 200); };
+  const body = (grid || []).slice(0, 견적줄_ * 2).map(function (r) { return (r || []).map(글); })
+    .filter(function (r) { return r.some(Boolean); }).slice(0, 견적줄_);
+  let width = 0;
+  body.forEach(function (r) { width = Math.max(width, r.length); });
+  const keep = [];
+  for (let c = 0; c < width && keep.length < 견적칸_; c++) {
+    if (body.some(function (r) { return r[c]; })) keep.push(c);
+  }
+  if (!body.length || !keep.length) return null;
+  const rows = body.map(function (r) { return keep.map(function (c) { return r[c] || ''; }); });
+  return { name: String(name).slice(0, 40), rows: rows, h: 0, f: rows.length };
+}
+
+/** 엑셀은 구글 시트로 잠깐 복사해 읽고 지웁니다(ciplOf_ 와 같은 길). 구글 시트는 그대로 엽니다. */
+function 견적시트들_(fileId, mime, name) {
+  let copyId = null;
+  try {
+    let ssId = fileId;
+    if (mime !== SHEET_MIME) {
+      const res = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/copy?supportsAllDrives=true', {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + token_() },
+        payload: JSON.stringify({ name: TEMP_PREFIX + name, mimeType: SHEET_MIME, parents: ['root'] }),
+        muteHttpExceptions: true,
+      });
+      if (res.getResponseCode() !== 200) return null;
+      ssId = copyId = JSON.parse(res.getContentText()).id;
+    }
+    let ss = null;
+    for (let tries = 0; tries < 3 && !ss; tries++) {
+      try { ss = SpreadsheetApp.openById(ssId); } catch (e) { if (tries === 2) throw e; Utilities.sleep(1500); }
+    }
+    return ss.getSheets().map(function (sh) {
+      return 견적표_(sh.getDataRange().getDisplayValues(), sh.getName());
+    }).filter(Boolean);
+  } finally {
+    if (copyId) {
+      try {
+        UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + copyId, {
+          method: 'delete', headers: { Authorization: 'Bearer ' + token_() }, muteHttpExceptions: true,
+        });
+      } catch (e) { /* 임시 파일은 휴지통에 남아도 큰일은 아닙니다 */ }
+    }
+  }
+}
+
+function 견적읽기_(req, email) {
+  const id = String((req && req.driveId) || '');
+  if (!/^[A-Za-z0-9_-]{10,}$/.test(id)) return { ok: false, why: 'bad' };
+  const f = 드라이브_('files/' + id + '?supportsAllDrives=true&fields=id,name,mimeType,modifiedTime,size');
+  if (!f) return { ok: false, why: 'bad' };
+  if (견적꼴_.indexOf(f.mimeType) < 0) return { ok: false, why: 'kind' };
+  if (Number(f.size || 0) > 50 * 1024 * 1024) return { ok: false, why: 'big' };
+
+  let sheets = [];
+  let text = '';
+  if (견적시트꼴_.indexOf(f.mimeType) >= 0) {
+    sheets = 견적시트들_(id, f.mimeType, f.name);
+    if (!sheets) return { ok: false, why: 'read' };
+  } else {
+    const got = pdfText_(id);
+    if (!got) return { ok: false, why: 'read' };
+    text = String(got.text || '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    sheets = html표들_(got.html).map(function (g, i) { return 견적표_(g, '표 ' + (i + 1)); }).filter(Boolean);
+  }
+
+  // 1MB 를 넘지 않게 — 표 먼저 담고, 남는 만큼 글자.
+  let 남 = 견적크기_;
+  const 담은 = [];
+  sheets.forEach(function (t) {
+    if (남 <= 0) return;
+    const rows = [];
+    for (let i = 0; i < t.rows.length; i++) {
+      남 -= JSON.stringify(t.rows[i]).length + 16;
+      if (남 <= 0) break;
+      rows.push(t.rows[i]);
+    }
+    if (rows.length) 담은.push({ name: t.name, rows: rows, h: t.h, f: Math.min(t.f, rows.length) });
+  });
+  text = text.slice(0, Math.max(0, 남));
+
+  const q = {
+    driveId: id,
+    name: String(f.name).slice(0, 200),
+    mime: f.mimeType,
+    modified: String(f.modifiedTime || '').slice(0, 10),
+    text: text,
+    at: new Date().toISOString(),
+    by: email,
+  };
+  const res = UrlFetchApp.fetch(BASE + '/' + QUOTES + '/' + encodeURIComponent(id), {
+    method: 'patch',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + token_() },
+    payload: JSON.stringify({ fields: {
+      driveId: { stringValue: q.driveId },
+      name: { stringValue: q.name },
+      mime: { stringValue: q.mime },
+      modified: { stringValue: q.modified },
+      text: { stringValue: q.text },
+      at: { stringValue: q.at },
+      by: { stringValue: q.by },
+      sheets: { arrayValue: { values: 담은.map(sheetValue_) } },
+    } }),
+    muteHttpExceptions: true,
+  });
+  if (res.getResponseCode() !== 200) return { ok: false, why: 'save' };
+  q.sheets = 담은.map(function (t) {
+    return { name: t.name, h: t.h, f: t.f, rows: t.rows.map(function (r) { return { c: r }; }) };
+  });
+  return { ok: true, quote: q };
 }
 
 /* ── 서류 간추리기 (js/parse.js 의 readBrief 와 같은 규칙) ── */
