@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, extOf, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠 } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -1566,7 +1566,7 @@ function renderDrawer(id) {
    * "수량 +51" 만으로는 어느 제품이 늘었는지 알 수 없습니다.
    */
 
-  const KIND_TONE = { 추가: 'text-warn', 빠짐: 'text-info', 수량: 'text-faint', 합계: 'text-faint' };
+  const KIND_TONE = { 추가: 'text-warn', 빠짐: 'text-info', 수량: 'text-faint', 합계: 'text-faint', 잔액서류만: 'text-warn', 발주서만: 'text-info' };
 
   /** 바뀐 것들을 표 한 장으로 만듭니다. 줄글로 이어 붙이면 뭐가 뭔지 안 보입니다.
       key 를 주면 표 아래에 '상세보기' 를 답니다 — 접힌 것까지 다 보고, 두 판의 원본을 봅니다. */
@@ -1579,7 +1579,7 @@ function renderDrawer(id) {
         <span class="font-semibold text-faint">${esc(diffPairs.get(key)?.label ?? '')}</span>
       </button>`;
 
-  function diffTable(rows, key = null, MAX = 12) {
+  function diffTable(rows, key = null, MAX = 12, 머리 = ['이전', '이후', '증감']) {
     if (!rows.length) return '';
     const shown = rows.slice(0, MAX);
     const num = (v) => (v === null || v === undefined ? '<span class="text-faint">—</span>' : fmtNum(v));
@@ -1597,9 +1597,7 @@ function renderDrawer(id) {
             <tr class="bg-hover text-faint text-left">
               <th class="font-bold px-2 py-1 w-[42px]">구분</th>
               <th class="font-bold px-2 py-1">항목</th>
-              <th class="font-bold px-2 py-1 text-right whitespace-nowrap">이전</th>
-              <th class="font-bold px-2 py-1 text-right whitespace-nowrap">이후</th>
-              <th class="font-bold px-2 py-1 text-right whitespace-nowrap">증감</th>
+              ${머리.map((글) => `<th class="font-bold px-2 py-1 text-right whitespace-nowrap">${esc(글)}</th>`).join('')}
             </tr>
           </thead>
           <tbody class="divide-y divide-line">
@@ -1813,8 +1811,8 @@ function renderDrawer(id) {
      떠 둔 표가 없으면 「읽은 값 없음」 입니다. 틀은 상세보기(#diffView)와 같습니다.
      발주서 내용보기(사장님 10-27 「발주서 칸에 내용보기 버튼으로 잔액서류처럼 텍스트화된 내용 볼 수 있게」)도 이것 하나로 —
      단계만 'order' 로 넘깁니다. 서버(pdfTable_)가 발주서 PDF 의 품목 표를 같은 꼴 d.cipl.sheets 로 떠 둡니다. */
+  const 시트들 = (d) => (d.cipl?.sheets ?? (d.cipl?.sheet ? [d.cipl.sheet] : [])).filter((t) => t?.rows?.length);
   function openCiplView(고른, 단계 = 'cipl') {
-    const 시트들 = (d) => (d.cipl?.sheets ?? (d.cipl?.sheet ? [d.cipl.sheet] : [])).filter((t) => t?.rows?.length);
     const 칸 = b.stages.find((s) => s.key === 단계);
     const 서류들 = (칸?.docs ?? []).filter((d) => 시트들(d).length);
     const 이름들 = [...new Set(서류들.flatMap((d) => 시트들(d).map((t) => t.name)))];
@@ -2083,6 +2081,51 @@ function renderDrawer(id) {
       </div>`;
   }
 
+  /* 발주서 ↔ 잔액서류 대조 — 사장님 10-29 「발주서 텍스트화 한 자료와 잔액서류 텍스트화한 자료를
+     서로 비교하여 차이점을 분석한 내용을 차수별 상세 잔액서류 아래 적어지게 해줘」.
+     재료는 내용보기와 같은 d.cipl.sheets 입니다 — 새로 읽지 않습니다. 셈은 js/match.js 발주대조.
+     발주서는 확정한 것, 없으면 떠 둔 표가 하나뿐일 때만. 둘 이상인데 확정이 없으면 고르실 때까지 안 댑니다.
+     잔액서류는 CI 시트(없으면 첫 시트). 같은 표를 담은 서류가 둘이면 하나만. */
+  function 발주대조칸() {
+    const 잔액들 = b.stages.find((s) => s.key === 'cipl')?.docs ?? [];
+    const 딱지 = (글, 경고) => `<span class="text-[11px] font-bold px-1.5 py-0.5 rounded ${
+      경고 ? 'bg-[#fdf3e3] text-[#8a5a00]' : 'bg-chip text-muted'}">${esc(글)}</span>`;
+    const 감싸 = (속) => `
+              <div class="pl-[42px] pr-3 pb-2">
+                <div class="text-[11px] font-bold text-faint tracking-wide mb-1">발주서 대조</div>
+                ${속}
+              </div>`;
+    const 하나씩 = (줄) => { const 본것 = new Set(); return 줄.filter(([, t]) => { const k = JSON.stringify(t.rows); return !본것.has(k) && 본것.add(k); }); };
+
+    if (!발주서들.length) return 감싸(딱지('발주서 없음'));
+    let 발주표;
+    if (확정발주서) 발주표 = 시트들(확정발주서)[0];
+    else {
+      const 읽은 = 하나씩(발주서들.filter((d) => 시트들(d).length).map((d) => [d, 시트들(d)[0]]));
+      if (읽은.length > 1) return 감싸(딱지(`발주서 ${읽은.length}장 · 확정 없음`));
+      발주표 = 읽은[0]?.[1];
+    }
+    if (!발주표) return 감싸(딱지('발주서 읽은 값 없음'));
+    const 잔액표들 = 하나씩(잔액들.filter((d) => 시트들(d).length)
+      .map((d) => [d, 시트들(d).find((t) => /^ci$/i.test(t.name)) ?? 시트들(d)[0]]));
+    if (!잔액표들.length) return 감싸(딱지('잔액서류 읽은 값 없음'));
+
+    return 감싸(잔액표들.map(([d, t]) => {
+      const r = 발주대조(발주표, t);
+      const 딱지들 = r.못댐 ? [딱지(r.못댐)] : [
+        r.합계줄없음 ? 딱지('발주서 합계줄 없음', true) : '',
+        r.단가없음 ? 딱지('발주서에 단가 없음') : '',
+        r.코드없는줄.발주 ? 딱지(`발주서 코드 없는 줄 ${r.코드없는줄.발주}`) : '',
+        r.코드없는줄.잔액 ? 딱지(`잔액서류 코드 없는 줄 ${r.코드없는줄.잔액}`) : '',
+      ].filter(Boolean);
+      return `
+                ${잔액표들.length > 1 ? `<div class="text-[11px] font-semibold text-muted mt-1.5 break-words">${esc(d.display ?? d.name)}</div>` : ''}
+                ${딱지들.length ? `<div class="flex flex-wrap gap-1 mb-1">${딱지들.join('')}</div>` : ''}
+                ${r.못댐 ? '' : r.줄.length ? diffTable(r.줄, null, Infinity, ['발주서', '잔액서류', '차이'])
+                  : '<div class="text-[12px] font-bold text-ok">차이 없음</div>'}`;
+    }).join(''));
+  }
+
   const docLink = (d) => `
     <li class="dhh-dbox${확정발주서?.path === d.path && 발주서들.length > 1 ? ' ring-1 ring-ink' : ''}">
       <div class="flex items-start gap-2">
@@ -2191,6 +2234,7 @@ function renderDrawer(id) {
               ${s.key === 'order' && s.docs.some((d) => /\.pdf$/i.test(d.name)) ? 내용보기단추('orderView') : ''}
               ${s.key === 'order' ? 상차일칸() : ''}
               ${s.key === 'cipl' && on ? 내용보기단추('ciplView') : ''}
+              ${s.key === 'cipl' && on ? 발주대조칸() : ''}
             </li>`;
           }).join('')}
         </ol>

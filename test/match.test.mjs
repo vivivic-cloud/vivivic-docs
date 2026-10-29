@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자 } from '../js/match.js';
 import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
@@ -242,4 +242,112 @@ test('수량출처 — 잔액서류가 있으면 상차수량, 없으면 발주�
   // ⚠ 글귀가 한 글자라도 달라지면 저쪽에서 못 찾습니다
   assert.equal(수량출처(0).어디, '발주수량(입고전)');
   assert.equal(수량출처(1).어디, '상차수량');
+});
+
+/* ── 발주서 ↔ 잔액서류 대조 (사장님 10-29) ── 표는 서버가 떠 둔 cipl.sheets 꼴 그대로 */
+const 표 = (rows, h = 1, f) => ({ rows: rows.map((c) => ({ c })), h, f: f ?? rows.length });
+// 제헤우드 26-16 발주서(실물 그대로 줄인 것) — ¥ 가 깨져 온 꼴, 수량 0 줄 하나.
+const 제발주 = 표([
+  ['ZH#', 'ITEM NAME', 'code#', 'COLOR', 'PRICE (FOB Qingdao)', 'ORDER QTY', 'AMOUNT'],
+  ['ZH-31', '비요크 무헤드 침대 SS Bjork Bed w/o Head SS', 'ZBY_SSN', '내추럴오크 Natural Oak', 'Â¥467.0', '30', 'Â¥14,010.00'],
+  ['ZH-36', '비요크 침대 헤드 LK Bjork Head LK', 'BH_LKN', '내추럴오크 Natural Oak', '¥273.5', '0', '¥0.00'],
+  ['ZH-36', '비요크 침대 헤드 LK Bjork Head LK', 'BH_LKB', '블랙 Black', '¥273.5', '10', '¥2,735.00'],
+  ['TOTAL', '', '', '', '', '40', '¥16,745.00'],
+], 1, 4);
+const 제잔액 = 표([
+  ['CODE#', 'Product model', 'COLOR', 'Qty pcs', 'FOB', 'Total '],
+  ['ZBY_SSN', 'Bjork Bed w/o Head  SS', 'Natural Oak', '30', '509', '15270'],
+  ['BH_LKB', 'Bjork Head LK', 'Black', '10', '273.5', '2735'],
+  ['', '', '', '40', '', '18005'],
+], 1, 3);
+
+test('대조숫자 — 깨진 ¥·CNY 를 떼고 숫자만, 글자가 길면 빈칸', () => {
+  assert.equal(대조숫자('¥14,010.00'), 14010);
+  assert.equal(대조숫자('Â¥467.0'), 467);
+  assert.equal(대조숫자('ï¿¥1,001.50'), 1001.5);
+  assert.equal(대조숫자('CNY 282'), 282);
+  assert.equal(대조숫자(''), null);
+  assert.equal(대조숫자('(PCS)'), null);
+  assert.equal(대조숫자('1pcs/ctn'), null);
+});
+
+test('발주대조 — 제헤우드: 단가·금액·합계 금액만 다르고, 수량 0 줄·색·모델명은 차이 아님', () => {
+  const r = 발주대조(제발주, 제잔액);
+  assert.equal(r.못댐, null);
+  assert.equal(r.합계줄없음, false);
+  assert.deepEqual(r.줄.map((x) => [x.kind, x.name, x.from, x.to]), [
+    ['단가', 'ZBY_SSN', 467, 509],
+    ['금액', 'ZBY_SSN', 14010, 15270],
+    ['합계', '금액', 16745, 18005],
+  ]);
+});
+
+test('발주대조 — 깨진 기호만 다르면 차이 없음', () => {
+  const 잔 = 표([
+    ['CODE#', 'Product model', 'COLOR', 'Qty pcs', 'FOB', 'Total '],
+    ['ZBY_SSN', 'Bjork Bed w/o Head SS', 'Natural Oak', '30', '¥467', '¥14,010'],
+    ['BH_LKB', 'Bjork Head LK', 'Black', '10', '273.50', '2,735.00'],
+  ]);
+  assert.deepEqual(발주대조(제발주, 잔).줄, []);
+});
+
+test('발주대조 — 색이 다르면 색상, 반 넘게 다르면 견주지 않음', () => {
+  const 잔 = (c1, c2) => 표([
+    ['CODE#', 'COLOR', 'Qty pcs'],
+    ['ZBY_SSN', c1, '30'],
+    ['BH_LKB', c2, '10'],
+  ]);
+  assert.deepEqual(발주대조(제발주, 잔('Natural Oak', 'White')).줄.map((x) => [x.kind, x.name, x.to]),
+    [['색상', 'BH_LKB', 'White']]);
+  assert.deepEqual(발주대조(제발주, 잔('체리', '흰색')).줄, []);
+});
+
+test('발주대조 — 베이지아: 코드가 Description 칸에, 머리줄 둘, 수량·합계 차이', () => {
+  const 발 = 표([
+    ['no.', 'ITEM NAME', 'code#', 'FABRIC / COLOR', 'PRICE (FOB Qingdao)', 'ORDER QTY', 'AMOUNT'],
+    ['1', '포니엘 패브릭 침대 SS', 'AMT-S03-01', 'comodo ivory', '¥1,001.50', '52', '¥52,078'],
+    ['2', '포니엘 포켓 가드', 'AMT-S03-03', 'comodo ivory', '¥282.00', '40', '¥11,280'],
+    ['TOTAL', '', '', '', '', '', '¥63,358.00'],
+  ], 1, 3);
+  const 잔 = 표([
+    ['Marks&Numbers', 'Description of Goods', 'Quantity', 'Unit Price', 'Amount'],
+    ['N/M', 'BED', '(PCS)', 'CNY', 'CNY'],
+    ['', 'AMT-S03-01', '48', '1001.5', '48072'],
+    ['', 'AMT-S03-03', '40', '282', '11280'],
+    ['', 'TOTAL VALUE', '88', '', '59352'],
+  ], 2, 4);
+  const r = 발주대조(발, 잔);
+  assert.deepEqual(r.줄.map((x) => [x.kind, x.name, x.from, x.to]), [
+    ['수량', 'AMT-S03-01', 52, 48],
+    ['금액', 'AMT-S03-01', 52078, 48072],
+    ['합계', '수량', 92, 88],
+    ['합계', '금액', 63358, 59352],
+  ]);
+});
+
+test('발주대조 — 단가 빈 발주서는 단가없음, 단가 줄은 안 적음', () => {
+  const 발 = 표([
+    ['no.', 'code#', 'PRICE (FOB Qingdao)', 'ORDER QTY', 'AMOUNT'],
+    ['1', 'AMT-S03-01', '', '50', ''],
+    ['TOTAL', '', '', '', ''],
+  ], 1, 2);
+  const 잔 = 표([['Description of Goods', 'Quantity', 'Unit Price', 'Amount'], ['AMT-S03-01', '50', '1001.5', '50075']]);
+  const r = 발주대조(발, 잔);
+  assert.equal(r.단가없음, true);
+  assert.deepEqual(r.줄, []);
+});
+
+test('발주대조 — 밑줄 꼴만 다르면 같은 코드, 하이픈은 다른 코드', () => {
+  const 발 = 표([['code#', 'ORDER QTY'], ['myT\u25813C', '5'], ['BHP-B', '2'], ['TOTAL', '7']], 1, 3);
+  const 잔 = 표([['CODE#', 'Qty pcs'], ['myT_3C', '5'], ['BHP_B', '2']]);
+  assert.deepEqual(발주대조(발, 잔).줄.map((x) => [x.kind, x.name]), [['발주서만', 'BHP-B'], ['잔액서류만', 'BHP_B']]);
+});
+
+test('발주대조 — TOTAL 줄 없는 발주서는 합계줄없음, 못 읽은 표는 못댐', () => {
+  const 발 = 표([['code#', 'ORDER QTY'], ['A-1', '5']]);
+  const 잔 = 표([['CODE#', 'Qty pcs'], ['A-1', '5']]);
+  assert.equal(발주대조(발, 잔).합계줄없음, true);
+  assert.equal(발주대조(표([['아무', '것']]), 잔).못댐, '발주서 품목 못 읽음');
+  assert.equal(발주대조(발, null).못댐, '잔액서류 품목 못 읽음');
+  assert.equal(발주대조(표([['ITEM NAME', 'QTY'], ['식탁 의자 세트 흰색', '3']]), 잔).못댐, '발주서 코드 칸 없음');
 });

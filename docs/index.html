@@ -355,7 +355,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.78.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.79.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -383,7 +383,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.78.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.79.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2765,7 +2765,7 @@ function progressWord(b) {
 return { PROGRESS_WORDS, progressWord };
 })();
 const MATCH = (() => {
-const { 코드열쇠 } = PARSE;
+const { 코드열쇠, 제품줄인가 } = PARSE;
 /**
  * 잔액서류(CI&PL)와 발주서를 숫자로 맞춰 봅니다.
  *
@@ -2983,7 +2983,157 @@ function 수량출처(잔액서류수) {
     : { 어디: '발주수량(입고전)', 잔액있음: false };
 }
 
-return { itemRows, 맞댈자, 맞춤판정, 맞춰보기, 벤더피아사전, 수량출처, 적합성, 제품차이 };
+/* ── 발주서 ↔ 잔액서류 대조 ───────────────────────────────
+ * 사장님 10-29 — 「발주서 텍스트화 한 자료와 잔액서류 텍스트화한 자료를 서로 비교하여
+ *   차이점을 분석한 내용을 차수별 상세 잔액서류 아래 적어지게 해줘」
+ *
+ * 재료는 내용보기 팝업이 그리는 표 그대로입니다 — 서버가 떠 둔 cipl.sheets 의 { rows: [{c}], h, f }.
+ * 새로 읽지 않습니다. 머리줄(rows[0..h-1])에서 칸을 찾고, h..f-1 줄을 품목으로 봅니다.
+ *
+ * ⚠ 코드는 **코드열쇠**(밑줄 꼴만 하나로)로만 맞댑니다. `-`·공백이 다르면 다른 제품입니다.
+ *   비슷해 보인다고 같다고 치지 않습니다.
+ * ⚠ 돈 칸은 **숫자만** 봅니다 — 앞뒤 통화 기호(¥ 가 글자로 바꿀 때 깨져 옵니다)는 떼고 견줍니다.
+ * ⚠ 수량 0 줄은 주문 안 한 줄입니다(발주서에 0 으로 남겨 두는 색이 있습니다). 빼고 봅니다.
+ */
+
+// 칸 이름 — js/parse.js 의 ITEM_COLS 와 같은 낱말에, 표에서 실제로 본 꼴을 더했습니다.
+//   발주서 「PRICE (FOB Qingdao)」 · 제헤우드 CI 금액 칸 「Total」 · 베이지아 발주서 「FABRIC / COLOR」.
+const 대조칸 = [
+  ['code', [/^code#?$/, /^품번$/, /^코드$/]],
+  ['name', [/^productmodel$/, /^itemname$/, /^품명$/, /^descriptionofgoods$/]],
+  ['qty', [/^quantity/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
+  ['price', [/^unitprice/, /^price/, /^fob/, /^단가/, /^u\/price/]],
+  ['amount', [/^amount/, /^totalamount/, /^totalvalue/, /^total$/, /^금액/, /^합계금액/]],
+  ['color', [/(?:^|\/)colou?r$/, /^색상$/, /^색$/, /^颜色/]],
+];
+const 칸글 = (v) => String(v ?? '').replace(/[\s.()]+/g, '').toLowerCase();
+const 합계말 = /total|合计|總計|总计|小计|합계/i;
+
+/** 돈·수량 글자 → 숫자. 앞뒤에 붙은 기호 몇 글자(¥ · 깨진 ¥ · CNY · $)는 떼고, 그 밖엔 빈칸입니다. */
+function 대조숫자(v) {
+  const 글 = String(v ?? '').replace(/[,\s]/g, '');
+  const m = 글.match(/^[^\d\-]{0,4}(-?\d+(?:\.\d+)?)[^\d]{0,4}$/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** 표 한 장 → 코드열쇠마다 { code, qty, price[], amount, colors[], name }. */
+function 대조품목(t) {
+  const rows = (t?.rows ?? []).map((r) => (Array.isArray(r) ? r : r?.c ?? []));
+  if (!rows.length) return null;
+  const h = Math.max(1, t.h ?? 1), f = Math.min(t.f ?? rows.length, rows.length);
+  const cols = {};
+  for (const r of rows.slice(0, h))
+    r.forEach((v, c) => {
+      const k = 칸글(v);
+      if (!k) return;
+      for (const [key, res] of 대조칸) if (cols[key] === undefined && res.some((re) => re.test(k))) cols[key] = c;
+    });
+  if (cols.qty === undefined) return null;
+  const 몸 = rows.slice(h, f).filter((r) => !r.some((v) => 합계말.test(String(v ?? ''))));
+
+  /* 코드 칸이 없는 양식 — 베이지아 CI 는 「Description of Goods」 칸에 코드(AMT-S03-01)를 적습니다.
+     그 칸 글이 **하나도 빠짐없이 코드 꼴**(숫자가 든 짧은 번호표)일 때만 코드로 씁니다. */
+  let 코드칸 = cols.code, 이름칸 = cols.name;
+  if (코드칸 === undefined && 이름칸 !== undefined) {
+    const 글들 = 몸.map((r) => String(r[이름칸] ?? '').trim()).filter(Boolean);
+    if (글들.length && 글들.every((x) => 제품줄인가(x) && /\d/.test(x))) { 코드칸 = 이름칸; 이름칸 = undefined; }
+  }
+
+  const 품 = new Map();
+  let 코드없는줄 = 0;
+  for (const r of 몸) {
+    const qty = 대조숫자(r[cols.qty]);
+    if (!qty) continue;                                  // 빈 수량·0 은 주문 안 한 줄
+    const code = 코드칸 === undefined ? '' : String(r[코드칸] ?? '').trim().replace(/\s+/g, ' ');
+    if (!code || !제품줄인가(code)) { 코드없는줄++; continue; }
+    const 열쇠 = 코드열쇠(code);
+    const it = 품.get(열쇠) ?? { code, qty: 0, price: [], amount: null, colors: [], name: '' };
+    it.qty += qty;
+    const p = cols.price === undefined ? null : 대조숫자(r[cols.price]);
+    if (p !== null && !it.price.includes(p)) it.price.push(p);
+    const a = cols.amount === undefined ? null : 대조숫자(r[cols.amount]);
+    if (a !== null) it.amount = (it.amount ?? 0) + a;
+    const c = cols.color === undefined ? '' : String(r[cols.color] ?? '').trim();
+    if (c && !it.colors.includes(c)) it.colors.push(c);
+    if (!it.name && 이름칸 !== undefined) it.name = String(r[이름칸] ?? '').trim();
+    품.set(열쇠, it);
+  }
+  return {
+    품, 코드없는줄, 코드칸있음: 코드칸 !== undefined,
+    // TOTAL 줄이 표 끝에 있나 — 발주서 표가 쪽마다 나뉘면 서버가 첫 쪽 표만 떠 TOTAL 이 없습니다.
+    합계줄: rows.slice(f).some((r) => r.some((v) => 합계말.test(String(v ?? '')))),
+    칸: { price: cols.price !== undefined, amount: cols.amount !== undefined,
+         color: cols.color !== undefined, name: 이름칸 !== undefined },
+  };
+}
+
+const 돈같음 = (x, y) => Math.round(x * 100) === Math.round(y * 100);
+const 글뼈 = (v) => String(v ?? '').replace(/\s+/g, '').toLowerCase();
+// 한쪽이 다른 쪽을 품으면 같은 것 — 발주서 「내추럴오크 Natural Oak」 와 CI 「Natural Oak」.
+const 품나 = (x, y) => { const a = 글뼈(x), b = 글뼈(y); return !!a && !!b && (a.includes(b) || b.includes(a)); };
+
+/* 색·모델명 — 양식마다 적는 말이 달라(한글+영문 / 영문만) 글자가 같을 수 없습니다.
+   그래서 **한쪽이 다른 쪽을 품으면 같음**으로 보고, 맞댄 것 가운데 반 이상이 그렇게 맞을 때만
+   안 맞는 것을 「다름」 으로 적습니다. 반도 안 맞으면 두 서류가 다른 말로 적은 것이라 견주지 않습니다.
+   ⚠ 서버가 칸 글을 60자에서 자릅니다 — 58자 넘는 것은 잘렸을 수 있어 견주지 않습니다. */
+function 글대조(짝) {
+  const 볼것 = 짝.filter(([, x, y]) => x && y && x.length < 58 && y.length < 58);
+  if (!볼것.length) return [];
+  const 다른것 = 볼것.filter(([, x, y]) => !품나(x, y));
+  return 다른것.length * 2 <= 볼것.length ? 다른것 : [];
+}
+
+/**
+ * 발주서 표 하나와 잔액서류 표 하나를 코드로 맞댑니다.
+ * @returns {{ 줄: {kind,name,code,from,to}[], 못댐: string|null, 단가없음: boolean,
+ *             합계줄없음: boolean, 코드없는줄: {발주: number, 잔액: number} }}
+ *   합계줄없음 — 발주서 표 끝에 TOTAL 줄이 없습니다. 표가 잘렸을 수 있어 「잔액서류만」 이 거짓일 수 있습니다.
+ *   줄의 from 은 발주서, to 는 잔액서류 값입니다. 줄이 비고 못댐이 null 이면 차이 없음입니다.
+ */
+function 발주대조(발주표, 잔액표) {
+  const A = 대조품목(발주표), B = 대조품목(잔액표);
+  const 빈 = { 줄: [], 단가없음: false, 합계줄없음: false, 코드없는줄: { 발주: 0, 잔액: 0 } };
+  if (!A) return { ...빈, 못댐: '발주서 품목 못 읽음' };
+  if (!B) return { ...빈, 못댐: '잔액서류 품목 못 읽음' };
+  const 코드없는줄 = { 발주: A.코드없는줄, 잔액: B.코드없는줄 };
+  const 합계줄없음 = !A.합계줄;
+  if (!A.코드칸있음) return { ...빈, 코드없는줄, 합계줄없음, 못댐: '발주서 코드 칸 없음' };
+  if (!B.코드칸있음) return { ...빈, 코드없는줄, 합계줄없음, 못댐: '잔액서류 코드 칸 없음' };
+
+  const 줄 = [];
+  const 덧 = (kind, it, from, to) => 줄.push({ kind, name: it.code, code: '', from, to });
+  const 둘다 = [];
+  for (const [k, a] of A.품) if (!B.품.has(k)) 덧('발주서만', a, a.qty, null); else 둘다.push([a, B.품.get(k)]);
+  for (const [k, b] of B.품) if (!A.품.has(k)) 덧('잔액서류만', b, null, b.qty);
+
+  for (const [a, b] of 둘다) if (a.qty !== b.qty) 덧('수량', a, a.qty, b.qty);
+
+  // 단가 — 발주서에 단가가 하나도 없으면 「발주서에 단가 없음」 한 번만. 줄마다 단가가 여럿이면 견주지 않습니다.
+  const 단가있음 = 둘다.some(([a]) => a.price.length);
+  const 단가없음 = B.칸.price && 둘다.length > 0 && !단가있음;
+  for (const [a, b] of 둘다)
+    if (a.price.length === 1 && b.price.length === 1 && !돈같음(a.price[0], b.price[0])) 덧('단가', a, a.price[0], b.price[0]);
+  for (const [a, b] of 둘다)
+    if (a.amount !== null && b.amount !== null && !돈같음(a.amount, b.amount)) 덧('금액', a, a.amount, b.amount);
+
+  if (A.칸.color && B.칸.color)
+    for (const [a, x, y] of 글대조(둘다.map(([a, b]) => [a, a.colors.join(' · '), b.colors.join(' · ')]))) 덧('색상', a, x, y);
+  if (A.칸.name && B.칸.name)
+    for (const [a, x, y] of 글대조(둘다.map(([a, b]) => [a, a.name, b.name]))) 덧('모델명', a, x, y);
+
+  // 합계 — 품목 줄을 더한 것끼리. 금액은 양쪽 다 금액이 적힌 줄이 있을 때만.
+  const 더 = (m, k) => [...m.values()].reduce((s, x) => (x[k] === null ? s : s + x[k]), 0);
+  const 금액있나 = (m) => [...m.values()].some((x) => x.amount !== null);
+  const 합 = { kind: '합계', code: '' };
+  if (더(A.품, 'qty') !== 더(B.품, 'qty')) 줄.push({ ...합, name: '수량', from: 더(A.품, 'qty'), to: 더(B.품, 'qty') });
+  if (금액있나(A.품) && 금액있나(B.품) && !돈같음(더(A.품, 'amount'), 더(B.품, 'amount')))
+    줄.push({ ...합, name: '금액', from: 더(A.품, 'amount'), to: 더(B.품, 'amount') });
+  return { 줄, 못댐: null, 단가없음, 합계줄없음, 코드없는줄 };
+}
+
+return { itemRows, 대조숫자, 대조품목, 맞댈자, 맞춤판정, 맞춰보기, 발주대조, 벤더피아사전, 수량출처, 적합성, 제품차이 };
 })();
 const FS = (() => {
 /**
@@ -3557,7 +3707,7 @@ return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, VP_상품, WT, authMessa
 })();
 const { STAGES, ASIDE, buildBatches, extOf, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠 } = PARSE;
 const { progressWord } = PROGRESS;
-const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처 } = MATCH;
+const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조 } = MATCH;
 
 
 
@@ -5125,7 +5275,7 @@ function renderDrawer(id) {
    * "수량 +51" 만으로는 어느 제품이 늘었는지 알 수 없습니다.
    */
 
-  const KIND_TONE = { 추가: 'text-warn', 빠짐: 'text-info', 수량: 'text-faint', 합계: 'text-faint' };
+  const KIND_TONE = { 추가: 'text-warn', 빠짐: 'text-info', 수량: 'text-faint', 합계: 'text-faint', 잔액서류만: 'text-warn', 발주서만: 'text-info' };
 
   /** 바뀐 것들을 표 한 장으로 만듭니다. 줄글로 이어 붙이면 뭐가 뭔지 안 보입니다.
       key 를 주면 표 아래에 '상세보기' 를 답니다 — 접힌 것까지 다 보고, 두 판의 원본을 봅니다. */
@@ -5138,7 +5288,7 @@ function renderDrawer(id) {
         <span class="font-semibold text-faint">${esc(diffPairs.get(key)?.label ?? '')}</span>
       </button>`;
 
-  function diffTable(rows, key = null, MAX = 12) {
+  function diffTable(rows, key = null, MAX = 12, 머리 = ['이전', '이후', '증감']) {
     if (!rows.length) return '';
     const shown = rows.slice(0, MAX);
     const num = (v) => (v === null || v === undefined ? '<span class="text-faint">—</span>' : fmtNum(v));
@@ -5156,9 +5306,7 @@ function renderDrawer(id) {
             <tr class="bg-hover text-faint text-left">
               <th class="font-bold px-2 py-1 w-[42px]">구분</th>
               <th class="font-bold px-2 py-1">항목</th>
-              <th class="font-bold px-2 py-1 text-right whitespace-nowrap">이전</th>
-              <th class="font-bold px-2 py-1 text-right whitespace-nowrap">이후</th>
-              <th class="font-bold px-2 py-1 text-right whitespace-nowrap">증감</th>
+              ${머리.map((글) => `<th class="font-bold px-2 py-1 text-right whitespace-nowrap">${esc(글)}</th>`).join('')}
             </tr>
           </thead>
           <tbody class="divide-y divide-line">
@@ -5372,8 +5520,8 @@ function renderDrawer(id) {
      떠 둔 표가 없으면 「읽은 값 없음」 입니다. 틀은 상세보기(#diffView)와 같습니다.
      발주서 내용보기(사장님 10-27 「발주서 칸에 내용보기 버튼으로 잔액서류처럼 텍스트화된 내용 볼 수 있게」)도 이것 하나로 —
      단계만 'order' 로 넘깁니다. 서버(pdfTable_)가 발주서 PDF 의 품목 표를 같은 꼴 d.cipl.sheets 로 떠 둡니다. */
+  const 시트들 = (d) => (d.cipl?.sheets ?? (d.cipl?.sheet ? [d.cipl.sheet] : [])).filter((t) => t?.rows?.length);
   function openCiplView(고른, 단계 = 'cipl') {
-    const 시트들 = (d) => (d.cipl?.sheets ?? (d.cipl?.sheet ? [d.cipl.sheet] : [])).filter((t) => t?.rows?.length);
     const 칸 = b.stages.find((s) => s.key === 단계);
     const 서류들 = (칸?.docs ?? []).filter((d) => 시트들(d).length);
     const 이름들 = [...new Set(서류들.flatMap((d) => 시트들(d).map((t) => t.name)))];
@@ -5642,6 +5790,51 @@ function renderDrawer(id) {
       </div>`;
   }
 
+  /* 발주서 ↔ 잔액서류 대조 — 사장님 10-29 「발주서 텍스트화 한 자료와 잔액서류 텍스트화한 자료를
+     서로 비교하여 차이점을 분석한 내용을 차수별 상세 잔액서류 아래 적어지게 해줘」.
+     재료는 내용보기와 같은 d.cipl.sheets 입니다 — 새로 읽지 않습니다. 셈은 js/match.js 발주대조.
+     발주서는 확정한 것, 없으면 떠 둔 표가 하나뿐일 때만. 둘 이상인데 확정이 없으면 고르실 때까지 안 댑니다.
+     잔액서류는 CI 시트(없으면 첫 시트). 같은 표를 담은 서류가 둘이면 하나만. */
+  function 발주대조칸() {
+    const 잔액들 = b.stages.find((s) => s.key === 'cipl')?.docs ?? [];
+    const 딱지 = (글, 경고) => `<span class="text-[11px] font-bold px-1.5 py-0.5 rounded ${
+      경고 ? 'bg-[#fdf3e3] text-[#8a5a00]' : 'bg-chip text-muted'}">${esc(글)}</span>`;
+    const 감싸 = (속) => `
+              <div class="pl-[42px] pr-3 pb-2">
+                <div class="text-[11px] font-bold text-faint tracking-wide mb-1">발주서 대조</div>
+                ${속}
+              </div>`;
+    const 하나씩 = (줄) => { const 본것 = new Set(); return 줄.filter(([, t]) => { const k = JSON.stringify(t.rows); return !본것.has(k) && 본것.add(k); }); };
+
+    if (!발주서들.length) return 감싸(딱지('발주서 없음'));
+    let 발주표;
+    if (확정발주서) 발주표 = 시트들(확정발주서)[0];
+    else {
+      const 읽은 = 하나씩(발주서들.filter((d) => 시트들(d).length).map((d) => [d, 시트들(d)[0]]));
+      if (읽은.length > 1) return 감싸(딱지(`발주서 ${읽은.length}장 · 확정 없음`));
+      발주표 = 읽은[0]?.[1];
+    }
+    if (!발주표) return 감싸(딱지('발주서 읽은 값 없음'));
+    const 잔액표들 = 하나씩(잔액들.filter((d) => 시트들(d).length)
+      .map((d) => [d, 시트들(d).find((t) => /^ci$/i.test(t.name)) ?? 시트들(d)[0]]));
+    if (!잔액표들.length) return 감싸(딱지('잔액서류 읽은 값 없음'));
+
+    return 감싸(잔액표들.map(([d, t]) => {
+      const r = 발주대조(발주표, t);
+      const 딱지들 = r.못댐 ? [딱지(r.못댐)] : [
+        r.합계줄없음 ? 딱지('발주서 합계줄 없음', true) : '',
+        r.단가없음 ? 딱지('발주서에 단가 없음') : '',
+        r.코드없는줄.발주 ? 딱지(`발주서 코드 없는 줄 ${r.코드없는줄.발주}`) : '',
+        r.코드없는줄.잔액 ? 딱지(`잔액서류 코드 없는 줄 ${r.코드없는줄.잔액}`) : '',
+      ].filter(Boolean);
+      return `
+                ${잔액표들.length > 1 ? `<div class="text-[11px] font-semibold text-muted mt-1.5 break-words">${esc(d.display ?? d.name)}</div>` : ''}
+                ${딱지들.length ? `<div class="flex flex-wrap gap-1 mb-1">${딱지들.join('')}</div>` : ''}
+                ${r.못댐 ? '' : r.줄.length ? diffTable(r.줄, null, Infinity, ['발주서', '잔액서류', '차이'])
+                  : '<div class="text-[12px] font-bold text-ok">차이 없음</div>'}`;
+    }).join(''));
+  }
+
   const docLink = (d) => `
     <li class="dhh-dbox${확정발주서?.path === d.path && 발주서들.length > 1 ? ' ring-1 ring-ink' : ''}">
       <div class="flex items-start gap-2">
@@ -5750,6 +5943,7 @@ function renderDrawer(id) {
               ${s.key === 'order' && s.docs.some((d) => /\.pdf$/i.test(d.name)) ? 내용보기단추('orderView') : ''}
               ${s.key === 'order' ? 상차일칸() : ''}
               ${s.key === 'cipl' && on ? 내용보기단추('ciplView') : ''}
+              ${s.key === 'cipl' && on ? 발주대조칸() : ''}
             </li>`;
           }).join('')}
         </ol>
