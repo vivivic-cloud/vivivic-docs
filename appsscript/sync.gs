@@ -17,7 +17,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 18;
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 13;
+const READ_VERSION = 14;
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -1195,6 +1195,9 @@ function html글_(v) {
   return String(v)
     .replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    // 구글 문서 html 내보내기는 위안화 ¥ 를 「&yen;」 이름표로 씁니다(10-28 발주서 넷 다 그랬습니다).
+    // 안 풀면 내용보기 금액 칸에 「&yen;113.00」 이 그대로 나옵니다. 글자 내보내기는 ¥ 그대로입니다.
+    .replace(/&(yen|euro|pound|cent);/g, function (m, n) { return { yen: '\u00a5', euro: '\u20ac', pound: '\u00a3', cent: '\u00a2' }[n]; })
     .replace(/&#(\d+);/g, function (m, n) { return String.fromCharCode(Number(n)); })
     .replace(/&#x([0-9a-f]+);/gi, function (m, n) { return String.fromCharCode(parseInt(n, 16)); })
     .replace(/&amp;/g, '&')
