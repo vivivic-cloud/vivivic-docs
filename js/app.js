@@ -761,6 +761,51 @@ async function saveAssign() {
 const driveEmbed = (id) => `https://drive.google.com/file/d/${id}/preview`;
 const driveOpen = (id) => `https://drive.google.com/file/d/${id}/view`;
 const driveThumb = (id, w) => `https://drive.google.com/thumbnail?id=${id}&sz=w${w}`;
+
+/* 새로 올린 사진은 드라이브가 썸네일을 다 만들기 전이라 처음 받기에 실패하곤 합니다.
+   그때 지우지 말고 「준비 중」 딱지를 두고 5초 → 15초 → 30초 뒤 다시 받습니다.
+   세 번 다 못 받으면 「그림 없음」 — 누르면 여는 건 그대로입니다. */
+const THUMB_RETRY = [5, 15, 30];
+const thumbImg = (id, w, cls, extra = '') =>
+  `<img src="${driveThumb(id, w)}" data-thumb="${esc(id)}" data-w="${w}" class="${cls}" ${extra} />`;
+
+function thumbChip(img, 말) {
+  let chip = img.parentElement?.querySelector(':scope > [data-thumb-chip]');
+  if (!chip && img.parentElement) {
+    const id = img.dataset.thumb;
+    const 덩이 = img.closest('button, a');
+    chip = document.createElement(덩이 ? 'span' : 'a');
+    if (!덩이) { chip.href = driveOpen(id); chip.target = '_blank'; chip.rel = 'noopener'; }
+    chip.dataset.thumbChip = '';
+    const 겹침 = getComputedStyle(img.parentElement).position !== 'static';
+    chip.className = `${겹침 ? 'absolute inset-0 m-auto w-fit h-fit ' : ''}text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5`;
+    img.after(chip);
+  }
+  if (chip) chip.textContent = 말;
+}
+
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || !img.dataset.thumb) return;
+  const n = Number(img.dataset.try ?? 0);
+  if (n >= THUMB_RETRY.length) { thumbChip(img, '그림 없음'); img.remove(); return; }
+  img.dataset.try = n + 1;
+  img.style.opacity = '0';
+  thumbChip(img, '준비 중');
+  setTimeout(() => {
+    if (!img.isConnected) return; // 서랍이 다시 그려졌으면 새 그림이 알아서 받습니다
+    img.loading = 'eager';
+    img.src = `${driveThumb(img.dataset.thumb, img.dataset.w)}&t=${Date.now()}`;
+  }, THUMB_RETRY[n] * 1000);
+}, true);
+
+document.addEventListener('load', (e) => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement) || !img.dataset.thumb || !img.dataset.try) return;
+  img.style.opacity = '';
+  img.parentElement?.querySelector(':scope > [data-thumb-chip]')?.remove();
+}, true);
+
 const driveSearch = (name) => `https://drive.google.com/drive/search?q=${encodeURIComponent(name)}`;
 
 /** 브라우저가 그대로 그려줄 수 있는 확장자 */
@@ -1159,7 +1204,7 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
   // 사진은 iframe 대신 그림으로 바로 그립니다. 훨씬 빠르고 확실합니다.
   if (doc.driveId && PHOTO_EXT.test(doc.name)) {
     box.className = 'flex-1 min-h-[420px] rounded-lg border border-line bg-hover overflow-auto flex items-center justify-center';
-    box.innerHTML = `<img src="${driveThumb(doc.driveId, 1600)}" alt="${esc(doc.display)}" class="max-w-full h-auto" />`;
+    box.innerHTML = thumbImg(doc.driveId, 1600, 'max-w-full h-auto', `alt="${esc(doc.display)}"`);
     if (note) note.textContent = '드라이브 그림';
     return;
   }
@@ -1346,8 +1391,8 @@ const PHOTO_EXT = /\.(jpe?g|png|heic|webp|gif|bmp)$/i;
  * 작은 그림으로 늘어놓고, 누르면 한 장씩 크게 넘겨 봅니다.
  */
 function photoGrid(docs, key) {
-  /* 그림이 안 뜰 때 칸마다 '사진' 이라고 적으면 그 글자가 열여섯 줄 늘어섭니다.
-     칸은 빈 자리로 두고, 못 뜨는 까닭은 격자 위에 딱지 하나로만 적습니다. */
+  /* 주소가 없는 칸은 빈 자리로 두고 격자 위에 딱지 하나로만 적습니다.
+     썸네일을 못 받은 칸은 thumbImg 가 「준비 중」 → 「그림 없음」 을 칸 안에 둡니다. */
   const 주소없음 = docs.filter((d) => !d.driveId).length;
   return `
     ${주소없음 ? `<div class="mb-1.5 text-[11px] text-faint">주소 없음 ${주소없음}</div>` : ''}
@@ -1357,9 +1402,8 @@ function photoGrid(docs, key) {
                 class="relative aspect-square rounded-lg overflow-hidden bg-hover border border-line
                        hover:border-ink/30 transition-all">
           ${d.driveId
-            ? `<img src="${driveThumb(d.driveId, 400)}" alt="" loading="lazy"
-                    class="w-full h-full object-cover" data-path="${esc(d.path)}"
-                    onerror="this.remove()" />`
+            ? thumbImg(d.driveId, 400, 'w-full h-full object-cover',
+                `alt="" loading="lazy" data-path="${esc(d.path)}"`)
             : ''}
         </button>`).join('')}
     </div>`;
