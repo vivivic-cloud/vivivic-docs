@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 제품줄인가, orderIds } from '../js/parse.js';
+import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds } from '../js/parse.js';
 
 /** 실제 드라이브 `중국/제헤우드/` 폴더에서 가져온 파일명입니다. */
 const REAL = [
@@ -849,4 +849,28 @@ test('readPdfItems — 색이 두 칸으로 풀린 발주서에서도 코드를 
   // ⚠ 멀리까지 되짚으면 **앞 줄의 코드**를 집습니다. 그래서는 안 됩니다.
   const 먼것 = ['ZBY_LKB', '가', '나', '다', '라', '마', 돈('1.0'), '7', 돈('7.00')].join('\t');
   assert.equal(readPdfItems(먼것), null, '너무 멀리 있는 코드는 안 집습니다');
+});
+
+test('밑줄보기 — 화면 글자만 표준 _ 로, 날것·열쇠·묶음은 그대로', () => {
+  // 10-29 실물에서 본 꼴은 ▁(U+2581) 하나. ＿(U+FF3F)·‗(U+2017) 도 같이 받습니다.
+  for (const 꼴 of ['\u005F', '\u2581', '\uFF3F', '\u2017']) {
+    const 날것 = `myT${꼴}3C`;
+    assert.equal(밑줄보기(날것), 'myT_3C', `U+${꼴.codePointAt(0).toString(16)} 이 _ 로 안 보인다`);
+    assert.equal(밑줄보기(날것).codePointAt(3), 0x5f);
+    assert.equal(코드열쇠(날것), 'myT_3C');
+  }
+  // 하이픈·점·대소문자·빈 값은 안 건드립니다
+  assert.equal(밑줄보기('BHP8-B'), 'BHP8-B');
+  assert.equal(밑줄보기('AMT-S03.01/a'), 'AMT-S03.01/a');
+  assert.equal(밑줄보기('MyT\u25813c 내추럴'), 'MyT_3c 내추럴');
+  assert.equal(밑줄보기(null), '');
+  assert.equal(밑줄보기(12.5), '12.5');
+
+  // 날것은 담긴 그대로 — 묶음 셈(밑줄꼴)도 그대로 남습니다
+  const got = readItems([['CODE#', '품명', '수량'], ['myT\u25813C', '교구장', 2], ['myT_3C', '교구장', 1]]);
+  assert.equal(got.length, 1);
+  assert.equal(got[0].qty, 3);
+  assert.deepEqual(got[0].밑줄꼴, ['myT\u25813C', 'myT_3C']);
+  assert.equal(got[0].code, 'myT\u25813C', '담는 코드는 날것입니다');
+  assert.equal(밑줄보기(got[0].code), 'myT_3C', '보이는 것만 _');
 });

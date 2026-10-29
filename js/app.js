@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, extOf, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠 } from './parse.js';
+import { STAGES, ASIDE, buildBatches, extOf, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기 } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조 } from './match.js';
 import * as FS from './fsaccess.js';
@@ -31,6 +31,9 @@ const state = {
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// 텍스트화 표의 칸 글자 — 밑줄 꼴을 표준 _ 로 찍습니다(parse.js 밑줄보기). 날것은 그대로 둡니다.
+const 보임 = (s) => esc(밑줄보기(s));
+window.밑줄보기 = 밑줄보기;   // index.html 표(제품관리·단품관리·코드관리)도 같은 것을 씁니다
 const fmtNum = (n) => (n == null ? '' : Number(n).toLocaleString('ko-KR'));
 /* 차수가 어디까지 왔는지 한 마디 — 차수 카드와 차수 서랍 머리, 두 자리에 같은 것을 답니다.
    넷 가운데 하나도 없으면 아무것도 안 답니다(빈 글자). */
@@ -1136,7 +1139,8 @@ async function fillPreview(doc, ns = 'pv', { force = false } = {}) {
         const wb = XLSX.read(buf, { type: 'array', cellDates: true });
         const names = wb.SheetNames;
         const renderSheet = (name) => {
-          const html = XLSX.utils.sheet_to_html(wb.Sheets[name], { editable: false });
+          // 칸 글자의 밑줄 꼴도 표준 _ 로 — 텍스트화 표와 같게(밑줄보기). 태그·속성에는 그 글자가 없습니다.
+          const html = 밑줄보기(XLSX.utils.sheet_to_html(wb.Sheets[name], { editable: false }));
           const m = /<table[\s\S]*<\/table>/.exec(html);
           return `<div class="vv-x">${(m ? m[0] : html).replace('<table', '<table class="vv-sheet"')}</div>`;
         };
@@ -1509,8 +1513,8 @@ function 제품표(auto) {
           <tbody class="divide-y divide-line">
             ${items.map((x) => `
               <tr>
-                <td class="px-2 py-1">${esc(x.name || x.code)}${
-                  x.name && x.code && x.name !== x.code ? `<span class="text-faint"> ${esc(x.code)}</span>` : ''}</td>
+                <td class="px-2 py-1">${보임(x.name || x.code)}${
+                  x.name && x.code && x.name !== x.code ? `<span class="text-faint"> ${보임(x.code)}</span>` : ''}</td>
                 <td class="px-2 py-1 text-right">${숫(x.qty)}</td>
                 <td class="px-2 py-1 text-right">${숫(x.price)}</td>
                 <td class="px-2 py-1 text-right font-bold">${숫(x.amount)}</td>
@@ -1650,9 +1654,9 @@ function renderDrawer(id) {
                 <td class="px-2 py-1 font-bold ${KIND_TONE[r.kind] ?? 'text-faint'} whitespace-nowrap">${
                   // 같은 구분이 이어지면 첫 줄에만 적습니다. 같은 말이 세로로 늘어서면 눈만 아픕니다.
                   i && shown[i - 1].kind === r.kind ? '' : esc(r.kind)}</td>
-                <td class="px-2 py-1">${esc(r.name)}${r.code ? `<span class="text-faint"> ${esc(r.code)}</span>` : ''}</td>
-                <td class="px-2 py-1 text-right whitespace-nowrap">${typeof r.from === 'number' ? num(r.from) : (r.from ? esc(String(r.from)) : num(null))}</td>
-                <td class="px-2 py-1 text-right whitespace-nowrap font-bold">${typeof r.to === 'number' ? num(r.to) : (r.to ? esc(String(r.to)) : num(null))}</td>
+                <td class="px-2 py-1">${보임(r.name)}${r.code ? `<span class="text-faint"> ${보임(r.code)}</span>` : ''}</td>
+                <td class="px-2 py-1 text-right whitespace-nowrap">${typeof r.from === 'number' ? num(r.from) : (r.from ? 보임(String(r.from)) : num(null))}</td>
+                <td class="px-2 py-1 text-right whitespace-nowrap font-bold">${typeof r.to === 'number' ? num(r.to) : (r.to ? 보임(String(r.to)) : num(null))}</td>
                 <td class="px-2 py-1 text-right whitespace-nowrap">${gap(r)}</td>
               </tr>`).join('')}
             ${rows.length > MAX ? `<tr><td colspan="5" class="px-2 py-1 text-faint">외 ${rows.length - MAX}건</td></tr>` : ''}
@@ -1685,8 +1689,8 @@ function renderDrawer(id) {
           <ul class="divide-y divide-line border border-line rounded-lg overflow-hidden">
             ${줄.map((r) => `
               <li class="px-3 py-2 flex items-baseline gap-2">
-                <span class="text-[12px] font-semibold break-words min-w-0 flex-1">${esc(r.name)}${
-                  r.code && r.code !== r.name ? `<span class="text-faint text-[11px]"> ${esc(r.code)}</span>` : ''}</span>
+                <span class="text-[12px] font-semibold break-words min-w-0 flex-1">${보임(r.name)}${
+                  r.code && r.code !== r.name ? `<span class="text-faint text-[11px]"> ${보임(r.code)}</span>` : ''}</span>
                 <span class="text-[12px] font-bold tabular-nums whitespace-nowrap ${색}">${esc(수(r))}</span>
               </li>`).join('')}
           </ul>
@@ -2698,7 +2702,7 @@ function 원본표(t) {
   const 숫자 = /^[-\d,.$¥%]+$/;
   const rows = t.rows.map((r) => r.c ?? []);
   const h = t.h ?? 1, f = t.f ?? rows.length;
-  const 칸 = (v, tag) => `<${tag}${숫자.test(v) ? ' class="num"' : ''}>${esc(v)}</${tag}>`;
+  const 칸 = (v, tag) => `<${tag}${숫자.test(v) ? ' class="num"' : ''}>${보임(v)}</${tag}>`;
   return `
         <div class="dpr-scroll vv-x"><table class="dpr-t">
           <thead>${rows.slice(0, h).map((r) => `<tr>${r.map((v) => 칸(v, 'th')).join('')}</tr>`).join('')}</thead>
@@ -2770,7 +2774,7 @@ function 견적보기(q, 고른) {
   견적팝업(`${견적종류(q.mime)} · ${q.modified ?? ''}`, q.name ?? '', `
           ${칩들.length > 1 ? `<div class="dpr-tabs">${칩들.map((n) =>
             `<button type="button" class="chip ${n === 고른 ? 'chip-on' : 'chip-off'}" data-qtab="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
-          ${t ? 원본표({ ...t, h: t.h ?? 0 }) : 고른 === '글자' ? `<pre class="dpr-txt">${esc(q.text)}</pre>` : '<div class="dpr-none">읽은 글자 없음</div>'}`);
+          ${t ? 원본표({ ...t, h: t.h ?? 0 }) : 고른 === '글자' ? `<pre class="dpr-txt">${보임(q.text)}</pre>` : '<div class="dpr-none">읽은 글자 없음</div>'}`);
   for (const btn of $('#diffBody').querySelectorAll('[data-qtab]')) btn.onclick = () => 견적보기(q, btn.dataset.qtab);
 }
 window.docs견적보기 = (id) => {

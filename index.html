@@ -353,7 +353,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.81.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.82.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -381,7 +381,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.81.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.82.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -884,13 +884,16 @@
   /* 제품관리 표 한 장 — 제품관리 판과 차수 서랍의 잔액서류 내용보기가 함께 씁니다.
      codes 는 docs단품 의 꼴입니다. 값은 c.차수들 가운데 가장 늦은 차수 것부터 봅니다 —
      한 차수만 넘기면 그 차수 값만 나옵니다. 어느 차수에도 없는 칸은 빈칸입니다. */
+  // 텍스트화 표의 칸 글자 — 밑줄 꼴을 표준 _ 로(js/parse.js 밑줄보기). 날것·열쇠는 그대로입니다.
+  const dhh보임 = (t) => dhhEsc(window.밑줄보기 ? window.밑줄보기(t) : t);
+
   function dpr표(codes) {
     const 먼저 = (c, k) => c.차수들.map((x) => x[k]).find((v) => v !== null && v !== undefined && v !== '') ?? '';
-    const 칸 = (v, cls = '') => `<td${cls ? ` class="${cls}"` : ''}>${v === '' ? '' : dhhEsc(String(v))}</td>`;
+    const 칸 = (v, cls = '') => `<td${cls ? ` class="${cls}"` : ''}>${v === '' ? '' : dhh보임(String(v))}</td>`;
     const 찾을글 = (c) => [c.code, 먼저(c, 'model') || c.name, 먼저(c, 'pno')].join(' ').toLowerCase();
     const 줄 = (c) => `
-          <tr data-q="${dhhEsc(찾을글(c))}">
-            <td class="dpr-k">${dhhEsc(c.code)}</td>
+          <tr data-q="${dhh보임(찾을글(c))}">
+            <td class="dpr-k">${dhh보임(c.code)}</td>
             ${칸(먼저(c, 'model') || c.name, 'dpr-m')}${칸(먼저(c, 'color'))}${칸(먼저(c, 'pno'))}
             ${칸(먼저(c, 'fob'), 'num')}${칸(먼저(c, 'size'), 'num')}${칸(먼저(c, 'cbm'), 'num')}${칸(먼저(c, 'perCtn'), 'num')}
           </tr>`;
@@ -932,7 +935,7 @@
 
   /* 검색칸 — 코드·Product model·产品号 어디에든 들어 있으면 그 줄만 남깁니다. 맞는 줄이 없는 거래처는 접습니다. */
   function dprFind() {
-    const q = (document.getElementById('dpr-q')?.value ?? '').trim().toLowerCase();
+    const q = (window.밑줄보기 ?? String)(document.getElementById('dpr-q')?.value ?? '').trim().toLowerCase();
     document.querySelectorAll('#dpr-list .dpr-g').forEach((g) => {
       let n = 0;
       g.querySelectorAll('tbody tr').forEach((tr) => {
@@ -1007,12 +1010,12 @@
     if (!codes.length) { box.innerHTML = '<div class="dit-none">잔액서류에서 읽은 코드 없음</div>'; return; }
 
     const 값 = (이름, v) => (v === null || v === undefined || v === ''
-      ? '' : `<span class="dit-v"><b>${이름}</b> ${dhhEsc(String(v))}</span>`);
+      ? '' : `<span class="dit-v"><b>${이름}</b> ${dhh보임(String(v))}</span>`);
     box.innerHTML = codes.map((c, i) => `
       <button type="button" class="dit-code" aria-expanded="false" onclick="ditToggle(this)">
-        ${c.vp ? `<span class="dit-vp">${dhhEsc(c.vp)}</span>` : ''}
-        <span class="dit-c">${dhhEsc(c.code)}</span>
-        <span class="dit-n">${dhhEsc(c.name)}</span>
+        ${c.vp ? `<span class="dit-vp">${dhh보임(c.vp)}</span>` : ''}
+        <span class="dit-c">${dhh보임(c.code)}</span>
+        <span class="dit-n">${dhh보임(c.name)}</span>
         <span class="dit-ar">▾</span>
       </button>
       <div class="dit-open">
@@ -1053,8 +1056,8 @@
         </div>
         ${v.codes.map((c) => `
           <div class="dcd-row">
-            <span class="dcd-c">${dhhEsc(c.code)}</span>
-            <span class="dcd-n">${dhhEsc(c.name)}</span>
+            <span class="dcd-c">${dhh보임(c.code)}</span>
+            <span class="dcd-n">${dhh보임(c.name)}</span>
             <span class="dcd-b">${dhhEsc(c.차수.join(' '))}</span>
           </div>`).join('')}
       </section>`).join('');
