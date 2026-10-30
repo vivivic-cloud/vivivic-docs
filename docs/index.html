@@ -355,7 +355,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.82.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.83.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -383,7 +383,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.82.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.83.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1717,6 +1717,9 @@ function classify(rawName) {
   //    거래처가 보내오는 중국어 파일(订单·报价 등)은 발주서가 될 수 없습니다.
   if (/ordersheet|order\s*sheet|(?<![A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서/i.test(n))
     return hit('order', '발주 키워드');
+  // 해피코 발주서는 낱말 없이 「HPC-26-10차 _20260325.pdf」 꼴뿐입니다(10-30, 105개 모두 PURCHASE ORDER).
+  // ⚠ appsscript/sync.gs 의 HAPPYCO_PO_ 와 같아야 서버가 발주서 표를 뜹니다.
+  if (/^HPC\s*-\s*\d{2}\s*-\s*\d{1,2}\s*차/i.test(n)) return hit('order', '해피코 발주서');
 
   // 부가: FTA·원산지
   if (/\bFTA\b|원산지|C\/O\b|certificate\s*of\s*origin/i.test(n)) return hit('fta', 'FTA·원산지');

@@ -214,6 +214,9 @@ export function classify(rawName) {
   //    거래처가 보내오는 중국어 파일(订单·报价 등)은 발주서가 될 수 없습니다.
   if (/ordersheet|order\s*sheet|(?<![A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서/i.test(n))
     return hit('order', '발주 키워드');
+  // 해피코 발주서는 낱말 없이 「HPC-26-10차 _20260325.pdf」 꼴뿐입니다(10-30, 105개 모두 PURCHASE ORDER).
+  // ⚠ appsscript/sync.gs 의 HAPPYCO_PO_ 와 같아야 서버가 발주서 표를 뜹니다.
+  if (/^HPC\s*-\s*\d{2}\s*-\s*\d{1,2}\s*차/i.test(n)) return hit('order', '해피코 발주서');
 
   // 부가: FTA·원산지
   if (/\bFTA\b|원산지|C\/O\b|certificate\s*of\s*origin/i.test(n)) return hit('fta', 'FTA·원산지');

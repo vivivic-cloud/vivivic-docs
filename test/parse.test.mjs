@@ -97,6 +97,24 @@ test('buildBatches — 엉뚱한 폴더에 있어도 파일명 거래처로 넣�
   assert.ok(batches[0].issues.some((i) => i.text.includes('베이지아 폴더 →')));
 });
 
+test('해피코 — HPC-26-N차 이름은 발주서, Hp-26-NN 폴더는 차수', () => {
+  // 실제 드라이브 `중국/해피코/` 파일명(10-30)
+  for (const [name, label] of [
+    ['HPC-26-10차 _20260325.pdf', '26-10'],
+    ['HPC-26-2차  (2차수정) _20260303.xlsx', '26-02'],
+    ['HPC-26-20차 ( 1차수정) _20260604.pdf', '26-20'],
+    ['HPC-26-24차_1차 수정 2026.09.14.pdf.xlsx', '26-24'],
+    ['HPC-26-6차 (1차수정) _ 20260402.pdf', '26-06'],
+  ]) {
+    assert.equal(classify(name).key, 'order', name);
+    assert.equal(parseBatch(name)?.label, label, name);
+  }
+  assert.equal(batchFromPath('해피코/Hp-26-01/x.pdf')?.label, '26-01');
+  assert.equal(batchFromPath('해피코/Hp-26-29/x.pdf')?.label, '26-29');
+  assert.equal(batchFromPath('해피코/분류전/x.pdf'), null);
+  assert.notEqual(classify('HPC 안내.pdf').key, 'order');
+});
+
 test('classify — 중국어 파일명은 발주서가 될 수 없다', () => {
   // 발주서는 AMT이 내보내는 Ordersheet·PO 쪽입니다.
   assert.equal(classify('26-16.17订单，报价，立方数26.07.30.xlsx').key, 'dev');

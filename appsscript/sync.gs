@@ -176,8 +176,10 @@ const TEMP_PREFIX = '(vivivic 임시) ';
    「일다 제해우드 외 다른 거래처는 모두 지워 주세요」
    sync 는 `중국/제헤우드/` 안의 **차수 폴더만** 훑습니다. 차수 폴더 안 하위 폴더(검수·샘플 등)는 읽습니다.
    다른 거래처·제헤우드 안 차수 아닌 폴더(분류전·01_발주서…)는 들어가지도 않습니다.
-   견적서는 `중국/견적관리/` 안만 찾습니다(견적목록_). 넓히려면 사장님께 먼저 여쭙니다. */
-const VENDOR_DIRS = ['제헤우드'];
+   견적서는 `중국/견적관리/` 안만 찾습니다(견적목록_). 넓히려면 사장님께 먼저 여쭙니다.
+   10-30 해피코 더함 — 「서류관리 앱에 해피코 박스에 제헤우드와 동일한 방식으로 만들어 주세요」.
+   해피코도 차수 폴더(Hp-26-NN)만, 분류전 등은 안 들어갑니다. */
+const VENDOR_DIRS = ['제헤우드', '해피코'];
 // ⚠ 범위 밖으로 나간 docs_files 를 지울까. 벤더피아(수입정보)가 docs_files 의 cipl 을 거래처 가리지 않고 읽어서
 //   사장님 확인 전까지 false — 범위 밖 문서는 안 쓰고 안 지우고 그대로 둡니다. 범위 안에서 없어진 파일만 지웁니다.
 const DROP_OUTSIDE = false;
@@ -253,8 +255,8 @@ function listMany_(folderIds, onlyFolders, extraQ) {
 }
 
 /**
- * 훑기 — `중국/제헤우드/<차수 폴더>/…` 만 담습니다(사장님 10-30, 위 「연동 범위」).
- * 층마다 한 번에 묻습니다: 중국 자식(폴더) 1번 → 제헤우드 자식 1번 → 차수 폴더들 자식 1번 → 그 밑 층 1번 → …
+ * 훑기 — `중국/<VENDOR_DIRS>/<차수 폴더>/…` 만 담습니다(사장님 10-30, 위 「연동 범위」).
+ * 층마다 한 번에 묻습니다: 중국 자식(폴더) 1번 → 거래처들 자식 1번 → 차수 폴더들 자식 1번 → 그 밑 층 1번 → …
  * (주소가 길면 층 하나가 2~3번). 예전엔 `중국` 아래 폴더마다 한 번씩 129번이었습니다.
  * 깊이는 예전과 같습니다 — 중국 0 · 거래처 1 · 차수 2 · 하위 3 · 그 밑 4 층까지 엽니다(MAX_DEPTH).
  * 인자 꼴은 예전 walk_ 그대로 둡니다(시험이 갈아 끼웁니다). folderId 는 `중국` 폴더.
@@ -262,32 +264,35 @@ function listMany_(folderIds, onlyFolders, extraQ) {
 function walk_(folderId, rootName, prefix, depth, out) {
   // 거래처 폴더는 `중국` 자식(폴더만) 한 번으로 찾습니다. 이름은 드라이브에 적힌 그대로 경로에 씁니다.
   const 고른 = VENDOR_DIRS.map(function (v) { return v.normalize('NFC'); });
+  const 거래처 = {};   // 거래처 폴더 id → 이름
   listMany_([folderId], true).forEach(function (vdir) {
-    if (고른.indexOf(String(vdir.name).normalize('NFC').trim()) < 0) return;
-    const vendor = vdir.name;
-    // 층: 폴더 id → 앞 경로. 첫 층은 차수 폴더만.
-    let 층 = {};
-    listMany_([vdir.id], true).forEach(function (c) {
-      if (SKIP_DIR.test(c.name) || !차수폴더인가_(c.name)) return;
-      층[c.id] = vendor + '/' + c.name;
-    });
-    for (let d = 2; d <= MAX_DEPTH && Object.keys(층).length; d++) {
-      const 다음 = {};
-      listMany_(Object.keys(층), false).forEach(function (c) {
-        (c.parents || []).forEach(function (pid) {
-          if (!층[pid]) return;
-          const path = 층[pid] + '/' + c.name;
-          if (c.mimeType === FOLDER_MIME) {
-            if (!SKIP_DIR.test(c.name)) 다음[c.id] = path;
-            return;
-          }
-          const f = fileOf_(c, path, vendor);
-          if (f) out.push(f);
-        });
-      });
-      층 = 다음;
-    }
+    if (고른.indexOf(String(vdir.name).normalize('NFC').trim()) >= 0) 거래처[vdir.id] = vdir.name;
   });
+  if (!Object.keys(거래처).length) return;
+  // 층: 폴더 id → { path, vendor }. 첫 층은 차수 폴더만. 거래처가 늘어도 층마다 한 번에 묻습니다.
+  let 층 = {};
+  listMany_(Object.keys(거래처), true).forEach(function (c) {
+    if (SKIP_DIR.test(c.name) || !차수폴더인가_(c.name)) return;
+    (c.parents || []).forEach(function (pid) {
+      if (거래처[pid]) 층[c.id] = { path: 거래처[pid] + '/' + c.name, vendor: 거래처[pid] };
+    });
+  });
+  for (let d = 2; d <= MAX_DEPTH && Object.keys(층).length; d++) {
+    const 다음 = {};
+    listMany_(Object.keys(층), false).forEach(function (c) {
+      (c.parents || []).forEach(function (pid) {
+        if (!층[pid]) return;
+        const path = 층[pid].path + '/' + c.name;
+        if (c.mimeType === FOLDER_MIME) {
+          if (!SKIP_DIR.test(c.name)) 다음[c.id] = { path: path, vendor: 층[pid].vendor };
+          return;
+        }
+        const f = fileOf_(c, path, 층[pid].vendor);
+        if (f) out.push(f);
+      });
+    });
+    층 = 다음;
+  }
 }
 
 /** 올라가 있던 문서 경로가 지금 범위(거래처/차수 폴더/…) 안인가. 경로를 모르면 밖으로 봅니다. */
@@ -667,6 +672,9 @@ function isCipl_(name) {
   return CIPL_EXT.test(name) && CIPL_NAME.test(name) && !/영수증|receipt/i.test(name);
 }
 
+// 해피코 발주서 이름 꼴 「HPC-26-10차 _20260325.pdf」 — 낱말 없이 이 꼴뿐이라 따로 받습니다(js/parse.js classify 와 같음).
+const HAPPYCO_PO_ = /^(?:TalkFile_+)?HPC\s*-\s*\d{2}\s*-\s*\d{1,2}\s*차/i;
+
 /* 글자가 든 발주서 PDF 인지. 영수증 스캔은 글자가 없어 제외합니다.
    ⚠⚠ **낱말은 `js/parse.js` 의 classify 와 같아야 합니다.** 어긋나면 화면엔 발주서인데
       서버가 **안 읽습니다** — 10-16 에 진짜 이름 11장으로 세니 **6장이 그랬습니다**
@@ -674,7 +682,8 @@ function isCipl_(name) {
       한쪽만 고치지 마십시오. */
 function isOrderPdf_(name) {
   return /\.pdf$/i.test(name) &&
-    /ordersheet|order\s*sheet|(?:^|[^A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서/i.test(name) &&
+    (/ordersheet|order\s*sheet|(?:^|[^A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서/i.test(name) ||
+      HAPPYCO_PO_.test(String(name).normalize('NFC'))) &&
     !/영수증|receipt/i.test(name);
 }
 

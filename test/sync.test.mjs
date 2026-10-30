@@ -133,29 +133,39 @@ function 가짜드라이브(나무) {
 }
 
 const 나무 = {
-  zh: ['제헤우드', 'root', 1], bj: ['베이지아', 'root', 1], q: ['견적관리', 'root', 1], qm: ['견적모음', 'root', 1],
+  zh: ['제헤우드', 'root', 1], hp: ['해피코', 'root', 1], bj: ['베이지아', 'root', 1], q: ['견적관리', 'root', 1], qm: ['견적모음', 'root', 1],
   b1: ['Zh-26-13', 'zh', 1], b2: ['zh-26-25 (1)', 'zh', 1], b3: ['Zh-26-18차', 'zh', 1],
   n1: ['분류전', 'zh', 1], n2: ['01_발주서', 'zh', 1],
   s1: ['검수', 'b1', 1], s2: ['사진', 's1', 1], s3: ['더깊이', 's2', 1],
   f1: ['ZH26-13 CI&PL.xlsx', 'b1'], f2: ['a.jpg', 's1'], f3: ['b.jpg', 's2'], f4: ['너무깊음.jpg', 's3'],
   f5: ['ZH26-25 PO.pdf', 'b2'], f6: ['~$잠금.xlsx', 'b3'], f7: ['분류전 CI.xlsx', 'n1'], f8: ['발주.pdf', 'n2'],
   f9: ['zh 바로밑.pdf', 'zh'], fb: ['bj-26-05 CI.xlsx', 'bj'],
+  h1: ['Hp-26-01', 'hp', 1], h2: ['분류전', 'hp', 1],
+  hf1: ['HPC-26-1차 _20260106.pdf', 'h1'], hf2: ['HPC-26-13차~16차 수정_20260513.pdf', 'h2'], hf3: ['해피코 바로밑.pdf', 'hp'],
   qf1: ['웨이팡견적비교표.xlsx', 'q', 0, 'application/vnd.ms-excel'], qs: ['웨이팡', 'q', 1],
   qf2: ['테이블 견적20261003.xls', 'qs', 0, 'application/vnd.ms-excel'], qf3: ['메모.txt', 'qs', 0, 'text/plain'],
   qf4: ['그림.png', 'qs', 0, 'image/png'], qmf: ['견적 모음.xlsx', 'qm', 0, 'application/vnd.ms-excel'],
 };
 
-test('walk_ — 제헤우드 차수 폴더만, 층마다 한 번에 묻는다', () => {
+test('walk_ — 제헤우드·해피코 차수 폴더만, 층마다 한 번에 묻는다', () => {
   const { ctx, 부름 } = 가짜드라이브(나무);
   const out = [];
   ctx.walk_('root', '중국', '', 0, out);
   assert.deepEqual(out.map((f) => f.path).sort(), [
     '제헤우드/Zh-26-13/ZH26-13 CI&PL.xlsx', '제헤우드/Zh-26-13/검수/a.jpg', '제헤우드/Zh-26-13/검수/사진/b.jpg',
-    '제헤우드/zh-26-25 (1)/ZH26-25 PO.pdf']);
-  assert.ok(out.every((f) => f.vendor === '제헤우드'));
-  // 중국 1 · 제헤우드 1 · 차수 층 1 · 검수 층 1 · 사진 층 1 — 베이지아·분류전·01_발주서 는 안 묻는다
+    '제헤우드/zh-26-25 (1)/ZH26-25 PO.pdf', '해피코/Hp-26-01/HPC-26-1차 _20260106.pdf']);
+  for (const f of out) assert.equal(f.vendor, f.path.split('/')[0]);
+  // 중국 1 · 거래처 둘 자식 1 · 차수 층 1 · 검수 층 1 · 사진 층 1 — 베이지아·분류전·01_발주서 는 안 묻는다
   assert.equal(부름.length, 5);
-  assert.ok(!부름.some((u) => /'(bj|n1|n2|q|qm|s3)'/.test(decodeURIComponent(u))));
+  assert.ok(!부름.some((u) => /'(bj|n1|n2|h2|q|qm|s3)'/.test(decodeURIComponent(u))));
+});
+
+test('isOrderPdf_ — 해피코 발주서 PDF 를 읽는다(parse.js classify 와 같게)', () => {
+  assert.equal(gs.isOrderPdf_('HPC-26-10차 _20260325.pdf'), true);
+  assert.equal(gs.isOrderPdf_('HPC-26-10차 _20260325.xlsx'), false);
+  assert.equal(gs.isOrderPdf_('TalkFile_AMT(ZH)26-27 Ordersheet_2026.10.13.pdf.pdf'), true);
+  assert.equal(gs.범위안인가_('해피코/Hp-26-01/a.pdf'), true);
+  assert.equal(gs.범위안인가_('해피코/분류전/a.pdf'), false);
 });
 
 test('listMany_ — 폴더가 많으면 주소가 2KB 를 안 넘게 끊는다', () => {
