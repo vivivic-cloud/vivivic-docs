@@ -14,7 +14,7 @@ const COLLECTION = 'artifacts/vivivic-4b7ef/public/data/docs_files';
 const CONFIG = 'artifacts/vivivic-4b7ef/public/data/docs_config';
 const MAX_DEPTH = 4;
 // 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 지문이 달라져 전체를 다시 훑습니다.
-const MARK_VERSION = 18;
+const MARK_VERSION = 19;   // 19 — 범위 밖 docs_files 지우기(10-30). 한 번 다 훑게.
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
 const READ_VERSION = 14;
@@ -53,11 +53,22 @@ function sync() {
   // 그 503건을 다시 받아갑니다. 바뀐 게 없으면 아무것도 건드리지 않습니다.
   const mark = fingerprint_(files);
   const props = PropertiesService.getScriptProperties();
+  // 범위 밖 다른 컬렉션 — 한 번만(dropDone). 지문이 같아 일찍 끝나도 돕니다.
+  let 밖지운글 = '';
+  if (DROP_OUTSIDE && props.getProperty('dropDone') !== DROP_TAG) {
+    try {
+      밖지운글 = 밖지우기_(root);
+      props.setProperty('dropDone', DROP_TAG);
+      props.setProperty('dropNote', 밖지운글);
+    } catch (e) {
+      밖지운글 = '밖 지우기 실패: ' + String(e && e.message || e).slice(0, 120);   // 다음 sync 가 다시 해 봅니다
+    }
+  }
   // 잔액서류를 못 읽고 넘어간 게 있으면, 파일이 그대로여도 한 번 더 시도합니다.
   // (권한 승인 전에는 실패하니, 승인만 하면 다음 호출에서 저절로 채워집니다.)
   const retry = props.getProperty('retryCipl') === '1';
   if (!retry && props.getProperty('mark') === mark) {
-    lastNote = '바뀐 게 없습니다 · 파일 ' + files.length + '건 · ' + (new Date() - started) / 1000 + '초';
+    lastNote = '바뀐 게 없습니다 · 파일 ' + files.length + '건 · ' + (new Date() - started) / 1000 + '초' + (밖지운글 ? ' · ' + 밖지운글 : '');
     console.log(lastNote);
     if (BORING_SCAN) 보링훑기_();   // 사장님 10-30 멈춤 — BORING_SCAN 을 보세요
     return;
@@ -87,10 +98,14 @@ function sync() {
     else if (f.ctime && !before.ctime) writes.push(ctimeWrite_(f));
   });
   let 남긴밖 = 0;
+  let 지운밖 = 0;
   Object.keys(existing).forEach(function (id) {
     if (seen[id]) return;
-    // 범위 밖 문서는 사장님 확인 전까지 남깁니다 — 벤더피아가 docs_files 의 cipl 을 읽습니다(10-30).
-    if (!DROP_OUTSIDE && !범위안인가_(existing[id].path)) { 남긴밖++; return; }
+    // 범위(차수 폴더) 밖 — 견적관리·제헤우드·해피코 아래는 남기고, 그 밖은 지웁니다(사장님 10-30, 위 「범위 밖 자료 지우기」).
+    if (!범위안인가_(existing[id].path)) {
+      if (!DROP_OUTSIDE || 남길곳인가_(existing[id].path)) { 남긴밖++; return; }
+      지운밖++;
+    }
     writes.push({ delete: NAME + '/' + COLLECTION + '/' + id });
   });
 
@@ -122,7 +137,8 @@ function sync() {
   else props.deleteProperty('retryCipl');
 
   const secs = (new Date() - started) / 1000;
-  const note = '파일 ' + files.length + '건' + (남긴밖 ? ' · 범위 밖 남김 ' + 남긴밖 + '건' : '') + ' · 쓰기 ' + (writes.length + ciplWrites) + '건 · 서류 읽음 ' + ciplOk +
+  const note = '파일 ' + files.length + '건' + (남긴밖 ? ' · 범위 밖 남김 ' + 남긴밖 + '건' : '') + (지운밖 ? ' · 범위 밖 지움 ' + 지운밖 + '건' : '') +
+    (밖지운글 ? ' · ' + 밖지운글 : '') + ' · 쓰기 ' + (writes.length + ciplWrites) + '건 · 서류 읽음 ' + ciplOk +
     '건, 읽을 표 없음 ' + ciplNone + '건' + (poAll ? ' · 발주서 표 ' + poOk + '/' + poAll + '건' : '') + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
     ' · ' + secs + '초' + (lastCiplError ? ' · 마지막 오류: ' + lastCiplError : '');
   console.log(note);
@@ -180,10 +196,19 @@ const TEMP_PREFIX = '(vivivic 임시) ';
    10-30 해피코 더함 — 「서류관리 앱에 해피코 박스에 제헤우드와 동일한 방식으로 만들어 주세요」.
    해피코도 차수 폴더(Hp-26-NN)만, 분류전 등은 안 들어갑니다. */
 const VENDOR_DIRS = ['제헤우드', '해피코'];
-// ⚠ 범위 밖으로 나간 docs_files 를 지울까. 벤더피아(수입정보)가 docs_files 의 cipl 을 거래처 가리지 않고 읽어서
-//   사장님 확인 전까지 false — 범위 밖 문서는 안 쓰고 안 지우고 그대로 둡니다. 범위 안에서 없어진 파일만 지웁니다.
-const DROP_OUTSIDE = false;
+/* 범위 밖 자료 지우기 — 사장님 10-30 확인:
+   「네 현재 서류관리 프로그램 - 견적관리 , 제헤우드 , 해피코 폴더외 자료는 관리하지 않게 해주세요
+     이외 자료는 프로그램관련 화이어베이스에서 삭제합니다.」
+   지움: `중국/` 바로 밑 견적관리·제헤우드·해피코(KEEP_DIRS) **밖** — docs_files · docs_overlay · docs_rules ·
+         docs_단품수량 · docs_config/boxes 의 다른 거래처 몫 · docs_quotes(견적관리 밖 파일).
+   ⚠ 남김: 제헤우드/·해피코/ 안이지만 차수 폴더 밖(제헤우드/분류전 · 01_발주서 …)의 예전 docs_files 는 안 지웁니다
+     — 그 안을 지울지는 아직 안 정해졌습니다. 훑기는 여전히 차수 폴더만.
+   드라이브 원본·boring_*·에이엠티 앱 컬렉션은 안 건드립니다.
+   손으로 넣은 값(overlay·rules·단품수량·boxes)은 지우기 전에 docs_backup/<DROP_TAG>-… 에 날것 그대로 담습니다. */
+const DROP_OUTSIDE = true;
 const QUOTE_DIR = '견적관리';
+const KEEP_DIRS = VENDOR_DIRS.concat([QUOTE_DIR]);
+const DROP_TAG = '1030';   // 다른 컬렉션 지우기는 이 표로 한 번만 돕니다(스크립트 속성 dropDone).
 
 /**
  * 폴더 이름이 차수 폴더인가 — js/parse.js 의 batchFromPath(→ parseBatch) 를 그대로 옮긴 것입니다.
@@ -295,6 +320,18 @@ function walk_(folderId, rootName, prefix, depth, out) {
   }
 }
 
+/** 남길 폴더(견적관리·제헤우드·해피코) 아래인가 — 첫 토막만 봅니다. 차수 폴더 밖이어도 남깁니다. */
+function 남길곳인가_(path) {
+  const 첫 = String(path || '').split('/')[0].normalize('NFC').trim();
+  return KEEP_DIRS.some(function (d) { return d.normalize('NFC') === 첫; });
+}
+
+/** 남길 거래처인가(overlay·rules·단품수량·boxes 의 vendor). */
+function 남길거래처인가_(v) {
+  const n = String(v == null ? '' : v).normalize('NFC').trim();
+  return VENDOR_DIRS.some(function (d) { return d.normalize('NFC') === n; });
+}
+
 /** 올라가 있던 문서 경로가 지금 범위(거래처/차수 폴더/…) 안인가. 경로를 모르면 밖으로 봅니다. */
 function 범위안인가_(path) {
   const 조각 = String(path || '').split('/');
@@ -340,6 +377,119 @@ function token_() {
 function docId_(path) {
   // 문서 ID에는 슬래시를 쓸 수 없습니다.
   return path.replace(/\//g, '~').slice(0, 400);
+}
+
+const DATA_ = 'artifacts/vivivic-4b7ef/public/data/';
+
+/** 컬렉션 하나를 다 읽습니다(문서 이름·칸). mask 를 주면 그 칸만. */
+function 목록_(이름, mask) {
+  const out = [];
+  let pageToken = '';
+  do {
+    const url = BASE + '/' + DATA_ + encodeURIComponent(이름) + '?pageSize=300' +
+      (mask ? '&' + mask.map(function (f) { return 'mask.fieldPaths=' + encodeURIComponent(f); }).join('&') : '') +
+      (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
+    const res = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + token_() }, muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) throw new Error(이름 + ' 읽기 실패 ' + res.getResponseCode());
+    const body = JSON.parse(res.getContentText());
+    (body.documents || []).forEach(function (d) { out.push({ name: d.name, id: d.name.split('/').pop(), fields: d.fields || {} }); });
+    pageToken = body.nextPageToken || '';
+  } while (pageToken);
+  return out;
+}
+
+const 글칸_ = function (fields, k) { return ((fields || {})[k] || {}).stringValue; };
+
+/**
+ * 범위 밖 다른 컬렉션 지우기(사장님 10-30) — 한 번만 돕니다. 돌려주는 것은 sync 끝 글에 붙일 셈.
+ * 손으로 넣은 값은 지우기 **전에** docs_backup 에 담고, 담기가 실패하면 아무것도 안 지웁니다(commit_ 가 터짐).
+ * docs_quotes 는 견적관리 목록을 못 읽으면 건드리지 않습니다.
+ */
+function 밖지우기_(root) {
+  const 지울 = [];
+  const 백업 = {};
+  const 셈 = {};
+  const 지움 = function (칸, d) {
+    지울.push({ delete: d.name });
+    셈[칸] = (셈[칸] || 0) + 1;
+    if (칸 !== 'quotes') (백업[칸] = 백업[칸] || []).push({ id: d.id, fields: d.fields });
+  };
+
+  // overlay — batchId 「거래처::26-05」
+  목록_('docs_overlay').forEach(function (d) {
+    const bid = 글칸_(d.fields, 'batchId') || d.id.replace(/~/g, '/');
+    if (bid.indexOf('::') < 0) return;
+    if (!남길거래처인가_(bid.split('::')[0])) 지움('overlay', d);
+  });
+  // rules — 박스 규칙(vendor) 이나 경로 규칙이 남길 거래처 것이 아니면. 거래처를 알 수 없는 규칙은 남깁니다.
+  목록_('docs_rules').forEach(function (d) {
+    const v = 글칸_(d.fields, 'vendor');
+    const 경로 = 글칸_(d.fields, 'matchType') === 'path' ? 글칸_(d.fields, 'match') : null;
+    if ((v && !남길거래처인가_(v)) || (!v && 경로 && !남길곳인가_(경로))) 지움('rules', d);
+  });
+  // 단품수량 — vendor 칸(없으면 문서 이름 앞 토막)
+  목록_('docs_단품수량', ['vendor']).forEach(function (d) {
+    const v = 글칸_(d.fields, 'vendor') || d.id.split('~')[0];
+    if (!남길거래처인가_(v)) 지움('단품수량', d);
+  });
+  // quotes — 견적관리 아래 파일만 남깁니다
+  try {
+    const 폴더 = listMany_([root.getId()], true)
+      .filter(function (c) { return String(c.name).normalize('NFC').trim() === QUOTE_DIR; })
+      .map(function (c) { return c.id; });
+    if (폴더.length) {
+      const 안 = {};
+      let 층 = 폴더.slice();
+      for (let k = 0; k < 6 && 층.length; k++) {
+        const 다음 = [];
+        listMany_(층, false).forEach(function (c) { if (c.mimeType === FOLDER_MIME) 다음.push(c.id); else 안[c.id] = true; });
+        층 = 다음;
+      }
+      목록_('docs_quotes', ['driveId']).forEach(function (d) {
+        if (!안[글칸_(d.fields, 'driveId') || d.id]) 지움('quotes', d);
+      });
+    }
+  } catch (e) { 셈.quotes안봄 = 1; }
+
+  // boxes — 한 문서 안 list 에서 다른 거래처 박스만 뺍니다
+  const 박스쓰기 = [];
+  const bres = UrlFetchApp.fetch(BASE + '/' + CONFIG + '/boxes', { headers: { Authorization: 'Bearer ' + token_() }, muteHttpExceptions: true });
+  if (bres.getResponseCode() === 200) {
+    const bdoc = JSON.parse(bres.getContentText());
+    const list = ((((bdoc.fields || {}).list || {}).arrayValue || {}).values) || [];
+    const 남 = list.filter(function (x) { return 남길거래처인가_(글칸_((x.mapValue || {}).fields, 'vendor')); });
+    if (남.length < list.length) {
+      셈.boxes = list.length - 남.length;
+      백업.boxes = [{ id: 'boxes', fields: bdoc.fields }];
+      박스쓰기.push({ update: { name: NAME + '/' + CONFIG + '/boxes', fields: { list: { arrayValue: { values: 남 } } } },
+        updateMask: { fieldPaths: ['list'] } });
+    }
+  }
+
+  // 백업 먼저 — 700KB 씩 끊어 docs_backup/<표>-<칸>-<n>
+  const 백업쓰기 = [];
+  const at = new Date().toISOString();
+  Object.keys(백업).forEach(function (칸) {
+    const 덩이 = [];
+    let 지금 = [], 길이 = 0;
+    백업[칸].forEach(function (x) {
+      const j = JSON.stringify(x);
+      if (지금.length && 길이 + j.length > 700000) { 덩이.push(지금); 지금 = []; 길이 = 0; }
+      지금.push(x); 길이 += j.length;
+    });
+    if (지금.length) 덩이.push(지금);
+    덩이.forEach(function (xs, i) {
+      백업쓰기.push({ update: { name: NAME + '/' + DATA_ + 'docs_backup/' + DROP_TAG + '-' + 칸 + '-' + i, fields: {
+        칸: { stringValue: 칸 }, n: { integerValue: String(xs.length) }, at: { stringValue: at },
+        json: { stringValue: JSON.stringify(xs) } } } });
+    });
+  });
+  백업쓰기.forEach(function (w) { commit_([w]); });   // 한 덩이 700KB — 따로 보냅니다
+  commit_(지울.concat(박스쓰기));
+
+  const 글 = ['overlay', 'rules', '단품수량', 'boxes', 'quotes'].filter(function (k) { return 셈[k]; })
+    .map(function (k) { return k + ' ' + 셈[k]; });
+  return '밖 지움 ' + (글.length ? 글.join(' · ') : '0') + (셈.quotes안봄 ? ' · quotes 못 봄' : '');
 }
 
 function listExisting_() {

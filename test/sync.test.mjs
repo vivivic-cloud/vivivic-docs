@@ -46,6 +46,7 @@ function 가짜sync({ files, existing, props = {}, 읽기ms = 0, 시작 = 0 }) {
   ctx.pdfText_ = () => { 지금 += 읽기ms; 차례.push('read'); return { text: '', html: '' }; };
   ctx.ciplOf_ = () => { 지금 += 읽기ms; 차례.push('read'); return { cartons: 1, sheets: [] }; };
   ctx.보링훑기_ = () => {};
+  ctx.밖지우기_ = () => { 차례.push('밖'); return '밖 지움 0'; };
   ctx.sync();
   return { 쓰기, 차례, props };
 }
@@ -54,7 +55,7 @@ const 있던 = (f, cipl) => ({ name: f.name, vendor: f.vendor, size: '1', mtime:
 
 test('sync — 새 서류는 기본 칸이 먼저 커밋되고, 읽은 뒤 cipl 칸만 따로 쓴다', () => {
   const ci = 파일('제헤우드 26-1 CI&PL.xlsx'), 사진 = 파일('상차1.jpg');
-  const { 쓰기, 차례, props } = 가짜sync({ files: [ci, 사진], existing: {} });
+  const { 쓰기, 차례, props } = 가짜sync({ files: [ci, 사진], existing: {}, props: { dropDone: '1030' } });
   assert.deepEqual(차례, ['commit', 'read', 'commit']);
   assert.equal(쓰기[0].length, 2);
   assert.ok(쓰기[0].every((w) => !w.update.fields.cipl && !w.updateMask.fieldPaths.includes('cipl')));
@@ -185,7 +186,7 @@ test('견적목록_ — 중국/견적관리 안(하위 포함)만, 견적모음�
   assert.ok(!부름.some((u) => /'qm'/.test(decodeURIComponent(u))));
 });
 
-test('sync — 범위 안에서 없어진 파일만 지우고, 범위 밖 문서는 확인 전까지 남긴다', () => {
+test('sync — 세 폴더 밖 docs_files 는 지우고, 제헤우드·해피코 안 차수 밖은 남긴다(10-30)', () => {
   const zh = { ...파일('ZH CI&PL.xlsx'), path: '제헤우드/Zh-26-13/ZH CI&PL.xlsx', vendor: '제헤우드' };
   const existing = {
     '제헤우드~Zh-26-13~ZH CI&PL.xlsx': { ...있던(zh, true), path: zh.path },
@@ -193,9 +194,59 @@ test('sync — 범위 안에서 없어진 파일만 지우고, 범위 밖 문서
     '베이지아~bj-26-05~CI.xlsx': { name: 'CI.xlsx', path: '베이지아/bj-26-05/CI.xlsx', vendor: '베이지아' },
     '제헤우드~분류전~a.pdf': { name: 'a.pdf', path: '제헤우드/분류전/a.pdf', vendor: '제헤우드' },
   };
-  const { 쓰기 } = 가짜sync({ files: [zh], existing });
-  assert.deepEqual(쓰기.flat().map((w) => w.delete && w.delete.split('/').pop()), ['제헤우드~Zh-26-13~지운것.pdf']);
+  existing['해피코~분류전~b.pdf'] = { name: 'b.pdf', path: '해피코/분류전/b.pdf', vendor: '해피코' };
+  existing['견적관리~q.xlsx'] = { name: 'q.xlsx', path: '견적관리/q.xlsx', vendor: '견적관리' };
+  existing['(루트)~r.pdf'] = { name: 'r.pdf', path: 'r.pdf', vendor: '(루트)' };
+  const { 쓰기, 차례, props } = 가짜sync({ files: [zh], existing });
+  assert.deepEqual(쓰기.flat().map((w) => w.delete && w.delete.split('/').pop()).sort(),
+    ['(루트)~r.pdf', '베이지아~bj-26-05~CI.xlsx', '제헤우드~Zh-26-13~지운것.pdf']);
+  assert.equal(차례[0], '밖');
+  assert.equal(props.dropDone, '1030');
+  // 두 번째부터는 다른 컬렉션 지우기를 안 부릅니다
+  assert.ok(!가짜sync({ files: [zh], existing: {}, props: { dropDone: '1030' } }).차례.includes('밖'));
   assert.equal(gs.범위안인가_('제헤우드/zh-26-25 (1)/검수/a.jpg'), true);
   assert.equal(gs.범위안인가_('제헤우드/분류전/a.pdf'), false);
   assert.equal(gs.범위안인가_('천진세라믹/26-03/a.pdf'), false);
+});
+
+test('밖지우기_ — 다른 거래처 overlay·rules·단품수량·boxes·quotes 를 백업한 뒤 지운다', () => {
+  const ctx = vm.createContext({ console: { log() {}, error() {} } });
+  vm.runInContext(readFileSync(new URL('../appsscript/sync.gs', import.meta.url), 'utf8'), ctx);
+  ctx.ScriptApp = { getOAuthToken: () => 't' };
+  const S = (v) => ({ stringValue: v });
+  const 문서 = (c, id, f) => ({ name: 'projects/p/databases/(default)/documents/artifacts/vivivic-4b7ef/public/data/' + c + '/' + id, fields: f });
+  const 창고 = {
+    docs_overlay: [문서('docs_overlay', 'a', { batchId: S('베이지아::26-05') }), 문서('docs_overlay', 'b', { batchId: S('제헤우드::26-13') }),
+      문서('docs_overlay', 'c', { batchId: S('해피코::26-01') })],
+    docs_rules: [문서('docs_rules', 'r1', { vendor: S('베이지아'), matchType: S('contains'), match: S('BJ') }),
+      문서('docs_rules', 'r2', { matchType: S('path'), match: S('천진세라믹/26-03/a.pdf') }),
+      문서('docs_rules', 'r3', { matchType: S('path'), match: S('제헤우드/분류전/a.pdf') }),
+      문서('docs_rules', 'r4', { matchType: S('contains'), match: S('영수증') })],
+    docs_단품수량: [문서('docs_단품수량', '베이지아~A1', { vendor: S('베이지아') }), 문서('docs_단품수량', '제헤우드~Z1', { vendor: S('제헤우드') })],
+    docs_quotes: [문서('docs_quotes', 'qin', { driveId: S('qin') }), 문서('docs_quotes', 'qout', { driveId: S('qout') })],
+  };
+  const 박스 = { list: { arrayValue: { values: [{ mapValue: { fields: { vendor: S('베이지아'), name: S('x') } } },
+    { mapValue: { fields: { vendor: S('제헤우드'), name: S('y') } } }] } } };
+  const 보냄 = [];
+  ctx.UrlFetchApp = { fetch(url, o) {
+    const ok = (b) => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify(b) });
+    if (url.endsWith(':commit')) { 보냄.push(JSON.parse(o.payload).writes); return ok({}); }
+    if (url.includes('googleapis.com/drive')) {
+      const q = decodeURIComponent(/[?&]q=([^&]*)/.exec(url)[1]);
+      if (q.includes("'root' in parents")) return ok({ files: [{ id: 'qd', name: '견적관리', mimeType: 'application/vnd.google-apps.folder', parents: ['root'] }] });
+      if (q.includes("'qd' in parents")) return ok({ files: [{ id: 'qin', name: 'a 견적.xlsx', mimeType: 'x', parents: ['qd'] }] });
+      return ok({ files: [] });
+    }
+    if (url.includes('/docs_config/boxes')) return ok({ fields: 박스 });
+    const c = Object.keys(창고).find((k) => url.includes('/' + encodeURIComponent(k) + '?'));
+    return ok({ documents: 창고[c] });
+  } };
+  const 글 = ctx.밖지우기_({ getId: () => 'root' });
+  assert.equal(글, '밖 지움 overlay 1 · rules 2 · 단품수량 1 · boxes 1 · quotes 1');
+  const 백업 = 보냄.slice(0, -1).flat();
+  assert.deepEqual(백업.map((w) => w.update.name.split('/').pop()).sort(), ['1030-boxes-0', '1030-overlay-0', '1030-rules-0', '1030-단품수량-0']);
+  const 끝 = 보냄.at(-1);
+  assert.deepEqual(끝.filter((w) => w.delete).map((w) => w.delete.split('/').pop()).sort(), ['a', 'qout', 'r1', 'r2', '베이지아~A1']);
+  const 박스쓰기 = 끝.find((w) => w.update);
+  assert.deepEqual(박스쓰기.update.fields.list.arrayValue.values.map((x) => x.mapValue.fields.vendor.stringValue), ['제헤우드']);
 });
