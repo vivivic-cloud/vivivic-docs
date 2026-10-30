@@ -86,8 +86,12 @@ function sync() {
     // 통째로 다시 쓰면 읽어둔 cipl 이 날아갑니다.
     else if (f.ctime && !before.ctime) writes.push(ctimeWrite_(f));
   });
+  let 남긴밖 = 0;
   Object.keys(existing).forEach(function (id) {
-    if (!seen[id]) writes.push({ delete: NAME + '/' + COLLECTION + '/' + id });
+    if (seen[id]) return;
+    // 범위 밖 문서는 사장님 확인 전까지 남깁니다 — 벤더피아가 docs_files 의 cipl 을 읽습니다(10-30).
+    if (!DROP_OUTSIDE && !범위안인가_(existing[id].path)) { 남긴밖++; return; }
+    writes.push({ delete: NAME + '/' + COLLECTION + '/' + id });
   });
 
   commit_(writes);
@@ -118,7 +122,7 @@ function sync() {
   else props.deleteProperty('retryCipl');
 
   const secs = (new Date() - started) / 1000;
-  const note = '파일 ' + files.length + '건 · 쓰기 ' + (writes.length + ciplWrites) + '건 · 서류 읽음 ' + ciplOk +
+  const note = '파일 ' + files.length + '건' + (남긴밖 ? ' · 범위 밖 남김 ' + 남긴밖 + '건' : '') + ' · 쓰기 ' + (writes.length + ciplWrites) + '건 · 서류 읽음 ' + ciplOk +
     '건, 읽을 표 없음 ' + ciplNone + '건' + (poAll ? ' · 발주서 표 ' + poOk + '/' + poAll + '건' : '') + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
     ' · ' + secs + '초' + (lastCiplError ? ' · 마지막 오류: ' + lastCiplError : '');
   console.log(note);
@@ -167,98 +171,159 @@ const SHORTCUT_MIME = 'application/vnd.google-apps.shortcut';
 // 변환용 복사본에 붙이는 표. 이 이름은 훑을 때 건너뜁니다.
 const TEMP_PREFIX = '(vivivic 임시) ';
 
+/* ── 연동 범위 (사장님 10-30) ─────────────────────────────
+   「중구폴더내 견적관리 폴더와 제헤우드의 차수별 폴더로만 한정하여 데이터를 연동 합시다」
+   「일다 제해우드 외 다른 거래처는 모두 지워 주세요」
+   sync 는 `중국/제헤우드/` 안의 **차수 폴더만** 훑습니다. 차수 폴더 안 하위 폴더(검수·샘플 등)는 읽습니다.
+   다른 거래처·제헤우드 안 차수 아닌 폴더(분류전·01_발주서…)는 들어가지도 않습니다.
+   견적서는 `중국/견적관리/` 안만 찾습니다(견적목록_). 넓히려면 사장님께 먼저 여쭙니다. */
+const VENDOR_DIRS = ['제헤우드'];
+// ⚠ 범위 밖으로 나간 docs_files 를 지울까. 벤더피아(수입정보)가 docs_files 의 cipl 을 거래처 가리지 않고 읽어서
+//   사장님 확인 전까지 false — 범위 밖 문서는 안 쓰고 안 지우고 그대로 둡니다. 범위 안에서 없어진 파일만 지웁니다.
+const DROP_OUTSIDE = false;
+const QUOTE_DIR = '견적관리';
+
 /**
- * 폴더 하나의 자식을 한 번에 받아옵니다.
- * DriveApp 으로 파일마다 크기·시각을 물으면 호출이 파일 수만큼 나가는데,
- * 이렇게 하면 폴더당 한 번이면 되고 **md5 까지 같이** 옵니다.
+ * 폴더 이름이 차수 폴더인가 — js/parse.js 의 batchFromPath(→ parseBatch) 를 그대로 옮긴 것입니다.
+ * 새 셈을 만들지 않았습니다. 규칙을 고치면 parse.js 와 같이 고치고 test/sync.test.mjs 가 둘을 맞대 봅니다.
  */
-function listChildren_(folderId) {
+function 차수폴더인가_(name) {
+  let n = String(name).normalize('NFC').replace(/^TalkFile_+/i, '').replace(/(\.[a-z0-9]{2,5})\1+$/i, '$1').trim();
+  n = n.replace(/_/g, '-').replace(/(^|[^\d])20(2[4-9])\s*-/g, '$1$2-');
+  const ok = function (no) { const v = Number(no); return v >= 1 && v <= 60; };
+  let m = /(\d{2})\s*-\s*(\d{1,2})\s*차/.exec(n);
+  if (m) return ok(m[2]);
+  m = /(?<![A-Za-z])(?:ZH|ING|JW|BJ)\)?\s*-?\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
+  if (m) return ok(m[2]);
+  m = /AMT\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
+  if (m) return ok(m[2]);
+  const docNo = /(\d{2})-\d{3}-AMT/i.exec(n);
+  if (docNo) {
+    const cha = /(?:^|[^\d])(\d{1,2})\s*차/.exec(n);
+    if (cha) return ok(cha[1]);
+    const tail = /-AMT-(?:[A-Z]{2}-)?(\d{1,2})(?!\d)/i.exec(n);
+    if (tail) return ok(tail[1]);
+  }
+  m = /(?:^|[^\d])(2[4-9])\s*-\s*(\d{1,2})(?!\d)/.exec(n);
+  if (m) return ok(m[2]);
+  return false;
+}
+
+/**
+ * 여러 폴더의 자식을 한 번에 받습니다 — `'a' in parents or 'b' in parents …`.
+ * 폴더마다 따로 물으면 폴더 수만큼 UrlFetch 가 나갑니다. 주소가 2KB 를 넘지 않게 끊어 묻습니다.
+ * onlyFolders 면 폴더만. 돌려주는 것마다 parents 가 붙어 있습니다.
+ */
+function listMany_(folderIds, onlyFolders, extraQ) {
   const out = [];
-  let pageToken = '';
-  do {
-    const url =
-      'https://www.googleapis.com/drive/v3/files' +
-      '?q=' + encodeURIComponent("'" + folderId + "' in parents and trashed = false") +
-      '&fields=' + encodeURIComponent('nextPageToken,files(id,name,size,md5Checksum,modifiedTime,createdTime,mimeType,shortcutDetails)') +
-      '&pageSize=1000' +
-      (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
-    const res = UrlFetchApp.fetch(url, {
-      headers: { Authorization: 'Bearer ' + token_() },
-      muteHttpExceptions: true,
-    });
-    if (res.getResponseCode() !== 200) {
-      throw new Error('폴더 조회 실패 ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 300));
+  const 덩이 = [];
+  let 지금 = [];
+  folderIds.forEach(function (id) {
+    if (지금.length && encodeURIComponent(지금.concat(id).map(function (x) { return "'" + x + "' in parents"; }).join(' or ')).length > 1300) {
+      덩이.push(지금);
+      지금 = [];
     }
-    const body = JSON.parse(res.getContentText());
-    (body.files || []).forEach(function (f) { out.push(f); });
-    pageToken = body.nextPageToken || '';
-  } while (pageToken);
+    지금.push(id);
+  });
+  if (지금.length) 덩이.push(지금);
+  덩이.forEach(function (ids) {
+    let pageToken = '';
+    do {
+      const q = '(' + ids.map(function (x) { return "'" + x + "' in parents"; }).join(' or ') + ') and trashed = false' +
+        (onlyFolders ? " and mimeType = '" + FOLDER_MIME + "'" : '') + (extraQ ? ' and ' + extraQ : '');
+      const url =
+        'https://www.googleapis.com/drive/v3/files' +
+        '?q=' + encodeURIComponent(q) +
+        '&fields=' + encodeURIComponent('nextPageToken,files(id,name,size,md5Checksum,modifiedTime,createdTime,mimeType,shortcutDetails,parents)') +
+        '&pageSize=1000' +
+        (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
+      const res = UrlFetchApp.fetch(url, {
+        headers: { Authorization: 'Bearer ' + token_() },
+        muteHttpExceptions: true,
+      });
+      if (res.getResponseCode() !== 200) {
+        throw new Error('폴더 조회 실패 ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 300));
+      }
+      const body = JSON.parse(res.getContentText());
+      (body.files || []).forEach(function (f) { out.push(f); });
+      pageToken = body.nextPageToken || '';
+    } while (pageToken);
+  });
   return out;
 }
 
 /**
- * 최상위 하위폴더 이름을 거래처로 봅니다.
- * prefix 가 빈 문자열이면 아직 거래처 층에 도달하지 않은 것입니다.
- *
- * ⚠⚠ **「차수 폴더 안의 것만 담기」 는 아직 넣지 않았습니다 — 10-15 에 세어 보고 멈췄습니다.**
- *   사장님 10-15: 「구글드라이브의 해당 거래처 폴더안에 차수가 지정된 폴더 안의 내용만 불러오게」
- *   그대로 걸면 지금 드라이브에서는 이만큼 사라집니다(제가 진짜 드라이브로 쟀습니다) —
- *     제헤우드   코드 128 → 62 · 차수 20 → 8 · 품목 줄 373 → 102 (**-73%**)
- *                26-1~26-14 잔액서류가 차수 폴더가 아니라 「분류전」 에 들어 있습니다.
- *                (zh-26-10~14 폴더는 있는데 그 안에는 선적서류·FTA·영수증뿐입니다)
- *     삐에노     차수 폴더 **0곳** → 통째로 빕니다
- *     천진세라믹 차수 폴더 **0곳** → 통째로 빕니다
- *     베이지아   차수 폴더 셋뿐(bj-26-03차·bj-26-04·bj-26-05차), 포니엘 26-01~05 서류는 다 밖
- *   그래서 **사장님이 폴더를 정리하실 틈을 두고** 관리자에게 올렸습니다. 혼자 걸지 마십시오.
- *
- * ⚠ 걸 때 쓸 자 — **폴더 이름을 `parseBatch` 에 먹이면 됩니다.** 새 셈을 만들지 마십시오.
- *   제헤우드 폴더 33곳으로 재 보니 차수 폴더 20곳을 다 읽고, 차수 아닌 13곳
- *   (분류전·무제 폴더·샘플요청서·제품공통정보·컴플레인-양산중·01_발주서~08_작업지시서)은
- *   **하나도 안 걸립니다** — 헛읽음 0.
- *   이름 꼴은 거래처마다 다릅니다. 한 꼴로 박지 마십시오 —
- *     zh-26-16 · Zh-26-17 · Zh-26-18차 · 26-22 · bj-26-04 · bj-26-05차 (대소문자·접두사·「차」가 섞임)
- *   같은 이름 폴더가 둘(zh-26-25), 같은 차수가 두 폴더(Zh-26-22 와 26-22)인 것도 있습니다.
- *
- * ⚠ 건너뛴 폴더 수는 **화면에 적어야** 합니다. 조용히 사라지면 안 됩니다.
+ * 훑기 — `중국/제헤우드/<차수 폴더>/…` 만 담습니다(사장님 10-30, 위 「연동 범위」).
+ * 층마다 한 번에 묻습니다: 중국 자식(폴더) 1번 → 제헤우드 자식 1번 → 차수 폴더들 자식 1번 → 그 밑 층 1번 → …
+ * (주소가 길면 층 하나가 2~3번). 예전엔 `중국` 아래 폴더마다 한 번씩 129번이었습니다.
+ * 깊이는 예전과 같습니다 — 중국 0 · 거래처 1 · 차수 2 · 하위 3 · 그 밑 4 층까지 엽니다(MAX_DEPTH).
+ * 인자 꼴은 예전 walk_ 그대로 둡니다(시험이 갈아 끼웁니다). folderId 는 `중국` 폴더.
  */
-function walk_(folderId, vendor, prefix, depth, out) {
-  if (depth > MAX_DEPTH) return;
-
-  const children = listChildren_(folderId);
-  for (let i = 0; i < children.length; i++) {
-    const c = children[i];
-    const name = c.name;
-
-    if (c.mimeType === FOLDER_MIME) {
-      if (SKIP_DIR.test(name)) continue;
-      walk_(c.id, depth === 0 ? name : vendor, prefix ? prefix + '/' + name : name, depth + 1, out);
-      continue;
-    }
-
-    if (name.charAt(0) === '.' || name.indexOf('~$') === 0) continue;
-    if (name.indexOf(TEMP_PREFIX) === 0 || name.indexOf('(임시) ') === 0) continue;
-
-    // 바로가기는 껍데기입니다. 원본을 가리키게 바꿔 둡니다.
-    let id = c.id;
-    if (c.mimeType === SHORTCUT_MIME) {
-      const target = c.shortcutDetails || {};
-      if (!target.targetId || target.targetMimeType === FOLDER_MIME) continue;
-      id = target.targetId;
-    }
-
-    out.push({
-      name: name,
-      path: prefix ? prefix + '/' + name : name,
-      vendor: prefix ? vendor : '(루트)',
-      size: c.size ? Number(c.size) : 0,
-      mtime: new Date(c.modifiedTime).getTime(),
-      // 드라이브에 올라온 날. 보여 주기에만 씁니다 — 차수 묶기는 파일 이름의 날짜를 그대로 씁니다.
-      ctime: c.createdTime ? new Date(c.createdTime).getTime() : 0,
-      driveId: id,
-      // 구글 문서·시트는 md5 가 없습니다. 그런 파일은 이름·크기로 갈음합니다.
-      md5: c.md5Checksum || '',
+function walk_(folderId, rootName, prefix, depth, out) {
+  // 거래처 폴더는 `중국` 자식(폴더만) 한 번으로 찾습니다. 이름은 드라이브에 적힌 그대로 경로에 씁니다.
+  const 고른 = VENDOR_DIRS.map(function (v) { return v.normalize('NFC'); });
+  listMany_([folderId], true).forEach(function (vdir) {
+    if (고른.indexOf(String(vdir.name).normalize('NFC').trim()) < 0) return;
+    const vendor = vdir.name;
+    // 층: 폴더 id → 앞 경로. 첫 층은 차수 폴더만.
+    let 층 = {};
+    listMany_([vdir.id], true).forEach(function (c) {
+      if (SKIP_DIR.test(c.name) || !차수폴더인가_(c.name)) return;
+      층[c.id] = vendor + '/' + c.name;
     });
+    for (let d = 2; d <= MAX_DEPTH && Object.keys(층).length; d++) {
+      const 다음 = {};
+      listMany_(Object.keys(층), false).forEach(function (c) {
+        (c.parents || []).forEach(function (pid) {
+          if (!층[pid]) return;
+          const path = 층[pid] + '/' + c.name;
+          if (c.mimeType === FOLDER_MIME) {
+            if (!SKIP_DIR.test(c.name)) 다음[c.id] = path;
+            return;
+          }
+          const f = fileOf_(c, path, vendor);
+          if (f) out.push(f);
+        });
+      });
+      층 = 다음;
+    }
+  });
+}
+
+/** 올라가 있던 문서 경로가 지금 범위(거래처/차수 폴더/…) 안인가. 경로를 모르면 밖으로 봅니다. */
+function 범위안인가_(path) {
+  const 조각 = String(path || '').split('/');
+  if (조각.length < 3) return false;
+  const 고른 = VENDOR_DIRS.map(function (v) { return v.normalize('NFC'); });
+  return 고른.indexOf(조각[0].normalize('NFC').trim()) >= 0 && 차수폴더인가_(조각[1]);
+}
+
+/** 드라이브 자식 하나 → 담을 파일. 건너뛸 것이면 null. */
+function fileOf_(c, path, vendor) {
+  const name = c.name;
+  if (name.charAt(0) === '.' || name.indexOf('~$') === 0) return null;
+  if (name.indexOf(TEMP_PREFIX) === 0 || name.indexOf('(임시) ') === 0) return null;
+
+  // 바로가기는 껍데기입니다. 원본을 가리키게 바꿔 둡니다.
+  let id = c.id;
+  if (c.mimeType === SHORTCUT_MIME) {
+    const target = c.shortcutDetails || {};
+    if (!target.targetId || target.targetMimeType === FOLDER_MIME) return null;
+    id = target.targetId;
   }
+
+  return {
+    name: name,
+    path: path,
+    vendor: vendor,
+    size: c.size ? Number(c.size) : 0,
+    mtime: new Date(c.modifiedTime).getTime(),
+    // 드라이브에 올라온 날. 보여 주기에만 씁니다 — 차수 묶기는 파일 이름의 날짜를 그대로 씁니다.
+    ctime: c.createdTime ? new Date(c.createdTime).getTime() : 0,
+    driveId: id,
+    // 구글 문서·시트는 md5 가 없습니다. 그런 파일은 이름·크기로 갈음합니다.
+    md5: c.md5Checksum || '',
+  };
 }
 
 /* ── Firestore ────────────────────────────────────────── */
@@ -1369,26 +1434,48 @@ function 드라이브_(path) {
   return res.getResponseCode() === 200 ? JSON.parse(res.getContentText()) : null;
 }
 
-/** 찾을 글이 없으면 견적·报价·quotation·quote. 이름 안 어디에 있어도 걸리게 최근 파일도 같이 훑습니다. */
+/**
+ * 찾을 글이 없으면 견적·报价·quotation·quote. **`중국/견적관리/` 안(하위 폴더 포함)만** 찾습니다(사장님 10-30).
+ * 폴더를 층마다 한 번에 훑어 파일을 다 받고, 이름 안 어디든 낱말이 있으면 고릅니다
+ * (「VIVIVIC견적서」 처럼 붙여 쓴 이름도). 글 속 낱말(fullText)은 그 폴더들에 한 번 더 묻습니다.
+ */
 function 견적목록_(req) {
   const 찾 = String((req && req.q) || '').trim().slice(0, 60);
   const 낱말 = 찾 ? [찾] : 견적낱말_;
   const 따옴 = function (w) { return "'" + w.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'"; };
-  const 꼴 = '(' + 견적꼴_.map(function (m) { return 'mimeType = ' + 따옴(m); }).join(' or ') + ')';
-  const 칸 = '&supportsAllDrives=true&includeItemsFromAllDrives=true&fields='
-    + encodeURIComponent('files(id,name,mimeType,modifiedTime,size)');
-  const 이름 = '(' + 낱말.map(function (w) { return 'name contains ' + 따옴(w) + ' or fullText contains ' + 따옴(w); }).join(' or ') + ')';
-  const 하나 = 드라이브_('files?pageSize=100' + 칸 + '&q=' + encodeURIComponent('trashed = false and ' + 꼴 + ' and ' + 이름));
-  // 「VIVIVIC견적서」 처럼 붙여 쓴 이름은 name contains 가 못 찾습니다(낱말 앞머리만 봅니다).
-  const 둘 = 드라이브_('files?pageSize=500&orderBy=modifiedTime%20desc' + 칸 + '&q=' + encodeURIComponent('trashed = false and ' + 꼴));
-  if (!하나 && !둘) return { ok: false, why: 'list' };
+  let 폴더 = [];
+  let 파일 = [];
+  try {
+    const root = findRoot_();
+    폴더 = listMany_([root.getId()], true)
+      .filter(function (c) { return String(c.name).normalize('NFC').trim() === QUOTE_DIR; })
+      .map(function (c) { return c.id; });
+    let 층 = 폴더.slice();
+    for (let d = 0; d < 6 && 층.length; d++) {
+      const 다음 = [];
+      listMany_(층, false).forEach(function (c) {
+        if (c.mimeType === FOLDER_MIME) { 다음.push(c.id); 폴더.push(c.id); }
+        else 파일.push(c);
+      });
+      층 = 다음;
+    }
+  } catch (e) {
+    return { ok: false, why: 'list' };
+  }
+  if (!폴더.length) return { ok: true, files: [] };
   const 작 = 낱말.map(function (w) { return w.toLowerCase(); });
+  const 고른 = 파일.filter(function (f) {
+    if (견적꼴_.indexOf(f.mimeType) < 0) return false;
+    const n = String(f.name).toLowerCase();
+    return 작.some(function (w) { return n.indexOf(w) >= 0; });
+  });
+  let 글속 = [];
+  try {
+    글속 = listMany_(폴더, false, '(' + 낱말.map(function (w) { return 'fullText contains ' + 따옴(w); }).join(' or ') + ')')
+      .filter(function (f) { return 견적꼴_.indexOf(f.mimeType) >= 0; });
+  } catch (e) { /* 이름으로 고른 것만 돌려줍니다 */ }
   const 본것 = {};
-  const files = ((하나 && 하나.files) || [])
-    .concat(((둘 && 둘.files) || []).filter(function (f) {
-      const n = String(f.name).toLowerCase();
-      return 작.some(function (w) { return n.indexOf(w) >= 0; });
-    }))
+  const files = 고른.concat(글속)
     .filter(function (f) { return !본것[f.id] && (본것[f.id] = true); })
     .sort(function (a, b) { return String(b.modifiedTime).localeCompare(String(a.modifiedTime)); })
     .slice(0, 100)
