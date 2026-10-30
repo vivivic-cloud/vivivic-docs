@@ -59,7 +59,7 @@ function sync() {
   if (!retry && props.getProperty('mark') === mark) {
     lastNote = '바뀐 게 없습니다 · 파일 ' + files.length + '건 · ' + (new Date() - started) / 1000 + '초';
     console.log(lastNote);
-    보링훑기_();          // 서류 일은 여기서 끝났습니다. 보링은 제 안에서 try/catch 합니다.
+    if (BORING_SCAN) 보링훑기_();   // 사장님 10-30 멈춤 — BORING_SCAN 을 보세요
     return;
   }
 
@@ -132,7 +132,7 @@ function sync() {
     Utilities.formatDate(started, 'Asia/Seoul', 'yyyy-MM-dd HH:mm') + ' · ' + files.length + '건 · 쓰기 ' + (writes.length + ciplWrites)
   );
 
-  보링훑기_();            // 서류 일은 여기서 끝났습니다. 보링은 제 안에서 try/catch 합니다.
+  if (BORING_SCAN) 보링훑기_();     // 사장님 10-30 멈춤 — BORING_SCAN 을 보세요
 }
 
 /** 파일 목록 전체를 한 줄로 요약합니다. 하나라도 달라지면 값이 바뀝니다. */
@@ -1730,6 +1730,12 @@ const BORING_FILES = 'artifacts/vivivic-4b7ef/public/data/boring_files';
 const BORING_CONFIG = 'artifacts/vivivic-4b7ef/public/data/boring_config';
 const BORING_EXT = /\.(cix|bpp)$/i;
 const BORING_MAX_DEPTH = 6;
+
+/* ⚠ 사장님 10-30 멈춤 — 「네 보링파일 훑기도 멈춰주세요」.
+   sync 끝(바뀐 게 없을 때 갈래 포함, 두 곳)에서 보링훑기_ 를 안 부릅니다. 코드는 그대로 둡니다 —
+   다시 켜려면 true 로 바꿔 배포. 멈춘 동안 boring_files 는 마지막 값 그대로(안 지움),
+   boring_config/설정 의 exec 도 안 고칩니다(보링주소적기_ 도 이 안에서만 불림). */
+const BORING_SCAN = false;
 
 function 보링훑기_() {
   try {
