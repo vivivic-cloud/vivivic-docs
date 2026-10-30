@@ -67,14 +67,21 @@ function sync() {
   const seen = {};
   files.forEach(function (f) { seen[docId_(f.path)] = true; });
 
-  // 실제로 달라진 것만 씁니다.
+  // ① 목록 먼저 — 새 파일·바뀐 파일·지운 파일의 기본 칸만 곧장 씁니다.
+  //    서류를 다 읽을 때까지 기다리면 새 파일·사진이 몇 분 동안 화면에 안 뜹니다(10-30 사장님).
   const writes = [];
+  const toRead = [];
   files.forEach(function (f) {
     const before = existing[docId_(f.path)];
-    // 서류인데 아직 안을 못 읽었으면 한 번 더 읽습니다.
-    const needCipl = (isCipl_(f.name) || isOrderPdf_(f.name)) && before &&
-      (!before.hasCipl || before.readV !== READ_VERSION);
-    if (!before || changed_(before, f) || needCipl) writes.push(updateWrite_(f));
+    const doc = isCipl_(f.name) || isOrderPdf_(f.name);
+    if (!before || changed_(before, f)) {
+      // 내용이 바뀐 서류는 예전 cipl 을 비웁니다. 남겨 두면 다시 읽기 전에 시간이 끊겼을 때
+      // 다음번에 「이미 읽었다」 로 보여 영영 다시 안 읽고, 그동안 틀린 값으로 대조합니다.
+      writes.push(baseWrite_(f, baseFields_(f), doc && before && before.hasCipl ? ['cipl'] : []));
+      if (doc) toRead.push(f);
+    }
+    // 서류인데 아직 안을 못 읽었으면 한 번 더 읽습니다. 예전 cipl 은 새로 읽을 때까지 둡니다.
+    else if (doc && (!before.hasCipl || before.readV !== READ_VERSION)) toRead.push(f);
     // 예전에 올라간 파일에는 ctime 이 없습니다. 그 칸 하나만 덧칠합니다 —
     // 통째로 다시 쓰면 읽어둔 cipl 이 날아갑니다.
     else if (f.ctime && !before.ctime) writes.push(ctimeWrite_(f));
@@ -85,19 +92,40 @@ function sync() {
 
   commit_(writes);
   props.setProperty('mark', mark);
+  // 읽을 서류가 있으면 미리 「다시」 를 걸어 둡니다 — 읽다가 6분에 끊겨도 다음번에 이어 읽습니다.
+  if (toRead.length) props.setProperty('retryCipl', '1');
+
+  // ② 서류는 읽는 대로 — CIPL_BATCH 건 또는 CIPL_FLUSH_MS 마다 cipl 칸만 저장합니다.
+  let ciplWrites = 0;
+  let pending = [];
+  let flushedAt = new Date();
+  const flush = function () {
+    if (!pending.length) return;
+    commit_(pending);
+    ciplWrites += pending.length;
+    pending = [];
+    flushedAt = new Date();
+  };
+  toRead.forEach(function (f) {
+    const w = ciplWrite_(f);
+    if (w) pending.push(w);
+    if (pending.length >= CIPL_BATCH || new Date() - flushedAt > CIPL_FLUSH_MS) flush();
+  });
+  flush();
+
   // 시간이 모자라 미룬 게 있을 때만 다음번에 다시 훑습니다.
   if (ciplCut > 0) props.setProperty('retryCipl', '1');
   else props.deleteProperty('retryCipl');
 
   const secs = (new Date() - started) / 1000;
-  const note = '파일 ' + files.length + '건 · 쓰기 ' + writes.length + '건 · 서류 읽음 ' + ciplOk +
+  const note = '파일 ' + files.length + '건 · 쓰기 ' + (writes.length + ciplWrites) + '건 · 서류 읽음 ' + ciplOk +
     '건, 읽을 표 없음 ' + ciplNone + '건' + (poAll ? ' · 발주서 표 ' + poOk + '/' + poAll + '건' : '') + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
     ' · ' + secs + '초' + (lastCiplError ? ' · 마지막 오류: ' + lastCiplError : '');
   console.log(note);
   lastNote = note;
   props.setProperty(
     'lastSync',
-    Utilities.formatDate(started, 'Asia/Seoul', 'yyyy-MM-dd HH:mm') + ' · ' + files.length + '건 · 쓰기 ' + writes.length
+    Utilities.formatDate(started, 'Asia/Seoul', 'yyyy-MM-dd HH:mm') + ' · ' + files.length + '건 · 쓰기 ' + (writes.length + ciplWrites)
   );
 
   보링훑기_();            // 서류 일은 여기서 끝났습니다. 보링은 제 안에서 try/catch 합니다.
@@ -296,20 +324,20 @@ function ctimeWrite_(f) {
   };
 }
 
-/* 시간이 모자라 서류 안을 못 읽었을 때 — cipl 은 건드리지 않고 나머지 칸만 덧칠합니다.
+/* 기본 칸만 덧칠합니다 — 마스크에 없는 칸(cipl 포함)은 그대로 둡니다.
    ⚠ 마스크 없이 쓰면 Firestore 가 문서를 통째로 갈아 끼워, 읽어둔 cipl 이 날아갑니다.
-     MARK_VERSION 을 올려 전체를 다시 훑을 때 4분을 넘기면 그 일이 실제로 납니다. */
-function baseWrite_(f, fields) {
+   drop 에 칸 이름을 주면 그 칸은 지웁니다(마스크에 있는데 값이 없으면 지워짐). */
+function baseWrite_(f, fields, drop) {
   const keys = [];
   for (const k in fields) keys.push(k);
   return {
     update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields },
-    updateMask: { fieldPaths: keys },
+    updateMask: { fieldPaths: keys.concat(drop || []) },
   };
 }
 
-function updateWrite_(f) {
-  const fields = {
+function baseFields_(f) {
+  return {
     name: { stringValue: f.name },
     path: { stringValue: f.path },
     vendor: { stringValue: f.vendor },
@@ -319,68 +347,70 @@ function updateWrite_(f) {
     driveId: { stringValue: f.driveId },
     md5: { stringValue: f.md5 },
   };
+}
 
-  // 발주서 PDF 는 글자로 바꿔 읽습니다.
-  if (isOrderPdf_(f.name)) {
-    if (new Date() - runStart > 4 * 60 * 1000) {
-      ciplCut++;
-      return baseWrite_(f, fields);
-    }
-    const doc = pdfText_(f.driveId) || {};
-    const text = doc.text;
-    const pb = readPdfBrief_(text);
-    const pi = readPdfItems_(text);
-    if (pb || pi) ciplOk++; else ciplNone++;
-    // 발주서 내용보기 — 원본 양식 그대로의 표. 칸 모양은 잔액서류 sheets 와 같습니다.
-    const pt = pdfTable_(doc.html);
-    poAll++;
-    if (pt) poOk++;
-    fields.cipl = { mapValue: { fields: {
-      brief: briefValue_(pb), invoiceDate: { stringValue: '' }, items: itemsValue_(pi),
-      sheets: { arrayValue: { values: pt ? [sheetValue_(pt)] : [] } },
-      v: { integerValue: String(READ_VERSION) },
-    } } };
-    return { update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields } };
+// 서류를 읽는 대로 몇 건씩 묶어 씁니다. 하나마다 쓰면 UrlFetch 가 서류 수만큼 늡니다.
+const CIPL_BATCH = 5;
+const CIPL_FLUSH_MS = 20 * 1000;
+
+/** 서류 안을 읽어 cipl 칸 하나만 쓰는 것을 만듭니다. 시간이 모자라면 null(다음번에 읽음). */
+function ciplWrite_(f) {
+  // 6분 제한이 있습니다. 오래 걸리면 남은 건 다음 호출로 넘깁니다.
+  if (new Date() - runStart > 4 * 60 * 1000) {
+    ciplCut++;
+    return null;
   }
+  const cipl = isOrderPdf_(f.name) ? orderCipl_(f) : ciplValue_(f);
+  return {
+    update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: { cipl: cipl } },
+    updateMask: { fieldPaths: ['cipl'] },
+  };
+}
 
-  // 잔액서류면 안을 들여다보고 수치를 같이 올립니다.
-  if (isCipl_(f.name)) {
-    // 6분 제한이 있습니다. 오래 걸리면 남은 건 다음 호출로 넘깁니다.
-    // 이때만 cipl 을 안 붙입니다 — 그래야 다음번에 다시 시도합니다.
-    if (new Date() - runStart > 4 * 60 * 1000) {
-      ciplCut++;
-      return baseWrite_(f, fields);
-    }
+/** 발주서 PDF 는 글자로 바꿔 읽습니다. */
+function orderCipl_(f) {
+  const doc = pdfText_(f.driveId) || {};
+  const text = doc.text;
+  const pb = readPdfBrief_(text);
+  const pi = readPdfItems_(text);
+  if (pb || pi) ciplOk++; else ciplNone++;
+  // 발주서 내용보기 — 원본 양식 그대로의 표. 칸 모양은 잔액서류 sheets 와 같습니다.
+  const pt = pdfTable_(doc.html);
+  poAll++;
+  if (pt) poOk++;
+  return { mapValue: { fields: {
+    brief: briefValue_(pb), invoiceDate: { stringValue: '' }, items: itemsValue_(pi),
+    sheets: { arrayValue: { values: pt ? [sheetValue_(pt)] : [] } },
+    v: { integerValue: String(READ_VERSION) },
+  } } };
+}
 
-    // 읽어봤는데 표가 없는 서류도 있습니다(스캔을 엑셀로 감싼 것 등).
-    // 그런 파일도 "봤다"고 남겨야 매번 다시 열지 않습니다.
-    const c = ciplOf_(f.driveId, f.name) || {};
-    if (c.cartons || c.brief || c.invoiceDate) ciplOk++; else ciplNone++;
-    {
-      fields.cipl = {
-        mapValue: {
-          fields: {
-            lines: { integerValue: String(c.lines || 0) },
-            pcs: { doubleValue: c.pcs || 0 },
-            cartons: { doubleValue: c.cartons || 0 },
-            cbm: { doubleValue: c.cbm || 0 },
-            gross: { doubleValue: c.gross || 0 },
-            net: { doubleValue: c.net || 0 },
-            swapped: { booleanValue: !!c.swapped },
-            orderNo: { stringValue: c.orderNo || '' },
-            invoiceDate: { stringValue: c.invoiceDate || (c.brief && c.brief.invoiceDate) || '' },
-            supplier: { stringValue: c.supplier || '' },
-            brief: briefValue_(c.brief),
-            items: itemsValue_(c.items),
-            sheets: { arrayValue: { values: (c.sheets || []).map(sheetValue_) } },
-            v: { integerValue: String(READ_VERSION) },
-          },
-        },
-      };
-    }
-  }
-
-  return { update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields } };
+/** 잔액서류면 안을 들여다보고 수치를 같이 올립니다. */
+function ciplValue_(f) {
+  // 읽어봤는데 표가 없는 서류도 있습니다(스캔을 엑셀로 감싼 것 등).
+  // 그런 파일도 "봤다"고 남겨야 매번 다시 열지 않습니다.
+  const c = ciplOf_(f.driveId, f.name) || {};
+  if (c.cartons || c.brief || c.invoiceDate) ciplOk++; else ciplNone++;
+  return {
+    mapValue: {
+      fields: {
+        lines: { integerValue: String(c.lines || 0) },
+        pcs: { doubleValue: c.pcs || 0 },
+        cartons: { doubleValue: c.cartons || 0 },
+        cbm: { doubleValue: c.cbm || 0 },
+        gross: { doubleValue: c.gross || 0 },
+        net: { doubleValue: c.net || 0 },
+        swapped: { booleanValue: !!c.swapped },
+        orderNo: { stringValue: c.orderNo || '' },
+        invoiceDate: { stringValue: c.invoiceDate || (c.brief && c.brief.invoiceDate) || '' },
+        supplier: { stringValue: c.supplier || '' },
+        brief: briefValue_(c.brief),
+        items: itemsValue_(c.items),
+        sheets: { arrayValue: { values: (c.sheets || []).map(sheetValue_) } },
+        v: { integerValue: String(READ_VERSION) },
+      },
+    },
+  };
 }
 
 /** brief 를 Firestore 값으로 바꿉니다. 없으면 빈 map. */
