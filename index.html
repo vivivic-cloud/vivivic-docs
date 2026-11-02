@@ -319,7 +319,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.100.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.101.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -341,13 +341,26 @@
   </form>
 </section>
 
+<!-- ── 벤더피아 로그인 문 (11-02) — 확장이 깔린 크롬에서 벤더피아 로그인이 안 됐을 때만 덮습니다 ── -->
+<section id="vpGate" class="fixed inset-0 z-[9000] bg-page flex items-center justify-center px-6" hidden>
+  <div class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
+    <div class="flex items-center gap-2 mb-1">
+      <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
+    </div>
+    <h1 class="text-[15px] font-bold mb-6">벤더피아연동에 로그인하세요</h1>
+    <button id="vpGateOpen" type="button" class="btn btn-primary w-full">벤더피아 로그인 열기</button>
+    <button id="vpGateRe" type="button" class="btn btn-ghost w-full mt-2">다시 확인</button>
+    <p id="vpGateWhy" class="mt-3 text-[12px] text-faint font-bold"></p>
+  </div>
+</section>
+
 <!-- ── 앱 ───────────────────────────────────────────────── -->
 <div id="app" hidden>
 <header class="w-full bg-white border-b border-line sticky top-0 z-[100]">
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.100.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.101.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -360,6 +373,7 @@
       <button id="btnUpdate" class="btn btn-primary" hidden>새 버전 · 새로고침</button>
       <button id="btnConnect" class="btn btn-ghost" hidden>폴더 연결</button>
       <button id="btnSync" class="btn btn-ghost" hidden>드라이브 스캔</button>
+      <span id="vpWho" class="text-[11px] font-bold text-faint" hidden></span>
       <span id="userEmail" class="text-[12px] text-muted"></span>
       <button id="btnSignOut" class="text-[12px] text-faint hover:text-ink font-bold underline" hidden>로그아웃</button>
     </div>

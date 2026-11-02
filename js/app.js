@@ -91,6 +91,8 @@ async function boot() {
     await DB.watchAuth(async (user) => {
       state.user = user;
       if (!user) return showLogin();
+      await 벤더피아문();   // 확장이 깔린 크롬이면 벤더피아에 로그인돼야 엽니다(11-02)
+      if (state.user !== user) return;
       await enterApp(user);
     });
   } catch {
@@ -102,6 +104,7 @@ async function boot() {
 }
 
 function showLogin() {
+  $('#vpGate').hidden = true;
   for (const u of state.unsub) u();
   state.unsub = [];
   window.docs견적듣기(false);
@@ -136,6 +139,113 @@ async function enterApp(user) {
     DB.watchLoading((map) => { state.loading = map; if (state.openId) renderDrawer(state.openId); })
   );
   // docs_quotes 는 견적서 판·제품관리에 있을 때만 듣습니다 (index.html docsPaint).
+}
+
+/* ── 벤더피아 로그인 문 · 작업자 (11-02 사장님) ─────────────────
+   「일단 서류관리는 벤더피아연동과 깊은 관계가 있으니 프로그램이 시작되면 벤더피아연동의 로그인이 되어야
+    서류관리 화면이 열리게 해주세요 … 사용자의 이름이나 아이디를 헤더에 작게 표기하여 모든 로그인한 작업자가
+    어떤작업을 했는지 기록되게 해주세요」.
+   · 벤더피아연동 확장(0.34.84~)의 `서류다리.js` 가 문서 뿌리에 `data-벤더피아연동` 을 달고, 물으면 배경 글이
+     벤더피아에 (그 크롬의 로그인으로) 물어 { 로그인, 아이디, 이름 } 만 알려 줍니다. 비밀번호·쿠키는 안 옵니다.
+   · 확장이 있으면: 로그인 안 됨(false) → 문(#vpGate). 됨 → 열림. 모름(null — 벤더피아에 못 닿음 등) → 열되 머리에 「벤더피아 ?」.
+   · 확장이 없으면(폰·확장 없는 PC·옛 판): 여태처럼 Firebase 로그인만으로 열리고 머리에 「벤더피아 연동 없음」.
+   · 열린 뒤에도 5분마다 다시 묻습니다 — 그 물음이 벤더피아 세션을 늘려 주고, 끊겼으면 문이 다시 덮습니다.
+   ⚠ 문은 화면에서만 막습니다. 자료 권한은 여전히 Firebase 로그인(규칙)입니다. */
+const 작업자 = { 확장: '', 로그인: null, 아이디: '', 이름: '', 까닭: '' };
+let 벤더피아표 = 0;
+const 확장판 = () => document.documentElement.getAttribute('data-벤더피아연동') ?? '';
+function 벤더피아묻기(다시 = false) {
+  return new Promise((ok) => {
+    const 표 = ++벤더피아표;
+    const 듣개 = (e) => {
+      if (e.source !== window || e.data?.__vp !== '서류누구답' || e.data.표 !== 표) return;
+      removeEventListener('message', 듣개);
+      clearTimeout(시계);
+      ok(e.data.답 ?? { 로그인: null, 까닭: '답 빔' });
+    };
+    const 시계 = setTimeout(() => { removeEventListener('message', 듣개); ok({ 로그인: null, 까닭: '답 없음' }); }, 25_000);
+    addEventListener('message', 듣개);
+    window.postMessage({ __vp: '서류누구', 표, 다시 }, location.origin);
+  });
+}
+function 작업자칠하기() {
+  const el = $('#vpWho');
+  if (!el) return;
+  const 누구 = 작업자.이름 && 작업자.아이디 ? `${작업자.이름}(${작업자.아이디})` : 작업자.이름 || 작업자.아이디;
+  el.textContent = !작업자.확장 ? '벤더피아 연동 없음'
+    : 작업자.로그인 === true ? `벤더피아 ${누구 || '✓'}`
+    : 작업자.로그인 === false ? '벤더피아 끊김' : '벤더피아 ?';
+  el.title = 작업자.까닭 || '';
+  el.hidden = false;
+}
+function 작업자받기(r) {
+  Object.assign(작업자, { 로그인: r?.로그인 ?? null, 까닭: r?.까닭 ?? '' });
+  // 끊긴 동안에도 마지막 아이디는 들고 있습니다(기록에는 로그인일 때만 실림)
+  if (r?.아이디) 작업자.아이디 = String(r.아이디);
+  if (r?.이름) 작업자.이름 = String(r.이름);
+  작업자칠하기();
+}
+let 문기다림 = null;
+let 벤더피아시계 = null;
+async function 벤더피아문() {
+  // 확장 표는 document_start 에 달립니다. 늦게 달리는 경우만 잠깐 기다립니다.
+  for (let i = 0; i < 8 && !확장판(); i++) await new Promise((r) => setTimeout(r, 100));
+  작업자.확장 = 확장판();
+  if (!작업자.확장) return 작업자칠하기();
+  $('#vpGateWhy').textContent = '확인 중';
+  작업자받기(await 벤더피아묻기());
+  if (작업자.로그인 === false) await 문열어두기();
+  벤더피아시계 ??= setInterval(async () => {
+    if (문기다림) return;
+    작업자받기(await 벤더피아묻기());
+    if (작업자.로그인 === false) 문열어두기();
+  }, 5 * 60_000);
+}
+/* 문을 덮고 로그인될 때까지 기다립니다 — 5초마다 · 이 탭으로 돌아올 때 · 「다시 확인」. */
+function 문열어두기() {
+  if (문기다림) return 문기다림;
+  const 문 = $('#vpGate');
+  문.hidden = false;
+  document.documentElement.dataset.vpgate = '1';
+  문기다림 = new Promise((ok) => {
+    let 묻는중 = false;
+    const 보기 = async (다시) => {
+      if (묻는중) return;
+      묻는중 = true;
+      $('#vpGateWhy').textContent = '확인 중';
+      const r = await 벤더피아묻기(다시);
+      묻는중 = false;
+      작업자받기(r);
+      if (r?.로그인 === false) return void ($('#vpGateWhy').textContent = '로그인 안 됨');
+      clearInterval(시계);
+      removeEventListener('focus', 돌아옴);
+      document.removeEventListener('visibilitychange', 돌아옴);
+      문.hidden = true;
+      delete document.documentElement.dataset.vpgate;
+      문기다림 = null;
+      ok();
+    };
+    const 돌아옴 = () => { if (document.visibilityState === 'visible') 보기(true); };
+    const 시계 = setInterval(() => 보기(false), 5000);
+    addEventListener('focus', 돌아옴);
+    document.addEventListener('visibilitychange', 돌아옴);
+    $('#vpGateRe').onclick = () => 보기(true);
+    $('#vpGateWhy').textContent = '로그인 안 됨';
+  });
+  return 문기다림;
+}
+$('#vpGateOpen')?.addEventListener('click', () => window.open('https://vendorpia.com/', '_blank', 'noopener'));
+
+/* 작업 기록 — 저장·변경 동작 한 번에 한 건(docs_작업기록). 실패해도 그 일은 막지 않습니다. 보기만 하는 동작은 안 적습니다. */
+function 기록(일, 대상, 값) {
+  if (state.demo || !state.user) return;
+  const vp = 작업자.로그인 === true && (작업자.아이디 || 작업자.이름) ? { id: 작업자.아이디, name: 작업자.이름 } : null;
+  DB.작업적기({
+    일, 대상: String(대상 ?? '').slice(0, 300),
+    값: 값 == null ? null : JSON.stringify(값).slice(0, 1000),
+    vp, fb: state.user.email ?? '', uid: state.user.uid,
+    확장: 작업자.확장 || null, 판: document.querySelector('.tracking-wider')?.textContent ?? '',
+  }).catch((e) => console.warn('기록 못 함', e?.message));
 }
 
 /* 견적서 듣기 켜고 끄기 — 다른 판에서는 안 듣습니다(읽기 비용). 끈 뒤에도 마지막 목록은 남겨 둡니다. */
@@ -181,6 +291,7 @@ async function loadDemo() {
   $('#app').hidden = false;
   $('#userEmail').textContent = '데모';
   cloud('데모 데이터');
+  if (new URLSearchParams(location.search).has('vp')) await 벤더피아문();   // 로컬 확인용 — 문만 봅니다
   renderConnectState();
   applyParse();
 }
@@ -285,6 +396,7 @@ async function syncFromFolder() {
 
     cloud('올리는 중…');
     await DB.replaceFiles(files, (done, total) => cloud(`올리는 중 ${done}/${total}`));
+    기록('드라이브 스캔', root.name, { n: files.length });
     cloud('연결됨');
     toast(`${files.length}개 올림`);
   } catch (e) {
@@ -1202,6 +1314,7 @@ async function saveLoadDate(batchId, patch) {
   }
   try {
     await DB.saveLoading(batchId, patch, state.user?.email);
+    기록('상차일', batchId, patch);
     toast(patch.fixed ? `상차일 ${patch.fixed}` : '상차일 지움');
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
@@ -1218,6 +1331,7 @@ async function setConfirmedOrder(batchId, path) {
   }
   try {
     await DB.saveOverlay(batchId, { confirmedOrder: path }, state.user?.email);
+    기록(path ? '확정 발주서' : '확정 풂', batchId, path ? { path } : null);
     toast(path ? '확정함' : '확정 풂');
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
@@ -2226,6 +2340,8 @@ async function saveOverlay(id) {
   }
   try {
     await DB.saveOverlay(id, data, state.user?.email);
+    const { cipl, ciplFiles, confirmedOrder, ...적은것 } = data;
+    기록('직접 입력', id, 적은것);
     toast('저장함');
   } catch (e) {
     toast(`저장 실패: ${e.message}`);
@@ -2624,6 +2740,7 @@ function 서랍올리기(b, 폴더, key, 칸) {
     if (!k?.ok) return 서랍못함('올리기', 칸, k?.why);
     서랍켜짐 = true;
     let 된 = 0;
+    const 올린것 = [];
     for (const [i, f] of 파일들.entries()) {
       if (f.size > 서랍최대) { 서랍못함('올리기', f.name, 'big'); continue; }
       toast(`올리는 중 ${i + 1}/${파일들.length}`);
@@ -2634,7 +2751,9 @@ function 서랍올리기(b, 폴더, key, 칸) {
       if (!r?.ok) { 서랍못함('올리기', f.name, r?.why); if (r?.why === 'off' || r?.why === 'who') break; continue; }
       if (이름.rule) await 서랍규칙(r.path, key, b.batch);
       된++;
+      올린것.push(r.path ?? 이름.name);
     }
+    if (된) 기록('올리기', b.id, { 칸, 파일: 올린것.slice(0, 20) });
     if (된) toast(`올림 ${된}건`);
   };
   고르개.click();
@@ -2720,6 +2839,7 @@ function 새차수잇기() {
       return 새차수탈(r?.why === 'dup' ? `이미 있음 · ${r.name}` : r?.why === 'bad' ? '차수 꼴 아님' : (서랍탈[r?.why] ?? '실패'));
     }
     // 듣고 있던 overlay 로도 오지만, 먼저 세워 두고 그 차수 서랍으로 넘어갑니다(칸마다 「올리기」).
+    기록('발주하기', r.batchId, { folder: r.folder });
     state.overlay[r.batchId] = { ...(state.overlay[r.batchId] ?? {}), batchId: r.batchId, folder: r.folder };
     state.batches = 빈차수더하기(state.파일차수 ?? []);
     새차수.vendor = '';

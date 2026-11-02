@@ -395,3 +395,12 @@ export async function 임시읽기(id) {
     return { ok: false, why: e?.code || e?.message || '못 읽음' };
   }
 }
+
+/* ── 작업 기록 (11-02 사장님 「모든 로그인한 작업자가 어떤작업을 했는지 기록되게」) ──
+   저장·변경 동작 한 번에 한 건(addDoc)만 씁니다. 화면에서는 읽지 않습니다(읽기 0).
+   누가 = 벤더피아 아이디·이름(확장이 알려 준 것, vp) + Firebase 계정(fb·uid) — 권한은 늘 Firebase 쪽입니다. */
+export const 기록칸 = 'docs_작업기록';
+export async function 작업적기(글) {
+  if (!ctx?.auth?.currentUser) return;
+  await ctx.f.addDoc(col(기록칸), { ...글, at: ctx.f.serverTimestamp() });
+}
