@@ -1579,6 +1579,9 @@ function closeDrawer() {
   document.documentElement.removeAttribute('data-docsdrawer');
 }
 
+/* 「수정전 발주서 보기」 를 편 차수 — 서랍을 다시 그려도(스냅샷·확정 바꿈) 펴 둔 채로 둡니다. 처음엔 접힘. */
+const 수정전펴둔 = new Set();
+
 function renderDrawer(id) {
   const b = state.batches.find((x) => x.id === id);
   if (!b) return closeDrawer();
@@ -1946,6 +1949,24 @@ function renderDrawer(id) {
     발주서들.find((d) => d.path === 고른것) ?? (발주서들.length === 1 ? 발주서들[0] : null);
   const 고르셔야하나 = 발주서들.length > 1 && !발주서들.some((d) => d.path === 고른것);
 
+  /* 여러 장 중 하나를 확정하면 칸에는 확정 발주서만 — 나머지는 「수정전 발주서 보기 (n)」 를 눌러야 펴집니다
+     (사장님 11-02). 단품관리 .dit-code 와 같은 꼴: 손가락으로 눌러 펴고, :hover 안 씀. */
+  const 발주서칸 = (docs) => {
+    const 줄 = (ds, 틀 = 'pl-[42px] pr-3 pb-2') => `<ul class="${틀} space-y-1.5">${ds.map((d) => docLink(d)).join('')}</ul>`;
+    diffs = diffNotes(docs);
+    if (docs.length < 2 || !확정발주서 || 고르셔야하나) return 줄(docs);
+    const 나머지 = docs.filter((d) => d.path !== 확정발주서.path);
+    const 폈나 = 수정전펴둔.has(id);
+    return `${줄([확정발주서])}
+              <div class="pl-[42px] pr-3 pb-2">
+                <button type="button" class="dhh-old" data-oldorders aria-expanded="${폈나}">
+                  <span class="dhh-old-t">수정전 발주서 보기 (${나머지.length})</span>
+                  <span class="dhh-old-ar">${폈나 ? '▴' : '▾'}</span>
+                </button>
+                <div class="dhh-old-open">${줄(나머지, 'mt-1.5')}</div>
+              </div>`;
+  };
+
   /* 확정 표시 — 칸 아래쪽에 작게 답니다. 보이는 알약은 작아도
      누르는 자리는 44px 로 넓혀 둡니다(폰에서 눌려야 합니다). */
   const 확정줄 = (d) => {
@@ -2288,6 +2309,7 @@ function renderDrawer(id) {
               </div>
               ${!on ? '' : s.docs.length > 1 && s.docs.every((d) => PHOTO_EXT.test(d.name))
                 ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
+                : s.key === 'order' ? 발주서칸(s.docs)
                 : `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${((diffs = diffNotes(s.docs)), s.docs.map((d) => docLink(d)).join(''))}</ul>`}
               ${s.key === 'order' && s.docs.some((d) => /\.pdf$/i.test(d.name)) ? 내용보기단추('orderView') : ''}
               ${s.key === 'order' ? 상차일칸() : ''}
@@ -2379,6 +2401,14 @@ function renderDrawer(id) {
     el.onclick = () => 서류보내기(b.docs.find((d) => d.path === el.dataset.send));
   }
 
+  const 수정전 = $('#drawerBody').querySelector('[data-oldorders]');
+  if (수정전)
+    수정전.onclick = () => {
+      const 폈나 = 수정전.getAttribute('aria-expanded') === 'true';
+      수정전.setAttribute('aria-expanded', String(!폈나));
+      수정전.querySelector('.dhh-old-ar').textContent = 폈나 ? '▾' : '▴';
+      if (폈나) 수정전펴둔.delete(id); else 수정전펴둔.add(id);
+    };
   for (const el of $('#drawerBody').querySelectorAll('[data-confirm]')) {
     // 이미 확정인 것을 다시 누르면 풀립니다 — 잘못 고르셨을 때 되돌리는 길입니다.
     el.onclick = () => setConfirmedOrder(id, el.dataset.on ? '' : el.dataset.confirm);
