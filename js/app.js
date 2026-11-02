@@ -1245,15 +1245,16 @@ function closeDrawer() {
 const 수정전펴둔 = new Set();
 
 function renderDrawer(id) {
-  const b = 모든차수().find((x) => x.id === id);
+  const b = id === 새차수ID ? 새차수틀() : 모든차수().find((x) => x.id === id);
   if (!b) return closeDrawer();
-  const ov = state.overlay[id] ?? {};
+  const ov = b.새 ? {} : state.overlay[id] ?? {};
+  const 잠금 = b.새 ? 'disabled' : '';   // 만들기 전 — 칸은 보이되 적지 않습니다(남는 overlay 가 안 생기게)
   const auto = ciplOfBatch(b) ?? ov.cipl ?? null;
 
   const field = (key, label, opts = {}) => `
     <label class="block">
       <span class="text-[11px] font-bold text-faint tracking-wide">${label}</span>
-      <input data-ov="${key}" type="${opts.type ?? 'text'}" value="${esc(ov[key] ?? '')}"
+      <input data-ov="${key}" type="${opts.type ?? 'text'}" value="${esc(ov[key] ?? '')}" ${잠금}
              ${opts.placeholder ? `placeholder="${esc(opts.placeholder)}"` : ''} class="field mt-1" />
     </label>`;
 
@@ -1607,7 +1608,7 @@ function renderDrawer(id) {
         <div class="rounded-xl border ${날 ? 'border-ink' : 'border-line'} bg-white px-2.5 py-1.5">
           <div class="flex items-center gap-2">
             <span class="text-[11px] font-bold text-faint tracking-wide shrink-0">상차일</span>
-            <input type="date" data-loadpick value="${esc(날)}"
+            <input type="date" data-loadpick value="${esc(날)}" ${잠금}
                    class="field min-h-[44px] flex-1 min-w-0" />
           </div>
         </div>
@@ -1945,7 +1946,7 @@ function renderDrawer(id) {
     <div class="sticky top-0 bg-white border-b border-line px-6 h-[65px] flex items-center gap-3 z-10">
       <div class="min-w-0">
         <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
-        <div class="text-[17px] font-bold leading-tight">${esc(차수이름(b))}</div>
+        <div class="text-[17px] font-bold leading-tight" data-btitle>${esc(차수이름(b))}</div>
         <div class="flex items-center gap-[3px] mt-1">${stageDots(b)}</div>
       </div>
       <div class="ml-auto flex items-center gap-2">
@@ -1964,6 +1965,13 @@ function renderDrawer(id) {
             <span>${esc(i.text)}</span>
           </div>`).join('')}
       </div>` : ''}
+
+      ${b.새 ? `<section>
+        <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">발주하기</h3>
+        <input id="nbName" type="text" class="field w-full mb-3" value="${esc(새차수.name)}" autocomplete="off" spellcheck="false" />
+        <div id="nbWhy" class="dpr-none mb-3" ${새차수.why ? '' : 'hidden'}>${esc(새차수.why)}</div>
+        <button type="button" id="nbGo" class="btn btn-primary w-full min-h-[44px]">만들기</button>
+      </section>` : ''}
 
       <section>
         <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">7단계 진행</h3>
@@ -2039,9 +2047,9 @@ function renderDrawer(id) {
         </div>
         <label class="block mt-3">
           <span class="text-[11px] font-bold text-faint tracking-wide">메모</span>
-          <textarea data-ov="memo" rows="4" class="field mt-1 resize-y">${esc(ov.memo ?? '')}</textarea>
+          <textarea data-ov="memo" rows="4" class="field mt-1 resize-y" ${잠금}>${esc(ov.memo ?? '')}</textarea>
         </label>
-        <div class="flex items-center gap-2 mt-3">
+        <div class="flex items-center gap-2 mt-3" ${b.새 ? 'hidden' : ''}>
           <button id="ovSave" class="btn btn-primary">저장</button>
           <span class="text-[11px] text-faint">
             ${state.demo ? '데모 · 저장 안 됨'
@@ -2053,6 +2061,7 @@ function renderDrawer(id) {
     </div>`;
 
   $('#drawerClose').onclick = closeDrawer;
+  if (b.새) 새차수잇기();
   const ovSave = $('#ovSave');
   if (ovSave) ovSave.onclick = () => saveOverlay(id);
   const connect = $('#ciplConnect');
@@ -2620,8 +2629,20 @@ function 서랍올리기(b, 폴더, key, 칸) {
    바로 만들지 않습니다 — 이름을 보고(고쳐서) 「만들기」. 자물쇠는 올리기와 같습니다(sync.gs 발주하기_). */
 const 발주거래처 = ['제헤우드', '해피코'];   // sync.gs VENDOR_DIRS 와 같게
 
+/* 발주하기는 차수 서랍 틀 그대로 엽니다(11-02 사장님 「빈페이지 입니다. 페이지의 기본틀은 보여주세요」).
+   예전엔 이름 칸 하나뿐인 팝업이라, 꺼져 있으면 「꺼짐」 한 줄만 남은 빈 화면이었습니다.
+   만들기 전 서랍은 id 새차수ID — 7단계 칸·상차일·직접 입력이 다 보이되 적지는 않습니다. 만들면 진짜 차수 서랍으로 넘어갑니다. */
+const 새차수ID = '__발주하기';
+const 새차수 = { vendor: '', name: '', why: '', 고침: false };
+
+function 새차수틀() {
+  if (!새차수.vendor) return null;
+  const 차수 = batchFromPath(`${새차수.name.normalize('NFC').trim()}/_`)?.label ?? '';
+  const [year, no] = 차수 ? 차수.split('-').map(Number) : [0, 0];
+  return { ...summarize({ id: 새차수ID, vendor: 새차수.vendor, batch: 차수, year, no, docs: [] }), 제목: 차수 ? `${차수}차` : '새 차수', 새: true };
+}
+
 function 발주하기(vendor) {
-  const 머리 = '발주하기';
   const 아는폴더 = new Set();
   for (const f of state.files) {
     const p = String(f.path ?? '').split('/');
@@ -2631,49 +2652,60 @@ function 발주하기(vendor) {
     if (String(ov?.folder ?? '').startsWith(`${vendor}/`)) 아는폴더.add(ov.folder.slice(vendor.length + 1));
   const 올해 = new Date().getFullYear() % 100;
   const 차수들 = state.batches.filter((b) => b.vendor === vendor).map((b) => b.batch);
-  const 처음 = 다음차수([...아는폴더], 올해, 차수들)?.name ?? '';
-  견적팝업(머리, vendor, `
-          <input id="nbName" type="text" class="field w-full mb-3" value="${esc(처음)}" autocomplete="off" spellcheck="false" />
-          <div id="nbWhy" class="dpr-none mb-3" hidden></div>
-          <button type="button" id="nbGo" class="btn btn-primary w-full min-h-[44px]">만들기</button>`);
-  const 이름칸 = $('#nbName');
-  let 고침 = false;
-  이름칸.oninput = () => { 고침 = true; 탈(''); };
-  const 탈 = (글) => { $('#nbWhy').textContent = 글; $('#nbWhy').hidden = !글; };
-  const 끔 = (why) => {
-    if (why === 'off') 서랍켜짐 = false;
-    $('#diffBody .dpr-pop').innerHTML = `<div class="dpr-none">${esc(서랍탈[why] ?? '실패')}</div>`;
-  };
+  Object.assign(새차수, { vendor, name: 다음차수([...아는폴더], 올해, 차수들)?.name ?? '', why: '', 고침: false });
+  openDrawer(새차수ID);
   // 드라이브의 차수 폴더 이름(빈 폴더 포함)으로 다시 셉니다. 꺼져 있으면 여기서 알립니다.
   if (!state.demo) 견적묻기({ 일: '차수목록', vendor }).then((r) => {
-    if (!이름칸.isConnected) return;
-    if (!r?.ok) { if (r?.why === 'off' || r?.why === 'who') 끔(r.why); return; }
+    if (state.openId !== 새차수ID || 새차수.vendor !== vendor) return;
+    if (!r?.ok) { if (r?.why === 'off' || r?.why === 'who') 새차수탈(서랍탈[r.why], r.why); return; }
     서랍켜짐 = true;
     const 다음 = 다음차수([...r.names, ...아는폴더], 올해, 차수들)?.name;
-    if (다음 && !고침) 이름칸.value = 다음;
+    if (다음 && !새차수.고침) { 새차수.name = 다음; renderDrawer(새차수ID); }
   });
+}
+
+/* 「꺼짐」 「이미 있음」 같은 딱지 — 틀은 그대로 두고 이름 칸 밑에만 적습니다. */
+function 새차수탈(글, why) {
+  if (why === 'off') 서랍켜짐 = false;
+  새차수.why = 글 ?? '';
+  const el = $('#nbWhy');
+  if (el) { el.textContent = 새차수.why; el.hidden = !새차수.why; }
+}
+
+/* 만들기 전 서랍의 이름 칸·「만들기」 — renderDrawer 가 그릴 때마다 붙입니다. */
+function 새차수잇기() {
+  const 이름칸 = $('#nbName');
+  const vendor = 새차수.vendor;
+  이름칸.oninput = () => {
+    새차수.name = 이름칸.value;
+    새차수.고침 = true;
+    새차수탈('');
+    const 틀 = 새차수틀();   // 머리의 차수 이름만 따라 바꿉니다 — 다시 그리면 글 쓰던 자리를 잃습니다
+    const 머리 = $('#drawerBody [data-btitle]');
+    if (머리) 머리.textContent = 차수이름(틀);
+  };
   $('#nbGo').onclick = async () => {
     const name = 이름칸.value.normalize('NFC').trim();
     const 차수 = batchFromPath(`${name}/_`)?.label;
-    if (!차수) return 탈('차수 꼴 아님');
-    if (state.batches.some((b) => b.vendor === vendor && b.batch === 차수)) return 탈(`${차수}차 이미 있음`);
+    if (!차수) return 새차수탈('차수 꼴 아님');
+    if (state.batches.some((b) => b.vendor === vendor && b.batch === 차수)) return 새차수탈(`${차수}차 이미 있음`);
     if (state.demo) return toast('데모 · 저장 안 됨');
     $('#nbGo').disabled = true;
-    탈('');
+    새차수탈('');
     const r = await 견적묻기({ 일: '차수만들기', vendor, name });
-    if (!이름칸.isConnected) return;
-    $('#nbGo').disabled = false;
+    if (state.openId !== 새차수ID) return;
+    const 단추 = $('#nbGo');
+    if (단추) 단추.disabled = false;
     if (!r?.ok) {
-      if (r?.why === 'off' || r?.why === 'who') return 끔(r.why);
-      return 탈(r?.why === 'dup' ? `이미 있음 · ${r.name}` : r?.why === 'bad' ? '차수 꼴 아님' : (서랍탈[r?.why] ?? '실패'));
+      if (r?.why === 'off' || r?.why === 'who') return 새차수탈(서랍탈[r.why], r.why);
+      return 새차수탈(r?.why === 'dup' ? `이미 있음 · ${r.name}` : r?.why === 'bad' ? '차수 꼴 아님' : (서랍탈[r?.why] ?? '실패'));
     }
-    // 듣고 있던 overlay 로도 오지만, 먼저 세워 둡니다.
+    // 듣고 있던 overlay 로도 오지만, 먼저 세워 두고 그 차수 서랍으로 넘어갑니다(칸마다 「올리기」).
     state.overlay[r.batchId] = { ...(state.overlay[r.batchId] ?? {}), batchId: r.batchId, folder: r.folder };
     state.batches = 빈차수더하기(state.파일차수 ?? []);
+    새차수.vendor = '';
+    openDrawer(r.batchId);
     render();
-    window.docsHomeRefresh?.();
-    $('#diffView').hidden = true;
-    document.documentElement.removeAttribute('data-docsdiff');
     toast(`만듦 · ${r.folder.split('/').pop()}`);
   };
 }
