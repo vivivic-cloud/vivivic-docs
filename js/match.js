@@ -365,3 +365,99 @@ export function 발주대조(발주표, 잔액표) {
     줄.push({ ...합, name: '금액', from: 더(A.품, 'amount'), to: 더(B.품, 'amount') });
   return { 줄, 못댐: null, 단가없음, 합계줄없음, 코드없는줄 };
 }
+
+/* ── 내용보기 ↔ 벤더피아 단품 ─────────────────────────────
+ * 사장님 11-02 「발주 또는 잔액서류 내용보기에서 나타나는 제품코드(code#) 값을 … 벤더피아 단품관리의 제품코드들과
+ *   일치성을 확인하여 … 코드와 상품명이 일치한다면 내용보기의 상품명을 벤더피아연동의 동일한 단품버튼으로 …
+ *   일치하지 않는 내용은 붉은색으로 표기하여 벤더피아와 일치하지 않는 제품임을 알려줘」
+ *
+ * 단품 목록 = 창고 `납품내역_단품목록` — 벤더피아연동이 단품관리를 열 때 올립니다(goods.js 단품목록올리기).
+ *   문서 `단품_1`·`단품_2`… 칸 `줄` = ["단품코드\t단품명\t판매상태", …]. 여기서는 읽기만.
+ * ⚠ 코드는 **코드열쇠**(밑줄 꼴만 하나로)로만 맞댑니다. `-`·공백·대소문자가 다르면 다른 단품입니다.
+ */
+
+/** `납품내역_단품목록` 문서들 → 코드열쇠 → { 코드, 이름, 상태 }. 같은 열쇠가 둘이면 앞의 것. */
+export function 벤더피아단품사전(문서들) {
+  const 사전 = new Map();
+  const 차례 = (문서들 ?? [])
+    .map((d) => [/^단품_(\d+)$/.exec(d?.id ?? '')?.[1], d?.줄])
+    .filter(([n, 줄]) => n && Array.isArray(줄))
+    .sort((a, b) => a[0] - b[0]);
+  for (const [, 줄] of 차례)
+    for (const s of 줄) {
+      const [코드 = '', 이름 = '', 상태 = ''] = String(s ?? '').split('\t').map((v) => v.trim());
+      const k = 코드열쇠(코드);
+      if (코드 && !사전.has(k)) 사전.set(k, { 코드, 이름, 상태 });
+    }
+  return 사전;
+}
+
+/** `납품내역_상품목록` 문서들 → 단품 코드열쇠 → 그 단품이 든 상품들 [{ 코드, 이름, 상태, 단품들 }] (받은 차례). */
+export function 벤더피아상품연결(문서들) {
+  const m = new Map();
+  const 차례 = (문서들 ?? [])
+    .map((d) => [/^상품_(\d+)$/.exec(d?.id ?? '')?.[1], d?.줄])
+    .filter(([n, 줄]) => n && Array.isArray(줄))
+    .sort((a, b) => a[0] - b[0]);
+  for (const [, 줄] of 차례)
+    for (const s of 줄) {
+      const [코드 = '', 이름 = '', 상태 = '', 단 = ''] = String(s ?? '').split('\t');
+      if (!코드.trim()) continue;
+      const x = { 코드: 코드.trim(), 이름: 이름.trim(), 상태: 상태.trim(), 단품들: 단.split(/[,+]/).map((v) => v.trim()).filter(Boolean) };
+      for (const k of new Set(x.단품들.map(코드열쇠))) { if (!m.has(k)) m.set(k, []); m.get(k).push(x); }
+    }
+  return m;
+}
+
+/* 상품명 견주기 — 띄어쓰기·대소문자·괄호·문장부호는 안 봅니다(NFKC 뒤 글자와 숫자만).
+   그렇게 다듬은 두 이름이 **같거나 한쪽이 다른 쪽을 품으면** 같은 이름입니다
+   (발주서 대조의 색·모델명과 같은 결 — 「리안 2100 거실장 화이트」 ↔ 「리안 2100 거실장 화이트(해피코)」).
+   ⚠ 코드가 먼저 맞아야 이름을 봅니다. 이름만 같다고 맞음이 되지 않습니다. */
+export const 이름뼈 = (v) => String(v ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+export const 이름같음 = (x, y) => {
+  const a = 이름뼈(x), b = 이름뼈(y);
+  return a.length > 1 && b.length > 1 && (a === b || a.includes(b) || b.includes(a));
+};
+
+// 상품명으로 볼 칸 — 해피코 「ITEM NAME/COLOR (KRO)」·「ITEM NAME (ENG)」, 제헤우드 「Product model」 …
+const 이름칸말 = /productmodel|itemname|품명|상품명|단품명|제품명|descriptionofgoods|^description$|^model$/;
+const 코드칸말 = [/^code#?$/, /^품번$/, /^코드$/, /^단품코드$/];
+
+/**
+ * 내용보기 표 한 장의 몸줄을 벤더피아 단품과 맞댑니다.
+ * @param t     서버가 떠 둔 { rows: [{c:[…]}], h, f }
+ * @param 사전  벤더피아단품사전(…) 의 Map
+ * @returns {{ 칸: {code, names}, 줄: Map<rowIndex, {kind, 칸?, vp?}> } | { 못댐: '코드 칸 없음' }}
+ *   kind — '맞음'(칸 = 단추로 바꿀 상품명 칸) · '코드없음' · '이름다름'(vp = 벤더피아 단품) · '없음'(벤더피아에 코드 없음).
+ *   머리줄·합계줄(f 뒤)·빈 줄·S/TOTAL 줄·코드 칸 글이 제품 꼴이 아닌 줄은 줄에 안 넣습니다(안 칠함).
+ */
+export function 벤더피아맞대기(t, 사전) {
+  const rows = (t?.rows ?? []).map((r) => (Array.isArray(r) ? r : r?.c ?? []));
+  const h = Math.max(1, t?.h ?? 1), f = Math.min(t?.f ?? rows.length, rows.length);
+  let code;
+  const names = [];
+  for (const r of rows.slice(0, h))
+    r.forEach((v, c) => {
+      const k = 칸글(v);
+      if (!k) return;
+      if (code === undefined && 코드칸말.some((re) => re.test(k))) code = c;
+      else if (이름칸말.test(k) && !names.includes(c)) names.push(c);
+    });
+  if (code === undefined) return { 못댐: '코드 칸 없음' };
+  const 줄 = new Map();
+  for (let i = h; i < f; i++) {
+    const r = rows[i];
+    const 글 = (c) => String(r[c] ?? '').trim();
+    if (!r.some((v) => String(v ?? '').trim())) continue;               // 빈 줄
+    if (r.some((v) => 합계말.test(String(v ?? '')))) continue;          // S/TOTAL 같은 중간 합계
+    const 코드 = 글(code).replace(/\s+/g, ' ');
+    const 이름들 = names.filter((c) => 글(c));
+    if (!코드) { if (이름들.length) 줄.set(i, { kind: '코드없음' }); continue; }
+    if (!제품줄인가(코드)) continue;
+    const vp = 사전?.get(코드열쇠(코드));
+    if (!vp) { 줄.set(i, { kind: '없음' }); continue; }
+    const 칸 = 이름들.find((c) => 이름같음(글(c), vp.이름));
+    줄.set(i, 칸 === undefined ? { kind: '이름다름', vp } : { kind: '맞음', 칸, vp });
+  }
+  return { 칸: { code, names }, 줄 };
+}

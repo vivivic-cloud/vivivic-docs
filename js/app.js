@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -68,6 +68,8 @@ async function boot() {
       return stepViewer(e.key === 'ArrowLeft' ? -1 : 1);
     }
     if (e.key !== 'Escape') return;
+    const 단품판 = [...document.querySelectorAll('.vpm')].pop();   // 벤더피아 단품·상품 팝업이 맨 위
+    if (단품판) return 단품판.remove();
     if (!$('#viewerScrim').hidden) return closeViewer();
     closeDrawer();
   });
@@ -1507,7 +1509,11 @@ function renderDrawer(id) {
       .map((d) => ({ d, t: 시트들(d).find((t) => t.name === 고른) }))
       .filter(({ t }) => t)
       .filter(({ t }) => { const k = JSON.stringify(t.rows); return !본것.has(k) && 본것.add(k); });
-    const 표 = 원본표;
+    // 벤더피아 단품과 맞대기(v0.87.0) — 목록이 아직이면 그대로 그리고, 읽히면 이 팝업이 그대로 떠 있을 때 다시 그립니다.
+    if (!단품표 && !state.demo) 단품표읽기().then(() => {
+      if (!$('#diffView').hidden && $('#diffBody [data-ciplview]')) openCiplView(고른, 단계);
+    });
+    const 표 = (t) => 원본표(t, 단품표?.ok ? 벤더피아맞대기(t, 단품표.사전) : null);
     $('#diffBody').innerHTML = `
       <div class="p-5">
         <div class="flex items-center justify-between gap-3 mb-4">
@@ -1517,7 +1523,8 @@ function renderDrawer(id) {
           </div>
           <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px] ml-auto">닫기</button>
         </div>
-        <div class="dpr-pop">
+        <div class="dpr-pop" data-ciplview>
+          ${단품표 && !단품표.ok && 표들.length ? `<div class="dpr-sn">벤더피아 ${esc(단품표.why)}</div>` : ''}
           ${이름들.length > 1 ? `<div class="dpr-tabs">${이름들.map((n) =>
             `<button type="button" class="chip ${n === 고른 ? 'chip-on' : 'chip-off'}" data-ciplsheet="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
           ${표들.length ? 표들.map(({ d, t }) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${표(t)}`).join('')
@@ -1528,6 +1535,11 @@ function renderDrawer(id) {
     $('#diffView').scrollTop = 0;
     document.documentElement.setAttribute('data-docsdiff', '1');
     for (const btn of $('#diffBody').querySelectorAll('[data-ciplsheet]')) btn.onclick = () => openCiplView(btn.dataset.ciplsheet, 단계);
+    for (const btn of $('#diffBody').querySelectorAll('[data-vpk]')) btn.onclick = () => {
+      $('#diffBody').querySelectorAll('.vpb.on').forEach((x) => x.classList.remove('on'));
+      btn.classList.add('on');
+      단품창(btn.dataset.vpk);
+    };
     $('#diffClose').onclick = () => {
       $('#diffView').hidden = true;
       document.documentElement.removeAttribute('data-docsdiff');
@@ -2267,16 +2279,105 @@ window.docs견적 = () =>
 
 /* 내용보기 표 한 장 — 서버가 떠 둔 { name, rows: [{c:[…]}], h, f } 를 원본 칸 차례 그대로.
    잔액서류·발주서 내용보기(openCiplView)와 견적서 관리가 함께 씁니다. 모양은 .dpr-t, 감싸개는 .dpr-pop. */
-function 원본표(t) {
+function 원본표(t, 맞댐) {
   const 숫자 = /^[-\d,.$¥%]+$/;
   const rows = t.rows.map((r) => r.c ?? []);
   const h = t.h ?? 1, f = t.f ?? rows.length;
   const 칸 = (v, tag) => `<${tag}${숫자.test(v) ? ' class="num"' : ''}>${보임(v)}</${tag}>`;
+  /* 벤더피아 단품과 맞댄 줄(v0.87.0, js/match.js 벤더피아맞대기) — 맞으면 상품명 칸이 단품 단추, 아니면 줄을 붉게 + 코드 칸에 딱지.
+     맞댐이 없으면(견적서·못 읽음) 예전 그대로입니다. */
+  const 딱 = { 코드없음: '코드 없음', 이름다름: '이름 다름', 없음: '벤더피아 없음' };
+  const 몸칸 = (v, c, m) => {
+    if (m?.kind === '맞음' && c === m.칸) return `<td>${단품단추(m.vp)}</td>`;
+    if (m && m.kind !== '맞음' && c === 맞댐.칸.code)
+      return `<td>${보임(v)}<span class="vpx-t">${딱[m.kind]}</span>${m.vp ? `<span class="vpx-n">${보임(m.vp.이름)}</span>` : ''}</td>`;
+    return 칸(v, 'td');
+  };
+  const 몸줄 = (r, i) => {
+    const m = 맞댐?.줄?.get(i);
+    const cls = i >= f ? 'dpr-f' : m && m.kind !== '맞음' ? 'vpx' : '';
+    return `<tr${cls ? ` class="${cls}"` : ''}>${r.map((v, c) => 몸칸(v, c, m)).join('')}</tr>`;
+  };
   return `
         <div class="dpr-scroll vv-x"><table class="dpr-t">
           <thead>${rows.slice(0, h).map((r) => `<tr>${r.map((v) => 칸(v, 'th')).join('')}</tr>`).join('')}</thead>
-          <tbody>${rows.slice(h).map((r, i) => `<tr${h + i >= f ? ' class="dpr-f"' : ''}>${r.map((v) => 칸(v, 'td')).join('')}</tr>`).join('')}</tbody>
+          <tbody>${rows.slice(h).map((r, i) => 몸줄(r, h + i)).join('')}</tbody>
         </table></div>`;
+}
+
+/* ── 벤더피아 단품 단추 (v0.87.0) ─────────────────────────
+   사장님 11-02 「…벤더피아연동에 코드와 상품명이 일치한다면 내용보기의 상품명을 벤더피아연동의 동일한 단품버튼으로 만들어 주세요.
+   일치하지 않는 내용은 붉은색으로 표기하여 벤더피아와 일치하지 않는 제품임을 알려줘」
+   단품 목록은 창고 `납품내역_단품목록`(벤더피아연동이 단품관리를 열 때 올림) — **창이 열린 동안 한 번** 읽습니다.
+   단추 꼴 = 벤더피아연동 goods.js `labelButton`(단품명 + 연동 점 넷, goods.css `.vp-goods-list button`).
+   점은 서류(파랑)만 켭니다 — 재고·조혼가구·카탈로그는 벤더피아 화면에서만 압니다.
+   누르면 goods.js 단품 상세처럼 단품코드·단품명·판매상태 + 「관련 상품」(`productChips`, `납품내역_상품목록` — 처음 누를 때 한 번).
+   100개 아래면 아직 안 올라온 목록으로 보고 칠하지 않습니다(goods.js 도 100개 아래는 안 올림). */
+let 단품표 = null;          // { ok, 사전, why }
+let 단품표읽는중 = null;
+function 단품표읽기() {
+  if (단품표) return Promise.resolve(단품표);
+  단품표읽는중 ??= DB.벤더피아단품목록().then((r) => {
+    const 사전 = r.ok ? 벤더피아단품사전(r.문서들) : null;
+    단품표 = !r.ok ? { ok: false, why: '못 읽음' }
+      : 사전.size < 100 ? { ok: false, why: `목록 ${사전.size}개` } : { ok: true, 사전 };
+    단품표읽는중 = null;
+    return 단품표;
+  });
+  return 단품표읽는중;
+}
+let 상품표 = null;          // Promise<Map | null>
+const 상품표읽기 = () => (상품표 ??= DB.벤더피아상품목록().then((r) => (r.ok ? 벤더피아상품연결(r.문서들) : null)));
+
+const 점넷 = '<span class="vp-점"><i class="g"></i><i class="r"></i><i class="o"></i><i class="b"></i></span>';
+const 단품단추 = (vp) => `<button type="button" class="vpb vp-서류" data-vpk="${esc(코드열쇠(vp.코드))}">${보임(vp.이름 || vp.코드)}${점넷}</button>`;
+
+const VP = 'https://vendorpia.com';
+function vp창(제목, 몸, 가기글, 가기주소) {
+  const 판 = document.createElement('div');
+  판.className = 'vpm dpr-pop';
+  판.innerHTML = `<div class="vpm-card" role="dialog" aria-modal="true">
+      <div class="vpm-head"><strong>${보임(제목)}</strong><button type="button" class="vpm-x" aria-label="닫기">×</button></div>
+      <div class="vpm-body">${몸}</div>
+      <div class="vpm-foot"><a class="vpm-goto" target="_blank" rel="noopener" href="${esc(가기주소)}">${가기글}</a></div>
+    </div>`;
+  const 닫기 = () => 판.remove();
+  판.querySelector('.vpm-x').onclick = 닫기;
+  판.addEventListener('click', (e) => { if (e.target === 판) 닫기(); });
+  document.body.appendChild(판);
+  return 판;
+}
+const 칸들 = (짝) => `<dl>${짝.filter(([, v]) => String(v ?? '').trim()).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+
+function 단품창(열쇠) {
+  const vp = 단품표?.사전?.get(열쇠);
+  if (!vp) return;
+  const 판 = vp창(vp.이름 || vp.코드,
+    칸들([['단품코드', 보임(vp.코드)], ['단품명', 보임(vp.이름)], ['판매상태', 보임(vp.상태)], ['관련 상품', '<div class="vp-chips">…</div>']]),
+    '단품관리로 가기', `${VP}/System/Master/goods.aspx#vp-q=${encodeURIComponent(vp.이름 || vp.코드)}`);
+  상품표읽기().then((m) => {
+    const 칩칸 = 판.querySelector('.vp-chips');
+    if (!칩칸) return;
+    if (!m) { 칩칸.textContent = '못 읽음'; 상품표 = null; return; }
+    // goods.js productChips — 판매중 상품만, 받은 차례, 같은 상품명은 단추 하나(코드는 「, 」)
+    const 묶음 = new Map();
+    for (const x of m.get(열쇠) ?? []) {
+      if (x.상태 && x.상태 !== '판매중') continue;
+      const n = x.이름 || x.코드;
+      if (!묶음.has(n)) 묶음.set(n, []);
+      묶음.get(n).push(x);
+    }
+    if (!묶음.size) { 칩칸.textContent = '없음'; return; }
+    칩칸.innerHTML = [...묶음].map(([n, 것], i) => `<button type="button" data-vpp="${i}">${보임(n)}<small class="vp-code">${보임([...new Set(것.map((x) => x.코드))].join(', '))}</small>${점넷}</button>`).join('');
+    const 이름 = (c) => 단품표?.사전?.get(코드열쇠(c))?.이름;
+    [...묶음].forEach(([n, 것], i) => {
+      칩칸.querySelector(`[data-vpp="${i}"]`).onclick = () => vp창(n,
+        것.map((x) => 칸들([['상품코드', 보임(x.코드)], ['상품명', 보임(x.이름)], ['판매상태', 보임(x.상태)],
+          ['단품코드', 보임(x.단품들.join('+'))],
+          ['단품명', x.단품들.every(이름) ? 보임(x.단품들.map(이름).join('+')) : '']])).join(''),
+        '상품관리로 가기', `${VP}/System/Master/salesGoods.aspx#vp-q=${encodeURIComponent(n)}`);
+    });
+  });
 }
 
 /* ── 견적서 관리 ──────────────────────────────────────────

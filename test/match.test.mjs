@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음 } from '../js/match.js';
 import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
@@ -350,4 +350,70 @@ test('발주대조 — TOTAL 줄 없는 발주서는 합계줄없음, 못 읽은
   assert.equal(발주대조(표([['아무', '것']]), 잔).못댐, '발주서 품목 못 읽음');
   assert.equal(발주대조(발, null).못댐, '잔액서류 품목 못 읽음');
   assert.equal(발주대조(표([['ITEM NAME', 'QTY'], ['식탁 의자 세트 흰색', '3']]), 잔).못댐, '발주서 코드 칸 없음');
+});
+
+/* ── 내용보기 ↔ 벤더피아 단품 (v0.87.0) ── */
+const 단품문서 = [
+  { id: '_정보', 단품수: 4 },
+  { id: '단품_2', 줄: ['E-al21wt\t알렉스 2100 거실장 화이트\t판매중'] },
+  { id: '단품_1', 줄: ['LS_liwh\t리안 2100 거실장 화이트(해피코)\t판매중', 'myT▁L3C\t토리 마이토이 로우 3단 책장\t판매중', 'LS_liwh\t뒤에 온 같은 코드\t중지'] },
+];
+
+test('벤더피아단품사전 — 단품_N 차례, 코드열쇠로, 같은 열쇠는 앞의 것', () => {
+  const m = 벤더피아단품사전(단품문서);
+  assert.equal(m.size, 3);
+  assert.equal(m.get('LS_liwh').이름, '리안 2100 거실장 화이트(해피코)');
+  assert.equal(m.get('myT_L3C').코드, 'myT▁L3C');
+  assert.equal(m.get('E-al21wt').상태, '판매중');
+});
+
+test('이름같음 — 띄어쓰기·대소문자·괄호는 안 보고, 품으면 같음', () => {
+  assert.ok(이름같음('리안 2100  거실장 화이트', '리안 2100 거실장 화이트(해피코)'));
+  assert.ok(이름같음('PLUS Desk 1200(white)', 'plus desk 1200 white'));
+  assert.ok(!이름같음('알렉스 2100 거실장 발리오크', '알렉스 2100 거실장 화이트'));
+  assert.ok(!이름같음('', '리안'));
+});
+
+test('벤더피아맞대기 — 맞음·이름다름·없음·코드없음, 머리·합계·빈 줄은 안 칠함', () => {
+  const 사전 = 벤더피아단품사전(단품문서);
+  const t = {
+    h: 1, f: 7,
+    rows: [
+      { c: ['no.', 'code#', 'ITEM NAME/COLOR\n(KRO)', 'ITEM NAME\n(ENG)', 'ORDER QTY'] },
+      { c: ['1', 'LS_liwh', '리안 2100 거실장 화이트', 'LIAN Room cabinet 2100 (white)', '10'] },
+      { c: ['2', 'E-al21wt\n', '알렉스 2100 거실장 발리오크', 'Alex Room cabinet', '5'] },
+      { c: ['3', 'E_al21wt', '알렉스 2100 거실장 화이트', '', '5'] },          // `-` 와 `_` 는 다른 코드
+      { c: ['4', '', '이름만 있는 줄', '', '1'] },
+      { c: ['', '', '', '', ''] },
+      { c: ['', '', 'S/TOTAL', '', '21'] },
+      { c: ['', '', 'TOTAL', '', '21'] },
+    ],
+  };
+  const r = 벤더피아맞대기(t, 사전);
+  assert.deepEqual(r.칸, { code: 1, names: [2, 3] });
+  assert.equal(r.줄.get(1).kind, '맞음');
+  assert.equal(r.줄.get(1).칸, 2);
+  assert.equal(r.줄.get(2).kind, '이름다름');
+  assert.equal(r.줄.get(2).vp.이름, '알렉스 2100 거실장 화이트');
+  assert.equal(r.줄.get(3).kind, '없음');
+  assert.equal(r.줄.get(4).kind, '코드없음');
+  assert.ok(!r.줄.has(0) && !r.줄.has(5) && !r.줄.has(6) && !r.줄.has(7));
+});
+
+test('벤더피아맞대기 — 밑줄 꼴(▁)은 같은 코드, 대소문자는 다른 코드', () => {
+  const 사전 = 벤더피아단품사전(단품문서);
+  const t = { h: 1, rows: [{ c: ['CODE#', 'Product model'] }, { c: ['myT_L3C', '토리 마이토이 로우 3단 책장'] }, { c: ['MYT_L3C', '토리 마이토이 로우 3단 책장'] }] };
+  const r = 벤더피아맞대기(t, 사전);
+  assert.equal(r.줄.get(1).kind, '맞음');
+  assert.equal(r.줄.get(2).kind, '없음');
+});
+
+test('벤더피아맞대기 — 코드 칸이 없으면 못댐(칠하지 않음)', () => {
+  assert.deepEqual(벤더피아맞대기({ h: 1, rows: [{ c: ['Description of Goods', 'Quantity'] }, { c: ['AMT-S03-01', '3'] }] }, new Map()), { 못댐: '코드 칸 없음' });
+});
+
+test('벤더피아상품연결 — 단품 열쇠마다 그 단품이 든 상품', () => {
+  const m = 벤더피아상품연결([{ id: '상품_1', 줄: ['P1\t리안 세트\t판매중\tLS_liwh,E-al21wt', 'P2\t리안 단품\t판매중\tLS▁liwh'] }]);
+  assert.deepEqual(m.get('LS_liwh').map((x) => x.코드), ['P1', 'P2']);
+  assert.equal(m.get('E-al21wt').length, 1);
 });

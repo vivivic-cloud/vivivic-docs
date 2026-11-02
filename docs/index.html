@@ -99,8 +99,42 @@
   .dpr-pop .dpr-sn{ font-size:11px; font-weight:700; color:var(--vg-muted); margin:18px 0 6px; }
   .dpr-pop .dpr-sn:first-child{ margin-top:0; }
   .dpr-pop .dpr-tabs{ display:flex; gap:6px; margin:0 0 14px; }
-  .dpr-pop{ --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19; --vg-muted:#9C9C98;
+  .dpr-pop{ --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19; --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-red:#FF3B30;
     color:var(--vg-body); font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif; }
+  /* 내용보기 ↔ 벤더피아 단품 (v0.87.0). 단추 꼴·점 색은 벤더피아연동 goods.css 그대로
+     (`.vp-goods-list button` · 표 첫 칸 14px·700 · #337ea9 · 올리면 밑줄 · 누른 것 .on · 점 넷 --점-*). */
+  .dpr-pop{ --점-재고:#06AED5; --점-조혼:#DD1C1A; --점-카탈로그:#F0C808; --점-서류:#086788; }
+  .dpr-pop .vpb, .dpr-pop .vp-chips button{ display:inline-block; margin:0; padding:0; border:0; background:none; color:#337ea9;
+    font:inherit; font-size:14px; font-weight:700; text-align:left; cursor:pointer; text-decoration:none; }
+  .dpr-pop .vp-chips{ display:flex; flex-wrap:wrap; gap:6px 12px; }
+  .dpr-pop .vp-chips button{ font-size:12px; font-weight:400; }
+  .dpr-pop .vpb:hover, .dpr-pop .vp-chips button:hover{ text-decoration:underline; }
+  .dpr-pop .vpb.on{ text-decoration:underline; }
+  .dpr-pop .vp-code{ margin-left:6px; font-size:11px; font-weight:500; color:var(--vg-muted); }
+  .dpr-pop .vp-점{ display:flex; gap:3px; min-height:6px; margin-top:2px; line-height:0; }
+  .dpr-pop .vp-점 i{ display:none; width:6px; height:6px; border-radius:50%; }
+  .dpr-pop .vp-서류 .vp-점 i.b{ display:block; background:var(--점-서류); }
+  /* 벤더피아와 안 맞는 줄 — 붉은 글 + 코드 칸에 붉은 테 딱지(납품내역 「중지」 딱지 꼴). 합계·머리·빈 줄은 안 칠함 */
+  :is(#docs-prod, .dpr-pop) .dpr-t tr.vpx td{ color:var(--vg-red); }
+  .dpr-pop .vpx-t{ display:inline-block; font-size:11px; font-weight:700; line-height:16px; color:var(--vg-red);
+    border:1px solid var(--vg-red); border-radius:4px; padding:0 4px; margin-left:6px; vertical-align:1px; white-space:nowrap; }
+  .dpr-pop .vpx-n{ display:block; margin-top:2px; font-size:11px; color:var(--vg-muted); white-space:normal; }
+  /* 단품·상품 팝업 — goods.css `.vp-modal` 꼴 */
+  .vpm{ position:fixed; inset:0; z-index:8400; background:rgba(55,53,47,.35); display:flex; align-items:center; justify-content:center; padding:16px; }
+  .vpm-card{ width:440px; max-width:100%; max-height:calc(100vh - 32px); display:flex; flex-direction:column;
+    background:#fff; border-radius:16px; box-shadow:0 16px 48px rgba(0,0,0,.2); }
+  .vpm-head{ display:flex; align-items:center; gap:8px; padding:16px 8px 4px 20px; }
+  .vpm-head strong{ flex:1; min-width:0; font-size:16px; font-weight:800; color:var(--vg-ink); overflow-wrap:anywhere; }
+  .vpm-x{ width:44px; height:44px; border:0; background:none; font-size:22px; color:var(--vg-muted); cursor:pointer; }
+  .vpm-body{ overflow-y:auto; padding:0 20px 8px; }
+  .vpm-body dl{ display:grid; grid-template-columns:110px 1fr; gap:8px 12px; margin:12px 0 0; padding-bottom:12px;
+    border-bottom:1px solid #ededeb; font-size:13px; }
+  .vpm-body dl:last-child{ border-bottom:0; }
+  .vpm-body dt{ color:var(--vg-muted); }
+  .vpm-body dd{ margin:0; word-break:break-all; }
+  .vpm-foot{ padding:12px 20px 20px; border-top:1px solid #ededeb; }
+  .vpm-goto{ display:block; padding:12px; border-radius:12px; background:var(--vg-ink); color:#fff;
+    font-size:14px; font-weight:800; text-align:center; text-decoration:none; }
   #docs-prod .dpr-q{ max-width:360px; margin:0 0 14px; font-size:14px; }
   #docs-prod .dpr-in{ max-width:360px; margin:0 0 14px; }
 
@@ -276,7 +310,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.87.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.88.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -304,7 +338,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.87.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.88.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2769,7 +2803,103 @@ function 발주대조(발주표, 잔액표) {
   return { 줄, 못댐: null, 단가없음, 합계줄없음, 코드없는줄 };
 }
 
-return { itemRows, 대조숫자, 대조품목, 맞댈자, 맞춤판정, 맞춰보기, 발주대조, 벤더피아사전, 수량출처, 적합성, 제품차이 };
+/* ── 내용보기 ↔ 벤더피아 단품 ─────────────────────────────
+ * 사장님 11-02 「발주 또는 잔액서류 내용보기에서 나타나는 제품코드(code#) 값을 … 벤더피아 단품관리의 제품코드들과
+ *   일치성을 확인하여 … 코드와 상품명이 일치한다면 내용보기의 상품명을 벤더피아연동의 동일한 단품버튼으로 …
+ *   일치하지 않는 내용은 붉은색으로 표기하여 벤더피아와 일치하지 않는 제품임을 알려줘」
+ *
+ * 단품 목록 = 창고 `납품내역_단품목록` — 벤더피아연동이 단품관리를 열 때 올립니다(goods.js 단품목록올리기).
+ *   문서 `단품_1`·`단품_2`… 칸 `줄` = ["단품코드\t단품명\t판매상태", …]. 여기서는 읽기만.
+ * ⚠ 코드는 **코드열쇠**(밑줄 꼴만 하나로)로만 맞댑니다. `-`·공백·대소문자가 다르면 다른 단품입니다.
+ */
+
+/** `납품내역_단품목록` 문서들 → 코드열쇠 → { 코드, 이름, 상태 }. 같은 열쇠가 둘이면 앞의 것. */
+function 벤더피아단품사전(문서들) {
+  const 사전 = new Map();
+  const 차례 = (문서들 ?? [])
+    .map((d) => [/^단품_(\d+)$/.exec(d?.id ?? '')?.[1], d?.줄])
+    .filter(([n, 줄]) => n && Array.isArray(줄))
+    .sort((a, b) => a[0] - b[0]);
+  for (const [, 줄] of 차례)
+    for (const s of 줄) {
+      const [코드 = '', 이름 = '', 상태 = ''] = String(s ?? '').split('\t').map((v) => v.trim());
+      const k = 코드열쇠(코드);
+      if (코드 && !사전.has(k)) 사전.set(k, { 코드, 이름, 상태 });
+    }
+  return 사전;
+}
+
+/** `납품내역_상품목록` 문서들 → 단품 코드열쇠 → 그 단품이 든 상품들 [{ 코드, 이름, 상태, 단품들 }] (받은 차례). */
+function 벤더피아상품연결(문서들) {
+  const m = new Map();
+  const 차례 = (문서들 ?? [])
+    .map((d) => [/^상품_(\d+)$/.exec(d?.id ?? '')?.[1], d?.줄])
+    .filter(([n, 줄]) => n && Array.isArray(줄))
+    .sort((a, b) => a[0] - b[0]);
+  for (const [, 줄] of 차례)
+    for (const s of 줄) {
+      const [코드 = '', 이름 = '', 상태 = '', 단 = ''] = String(s ?? '').split('\t');
+      if (!코드.trim()) continue;
+      const x = { 코드: 코드.trim(), 이름: 이름.trim(), 상태: 상태.trim(), 단품들: 단.split(/[,+]/).map((v) => v.trim()).filter(Boolean) };
+      for (const k of new Set(x.단품들.map(코드열쇠))) { if (!m.has(k)) m.set(k, []); m.get(k).push(x); }
+    }
+  return m;
+}
+
+/* 상품명 견주기 — 띄어쓰기·대소문자·괄호·문장부호는 안 봅니다(NFKC 뒤 글자와 숫자만).
+   그렇게 다듬은 두 이름이 **같거나 한쪽이 다른 쪽을 품으면** 같은 이름입니다
+   (발주서 대조의 색·모델명과 같은 결 — 「리안 2100 거실장 화이트」 ↔ 「리안 2100 거실장 화이트(해피코)」).
+   ⚠ 코드가 먼저 맞아야 이름을 봅니다. 이름만 같다고 맞음이 되지 않습니다. */
+const 이름뼈 = (v) => String(v ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+const 이름같음 = (x, y) => {
+  const a = 이름뼈(x), b = 이름뼈(y);
+  return a.length > 1 && b.length > 1 && (a === b || a.includes(b) || b.includes(a));
+};
+
+// 상품명으로 볼 칸 — 해피코 「ITEM NAME/COLOR (KRO)」·「ITEM NAME (ENG)」, 제헤우드 「Product model」 …
+const 이름칸말 = /productmodel|itemname|품명|상품명|단품명|제품명|descriptionofgoods|^description$|^model$/;
+const 코드칸말 = [/^code#?$/, /^품번$/, /^코드$/, /^단품코드$/];
+
+/**
+ * 내용보기 표 한 장의 몸줄을 벤더피아 단품과 맞댑니다.
+ * @param t     서버가 떠 둔 { rows: [{c:[…]}], h, f }
+ * @param 사전  벤더피아단품사전(…) 의 Map
+ * @returns {{ 칸: {code, names}, 줄: Map<rowIndex, {kind, 칸?, vp?}> } | { 못댐: '코드 칸 없음' }}
+ *   kind — '맞음'(칸 = 단추로 바꿀 상품명 칸) · '코드없음' · '이름다름'(vp = 벤더피아 단품) · '없음'(벤더피아에 코드 없음).
+ *   머리줄·합계줄(f 뒤)·빈 줄·S/TOTAL 줄·코드 칸 글이 제품 꼴이 아닌 줄은 줄에 안 넣습니다(안 칠함).
+ */
+function 벤더피아맞대기(t, 사전) {
+  const rows = (t?.rows ?? []).map((r) => (Array.isArray(r) ? r : r?.c ?? []));
+  const h = Math.max(1, t?.h ?? 1), f = Math.min(t?.f ?? rows.length, rows.length);
+  let code;
+  const names = [];
+  for (const r of rows.slice(0, h))
+    r.forEach((v, c) => {
+      const k = 칸글(v);
+      if (!k) return;
+      if (code === undefined && 코드칸말.some((re) => re.test(k))) code = c;
+      else if (이름칸말.test(k) && !names.includes(c)) names.push(c);
+    });
+  if (code === undefined) return { 못댐: '코드 칸 없음' };
+  const 줄 = new Map();
+  for (let i = h; i < f; i++) {
+    const r = rows[i];
+    const 글 = (c) => String(r[c] ?? '').trim();
+    if (!r.some((v) => String(v ?? '').trim())) continue;               // 빈 줄
+    if (r.some((v) => 합계말.test(String(v ?? '')))) continue;          // S/TOTAL 같은 중간 합계
+    const 코드 = 글(code).replace(/\s+/g, ' ');
+    const 이름들 = names.filter((c) => 글(c));
+    if (!코드) { if (이름들.length) 줄.set(i, { kind: '코드없음' }); continue; }
+    if (!제품줄인가(코드)) continue;
+    const vp = 사전?.get(코드열쇠(코드));
+    if (!vp) { 줄.set(i, { kind: '없음' }); continue; }
+    const 칸 = 이름들.find((c) => 이름같음(글(c), vp.이름));
+    줄.set(i, 칸 === undefined ? { kind: '이름다름', vp } : { kind: '맞음', 칸, vp });
+  }
+  return { 칸: { code, names }, 줄 };
+}
+
+return { itemRows, 대조숫자, 대조품목, 맞댈자, 맞춤판정, 맞춰보기, 발주대조, 벤더피아단품사전, 벤더피아맞대기, 벤더피아사전, 벤더피아상품연결, 수량출처, 이름같음, 이름뼈, 적합성, 제품차이 };
 })();
 const FS = (() => {
 /**
@@ -3297,6 +3427,22 @@ async function 벤더피아상품() {
   }
 }
 
+/* ── 벤더피아 단품 목록 · 상품 연결 (내용보기 단품 단추, v0.87.0) ──────
+   벤더피아연동(goods.js 단품목록올리기·상품목록 올림)이 적어 둔 `납품내역_단품목록`·`납품내역_상품목록` 을 **읽기만** 합니다.
+   문서 몇 장(1,000줄씩)뿐입니다. ⚠ 부르는 쪽(app.js)이 창이 열린 동안 한 번만 부릅니다. */
+async function 납품목록읽기(이름) {
+  try {
+    const snap = await ctx.f.getDocs(col(이름));
+    const 문서들 = [];
+    snap.forEach((d) => 문서들.push({ id: d.id, ...d.data() }));
+    return { ok: true, 문서들 };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 읽음' };
+  }
+}
+const 벤더피아단품목록 = () => 납품목록읽기('납품내역_단품목록');
+const 벤더피아상품목록 = () => 납품목록읽기('납품내역_상품목록');
+
 /* ── 견적서 (제품관리 → 견적서 관리) ─────────────────────
    서버(sync.gs 견적읽기_)가 드라이브 견적 파일을 글자로 바꿔 driveId 마다 한 문서로 적습니다.
    여기서는 읽기만 합니다. */
@@ -3307,11 +3453,11 @@ function watchQuotes(cb) {
   return ctx.f.onSnapshot(col(QUOTES), (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => cb([]));
 }
 
-return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, VP_상품, authMessage, fileKey, idToken, init, overlayKey, replaceFiles, saveCipl, saveKinds, saveLoading, saveOverlay, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOverlay, watchQuotes, watchRules, 벤더피아상품, 벤더피아줄벗기기, 수량열쇠, 수량올리기, 수량칸 };
+return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, VP_상품, authMessage, fileKey, idToken, init, overlayKey, replaceFiles, saveCipl, saveKinds, saveLoading, saveOverlay, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOverlay, watchQuotes, watchRules, 벤더피아단품목록, 벤더피아상품, 벤더피아상품목록, 벤더피아줄벗기기, 수량열쇠, 수량올리기, 수량칸 };
 })();
 const { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS } = PARSE;
 const { progressWord } = PROGRESS;
-const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조 } = MATCH;
+const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기 } = MATCH;
 
 
 
@@ -3381,6 +3527,8 @@ async function boot() {
       return stepViewer(e.key === 'ArrowLeft' ? -1 : 1);
     }
     if (e.key !== 'Escape') return;
+    const 단품판 = [...document.querySelectorAll('.vpm')].pop();   // 벤더피아 단품·상품 팝업이 맨 위
+    if (단품판) return 단품판.remove();
     if (!$('#viewerScrim').hidden) return closeViewer();
     closeDrawer();
   });
@@ -4820,7 +4968,11 @@ function renderDrawer(id) {
       .map((d) => ({ d, t: 시트들(d).find((t) => t.name === 고른) }))
       .filter(({ t }) => t)
       .filter(({ t }) => { const k = JSON.stringify(t.rows); return !본것.has(k) && 본것.add(k); });
-    const 표 = 원본표;
+    // 벤더피아 단품과 맞대기(v0.87.0) — 목록이 아직이면 그대로 그리고, 읽히면 이 팝업이 그대로 떠 있을 때 다시 그립니다.
+    if (!단품표 && !state.demo) 단품표읽기().then(() => {
+      if (!$('#diffView').hidden && $('#diffBody [data-ciplview]')) openCiplView(고른, 단계);
+    });
+    const 표 = (t) => 원본표(t, 단품표?.ok ? 벤더피아맞대기(t, 단품표.사전) : null);
     $('#diffBody').innerHTML = `
       <div class="p-5">
         <div class="flex items-center justify-between gap-3 mb-4">
@@ -4830,7 +4982,8 @@ function renderDrawer(id) {
           </div>
           <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px] ml-auto">닫기</button>
         </div>
-        <div class="dpr-pop">
+        <div class="dpr-pop" data-ciplview>
+          ${단품표 && !단품표.ok && 표들.length ? `<div class="dpr-sn">벤더피아 ${esc(단품표.why)}</div>` : ''}
           ${이름들.length > 1 ? `<div class="dpr-tabs">${이름들.map((n) =>
             `<button type="button" class="chip ${n === 고른 ? 'chip-on' : 'chip-off'}" data-ciplsheet="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
           ${표들.length ? 표들.map(({ d, t }) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${표(t)}`).join('')
@@ -4841,6 +4994,11 @@ function renderDrawer(id) {
     $('#diffView').scrollTop = 0;
     document.documentElement.setAttribute('data-docsdiff', '1');
     for (const btn of $('#diffBody').querySelectorAll('[data-ciplsheet]')) btn.onclick = () => openCiplView(btn.dataset.ciplsheet, 단계);
+    for (const btn of $('#diffBody').querySelectorAll('[data-vpk]')) btn.onclick = () => {
+      $('#diffBody').querySelectorAll('.vpb.on').forEach((x) => x.classList.remove('on'));
+      btn.classList.add('on');
+      단품창(btn.dataset.vpk);
+    };
     $('#diffClose').onclick = () => {
       $('#diffView').hidden = true;
       document.documentElement.removeAttribute('data-docsdiff');
@@ -5580,16 +5738,105 @@ window.docs견적 = () =>
 
 /* 내용보기 표 한 장 — 서버가 떠 둔 { name, rows: [{c:[…]}], h, f } 를 원본 칸 차례 그대로.
    잔액서류·발주서 내용보기(openCiplView)와 견적서 관리가 함께 씁니다. 모양은 .dpr-t, 감싸개는 .dpr-pop. */
-function 원본표(t) {
+function 원본표(t, 맞댐) {
   const 숫자 = /^[-\d,.$¥%]+$/;
   const rows = t.rows.map((r) => r.c ?? []);
   const h = t.h ?? 1, f = t.f ?? rows.length;
   const 칸 = (v, tag) => `<${tag}${숫자.test(v) ? ' class="num"' : ''}>${보임(v)}</${tag}>`;
+  /* 벤더피아 단품과 맞댄 줄(v0.87.0, js/match.js 벤더피아맞대기) — 맞으면 상품명 칸이 단품 단추, 아니면 줄을 붉게 + 코드 칸에 딱지.
+     맞댐이 없으면(견적서·못 읽음) 예전 그대로입니다. */
+  const 딱 = { 코드없음: '코드 없음', 이름다름: '이름 다름', 없음: '벤더피아 없음' };
+  const 몸칸 = (v, c, m) => {
+    if (m?.kind === '맞음' && c === m.칸) return `<td>${단품단추(m.vp)}</td>`;
+    if (m && m.kind !== '맞음' && c === 맞댐.칸.code)
+      return `<td>${보임(v)}<span class="vpx-t">${딱[m.kind]}</span>${m.vp ? `<span class="vpx-n">${보임(m.vp.이름)}</span>` : ''}</td>`;
+    return 칸(v, 'td');
+  };
+  const 몸줄 = (r, i) => {
+    const m = 맞댐?.줄?.get(i);
+    const cls = i >= f ? 'dpr-f' : m && m.kind !== '맞음' ? 'vpx' : '';
+    return `<tr${cls ? ` class="${cls}"` : ''}>${r.map((v, c) => 몸칸(v, c, m)).join('')}</tr>`;
+  };
   return `
         <div class="dpr-scroll vv-x"><table class="dpr-t">
           <thead>${rows.slice(0, h).map((r) => `<tr>${r.map((v) => 칸(v, 'th')).join('')}</tr>`).join('')}</thead>
-          <tbody>${rows.slice(h).map((r, i) => `<tr${h + i >= f ? ' class="dpr-f"' : ''}>${r.map((v) => 칸(v, 'td')).join('')}</tr>`).join('')}</tbody>
+          <tbody>${rows.slice(h).map((r, i) => 몸줄(r, h + i)).join('')}</tbody>
         </table></div>`;
+}
+
+/* ── 벤더피아 단품 단추 (v0.87.0) ─────────────────────────
+   사장님 11-02 「…벤더피아연동에 코드와 상품명이 일치한다면 내용보기의 상품명을 벤더피아연동의 동일한 단품버튼으로 만들어 주세요.
+   일치하지 않는 내용은 붉은색으로 표기하여 벤더피아와 일치하지 않는 제품임을 알려줘」
+   단품 목록은 창고 `납품내역_단품목록`(벤더피아연동이 단품관리를 열 때 올림) — **창이 열린 동안 한 번** 읽습니다.
+   단추 꼴 = 벤더피아연동 goods.js `labelButton`(단품명 + 연동 점 넷, goods.css `.vp-goods-list button`).
+   점은 서류(파랑)만 켭니다 — 재고·조혼가구·카탈로그는 벤더피아 화면에서만 압니다.
+   누르면 goods.js 단품 상세처럼 단품코드·단품명·판매상태 + 「관련 상품」(`productChips`, `납품내역_상품목록` — 처음 누를 때 한 번).
+   100개 아래면 아직 안 올라온 목록으로 보고 칠하지 않습니다(goods.js 도 100개 아래는 안 올림). */
+let 단품표 = null;          // { ok, 사전, why }
+let 단품표읽는중 = null;
+function 단품표읽기() {
+  if (단품표) return Promise.resolve(단품표);
+  단품표읽는중 ??= DB.벤더피아단품목록().then((r) => {
+    const 사전 = r.ok ? 벤더피아단품사전(r.문서들) : null;
+    단품표 = !r.ok ? { ok: false, why: '못 읽음' }
+      : 사전.size < 100 ? { ok: false, why: `목록 ${사전.size}개` } : { ok: true, 사전 };
+    단품표읽는중 = null;
+    return 단품표;
+  });
+  return 단품표읽는중;
+}
+let 상품표 = null;          // Promise<Map | null>
+const 상품표읽기 = () => (상품표 ??= DB.벤더피아상품목록().then((r) => (r.ok ? 벤더피아상품연결(r.문서들) : null)));
+
+const 점넷 = '<span class="vp-점"><i class="g"></i><i class="r"></i><i class="o"></i><i class="b"></i></span>';
+const 단품단추 = (vp) => `<button type="button" class="vpb vp-서류" data-vpk="${esc(코드열쇠(vp.코드))}">${보임(vp.이름 || vp.코드)}${점넷}</button>`;
+
+const VP = 'https://vendorpia.com';
+function vp창(제목, 몸, 가기글, 가기주소) {
+  const 판 = document.createElement('div');
+  판.className = 'vpm dpr-pop';
+  판.innerHTML = `<div class="vpm-card" role="dialog" aria-modal="true">
+      <div class="vpm-head"><strong>${보임(제목)}</strong><button type="button" class="vpm-x" aria-label="닫기">×</button></div>
+      <div class="vpm-body">${몸}</div>
+      <div class="vpm-foot"><a class="vpm-goto" target="_blank" rel="noopener" href="${esc(가기주소)}">${가기글}</a></div>
+    </div>`;
+  const 닫기 = () => 판.remove();
+  판.querySelector('.vpm-x').onclick = 닫기;
+  판.addEventListener('click', (e) => { if (e.target === 판) 닫기(); });
+  document.body.appendChild(판);
+  return 판;
+}
+const 칸들 = (짝) => `<dl>${짝.filter(([, v]) => String(v ?? '').trim()).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+
+function 단품창(열쇠) {
+  const vp = 단품표?.사전?.get(열쇠);
+  if (!vp) return;
+  const 판 = vp창(vp.이름 || vp.코드,
+    칸들([['단품코드', 보임(vp.코드)], ['단품명', 보임(vp.이름)], ['판매상태', 보임(vp.상태)], ['관련 상품', '<div class="vp-chips">…</div>']]),
+    '단품관리로 가기', `${VP}/System/Master/goods.aspx#vp-q=${encodeURIComponent(vp.이름 || vp.코드)}`);
+  상품표읽기().then((m) => {
+    const 칩칸 = 판.querySelector('.vp-chips');
+    if (!칩칸) return;
+    if (!m) { 칩칸.textContent = '못 읽음'; 상품표 = null; return; }
+    // goods.js productChips — 판매중 상품만, 받은 차례, 같은 상품명은 단추 하나(코드는 「, 」)
+    const 묶음 = new Map();
+    for (const x of m.get(열쇠) ?? []) {
+      if (x.상태 && x.상태 !== '판매중') continue;
+      const n = x.이름 || x.코드;
+      if (!묶음.has(n)) 묶음.set(n, []);
+      묶음.get(n).push(x);
+    }
+    if (!묶음.size) { 칩칸.textContent = '없음'; return; }
+    칩칸.innerHTML = [...묶음].map(([n, 것], i) => `<button type="button" data-vpp="${i}">${보임(n)}<small class="vp-code">${보임([...new Set(것.map((x) => x.코드))].join(', '))}</small>${점넷}</button>`).join('');
+    const 이름 = (c) => 단품표?.사전?.get(코드열쇠(c))?.이름;
+    [...묶음].forEach(([n, 것], i) => {
+      칩칸.querySelector(`[data-vpp="${i}"]`).onclick = () => vp창(n,
+        것.map((x) => 칸들([['상품코드', 보임(x.코드)], ['상품명', 보임(x.이름)], ['판매상태', 보임(x.상태)],
+          ['단품코드', 보임(x.단품들.join('+'))],
+          ['단품명', x.단품들.every(이름) ? 보임(x.단품들.map(이름).join('+')) : '']])).join(''),
+        '상품관리로 가기', `${VP}/System/Master/salesGoods.aspx#vp-q=${encodeURIComponent(n)}`);
+    });
+  });
 }
 
 /* ── 견적서 관리 ──────────────────────────────────────────

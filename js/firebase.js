@@ -363,6 +363,22 @@ export async function 벤더피아상품() {
   }
 }
 
+/* ── 벤더피아 단품 목록 · 상품 연결 (내용보기 단품 단추, v0.87.0) ──────
+   벤더피아연동(goods.js 단품목록올리기·상품목록 올림)이 적어 둔 `납품내역_단품목록`·`납품내역_상품목록` 을 **읽기만** 합니다.
+   문서 몇 장(1,000줄씩)뿐입니다. ⚠ 부르는 쪽(app.js)이 창이 열린 동안 한 번만 부릅니다. */
+async function 납품목록읽기(이름) {
+  try {
+    const snap = await ctx.f.getDocs(col(이름));
+    const 문서들 = [];
+    snap.forEach((d) => 문서들.push({ id: d.id, ...d.data() }));
+    return { ok: true, 문서들 };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 읽음' };
+  }
+}
+export const 벤더피아단품목록 = () => 납품목록읽기('납품내역_단품목록');
+export const 벤더피아상품목록 = () => 납품목록읽기('납품내역_상품목록');
+
 /* ── 견적서 (제품관리 → 견적서 관리) ─────────────────────
    서버(sync.gs 견적읽기_)가 드라이브 견적 파일을 글자로 바꿔 driveId 마다 한 문서로 적습니다.
    여기서는 읽기만 합니다. */
