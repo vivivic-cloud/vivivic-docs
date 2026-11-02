@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 이름후보, 가격칸 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 이름후보, 정식이름, 찾을이름들, 가격칸 } from '../js/match.js';
 import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
@@ -487,6 +487,26 @@ test('이름후보 — 뼈가 같은 것 먼저, 품는 것은 4글자부터, �
   assert.deepEqual(이름후보(['토리 3단 선반 화이트'], 사전, 1).map((v) => v.코드), ['A']);
   assert.deepEqual(이름후보([''], 사전), []);
   assert.deepEqual(이름후보(['x'], null), []);
+});
+
+test('정식이름 — 제헤우드 ITEM NAME 두 줄은 윗줄 한글 정식 명칭만', () => {
+  assert.equal(정식이름('토리 마이토이 3단 교구장\nTori mytoy 3s bookshelf'), '토리 마이토이 3단 교구장');
+  assert.equal(정식이름('토리 마이토이 3단 교구장 Tori mytoy 3s bookshelf'), '토리 마이토이 3단 교구장');   // 서버가 붙인 꼴
+  assert.equal(정식이름('토리 마이토이 낮은 4단 교구장 Tori mytoy Low 4s bookshelf'), '토리 마이토이 낮은 4단 교구장');
+  assert.equal(정식이름('알베로 원형(세라믹) 식탁 프레임 1000_블랙'), '알베로 원형(세라믹) 식탁 프레임 1000_블랙');
+  assert.equal(정식이름('Tori mytoy 3s bookshelf'), 'Tori mytoy 3s bookshelf');
+  assert.equal(정식이름(''), '');
+  // 해피코 — KRO·ENG 칸이 따로면 한글 칸만
+  assert.deepEqual(찾을이름들(['리안 2100 거실장 화이트', 'LIAN 2100 TV stand white']), ['리안 2100 거실장 화이트']);
+  assert.deepEqual(찾을이름들(['Only English']), ['Only English']);
+});
+
+test('이름후보 — 영어 꼬리는 찾는 데 안 씀(제헤우드 발주서)', () => {
+  const 사전 = 벤더피아단품사전([{ id: '단품_1', 줄: ['myT_3CR\t토리 마이토이 3단 교구장_크림\t판매중\t4', 'EN1\tTori mytoy 3s bookshelf\t판매중'] }]);
+  const t = { h: 1, rows: [{ c: ['code#', 'ITEM NAME'] }, { c: ['myT_3C', '토리 마이토이 3단 교구장 Tori mytoy 3s bookshelf'] }] };
+  const m = 벤더피아맞대기(t, 사전).줄.get(1);
+  assert.equal(m.이름, '토리 마이토이 3단 교구장');
+  assert.deepEqual(m.후보.map((v) => v.코드), ['myT_3CR']);
 });
 
 test('가격칸 — 머리줄 이름으로 가격 칸, 수량·CBM 은 그대로, 합계줄 돈도 가림', () => {

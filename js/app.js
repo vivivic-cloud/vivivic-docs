@@ -1699,7 +1699,7 @@ function renderDrawer(id) {
     const 다시 = () => { if (!$('#diffView').hidden && $('#diffBody [data-ciplview]')) openCiplView(고른, 단계); };
     for (const btn of $('#diffBody').querySelectorAll('[data-vplink]')) btn.onclick = () => {
       if (btn.dataset.vpto) 단품잇기(btn.dataset.vplink, btn.dataset.vpto).then(다시);
-      else 연결창(btn.dataset.vplink, btn.dataset.vpraw, JSON.parse(btn.dataset.vpcand || '[]'), 다시);
+      else 연결창(btn.dataset.vplink, btn.dataset.vpraw, JSON.parse(btn.dataset.vpcand || '[]'), 다시, btn.dataset.vpname);
     };
     $('#diffClose').onclick = () => {
       $('#diffView').hidden = true;
@@ -2469,7 +2469,7 @@ function 원본표(t, 맞댐, 가림) {
   /* 단품 연결(v0.104.0) — 「벤더피아 없음」 줄에 이름이 같은 단품코드(후보)와 「직접」, 이어 둔 줄은 코드 옆 「연결」.
      서류 코드는 그대로 보입니다(날것). 데모·읽기 전에도 그립니다 — 쓰기는 단품잇기 가 막습니다. */
   const 잇는칸 = (v, m) => {
-    const raw = ` data-vplink="${esc(m.열쇠)}" data-vpraw="${esc(v)}"`;
+    const raw = ` data-vplink="${esc(m.열쇠)}" data-vpraw="${esc(v)}" data-vpname="${esc(m.이름 ?? '')}"`;
     if (m.kind === '맞음')
       return `<td>${보임(v)}<button type="button" class="vpl"${raw} data-vpcand="[]" title="이어 둔 단품 · ${esc(m.vp.코드)}">연결</button></td>`;
     const 후 = m.후보 ?? [];
@@ -2556,11 +2556,11 @@ function 알림(글) {
   const 판 = vp창('연결', `<p class="vpl-msg">${esc(글)}</p>`, '', '');
   판.querySelector('.vpm-foot').remove();
 }
-/** 고치는 창 — 단품코드 칸(후보·이은 것이 미리), 칠 때마다 목록에서 이름을 찾아 보이고, 잇기·풀기. */
-function 연결창(열쇠, 원래, 후보, 다시) {
+/** 고치는 창 — 상품명(정식 명칭, 후보를 찾은 이름) · 단품코드 칸(후보·이은 것이 미리), 칠 때마다 목록에서 이름을 찾아 보이고, 잇기·풀기. */
+function 연결창(열쇠, 원래, 후보, 다시, 정식) {
   const 이은 = 단품연결?.링크?.get(열쇠) ?? '';
   const 판 = vp창(원래 || 열쇠, `
-      <dl><dt>서류 코드</dt><dd>${보임(원래 || 열쇠)}</dd></dl>
+      <dl><dt>서류 코드</dt><dd>${보임(원래 || 열쇠)}</dd>${정식 ? `<dt>상품명</dt><dd>${보임(정식)}</dd>` : ''}</dl>
       ${후보.length ? `<div class="vpl-cands"><span class="vpc-l">이름 일치</span>${후보.map((c) => `<button type="button" class="vpc" data-pick="${esc(c)}">${보임(c)}</button>`).join('')}</div>` : ''}
       <label class="vpl-row"><span>단품코드</span><input class="vpl-in" autocomplete="off" spellcheck="false" value="${esc(이은 || 후보[0] || '')}"></label>
       <p class="vpl-msg"></p>`, '', '');
