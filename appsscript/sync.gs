@@ -17,7 +17,7 @@ const MAX_DEPTH = 4;
 const MARK_VERSION = 19;   // 19 — 범위 밖 docs_files 지우기(10-30). 한 번 다 훑게.
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
-const READ_VERSION = 14;
+const READ_VERSION = 15; // 15 — 위아래 합친 칸을 아래 품목 줄에도 채움(11-02).
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -29,6 +29,7 @@ const BASE = 'https://firestore.googleapis.com/v1/' + NAME;
 let ciplOk = 0;
 let ciplNone = 0;
 let ciplCut = 0;
+let 병합채움 = 0; // 위아래 합친 칸을 아래 줄에 채운 수 — sync 끝 글에 붙습니다.
 let poOk = 0;
 let poAll = 0;
 let lastNote = '';
@@ -41,6 +42,7 @@ function sync() {
   ciplOk = 0;
   ciplNone = 0;
   ciplCut = 0;
+  병합채움 = 0;
   poOk = 0;
   poAll = 0;
   lastCiplError = '';
@@ -139,7 +141,7 @@ function sync() {
   const secs = (new Date() - started) / 1000;
   const note = '파일 ' + files.length + '건' + (남긴밖 ? ' · 범위 밖 남김 ' + 남긴밖 + '건' : '') + (지운밖 ? ' · 범위 밖 지움 ' + 지운밖 + '건' : '') +
     (밖지운글 ? ' · ' + 밖지운글 : '') + ' · 쓰기 ' + (writes.length + ciplWrites) + '건 · 서류 읽음 ' + ciplOk +
-    '건, 읽을 표 없음 ' + ciplNone + '건' + (poAll ? ' · 발주서 표 ' + poOk + '/' + poAll + '건' : '') + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
+    '건, 읽을 표 없음 ' + ciplNone + '건' + (poAll ? ' · 발주서 표 ' + poOk + '/' + poAll + '건' : '') + (병합채움 ? ' · 병합 채움 ' + 병합채움 + '칸' : '') + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
     ' · ' + secs + '초' + (lastCiplError ? ' · 마지막 오류: ' + lastCiplError : '');
   console.log(note);
   lastNote = note;
@@ -1406,6 +1408,20 @@ function 원본표_(rows, sh) {
   // 보이는 글자 그대로 — 14.056000000000001 이 아니라 14.056.
   const shown = sh.getDataRange().getDisplayValues();
   const 글 = function (v) { return String(v == null ? '' : v).replace(/\s*\n\s*/g, ' ').trim().slice(0, 60); };
+  // 위아래로 합친 칸은 맨 윗줄에만 글이 있습니다 — 머리줄 밑 품목 줄이면 아래 줄에도 넣습니다(병합채울칸_).
+  let 합친 = [];
+  try { 합친 = sh.getDataRange().getMergedRanges(); } catch (e) { 합친 = []; }
+  합친.forEach(function (m) {
+    const r0 = m.getRow() - 1, c0 = m.getColumn() - 1;
+    if (m.getNumRows() < 2 || r0 <= head || !shown[r0]) return;
+    for (let k = 0; k < m.getNumColumns(); k++) {
+      const v = k ? '' : shown[r0][c0];
+      if (TOTAL_ROW_.test(v) || !병합채울칸_(cols, c0 + k, v)) continue;
+      for (let r = r0 + 1; r < r0 + m.getNumRows() && r < shown.length; r++) {
+        if (shown[r] && !shown[r][c0 + k]) { shown[r][c0 + k] = v; 병합채움++; }
+      }
+    }
+  });
   const 빈줄 = function (r) { return !(r || []).some(function (v) { return 글(v); }); };
 
   // 은행·서명 글귀가 나오면 표가 끝난 것입니다. 빈 줄이 셋 이어져도 끝입니다.
@@ -1469,17 +1485,25 @@ function html글_(v) {
     .replace(/\u00a0/g, ' ').replace(/\s*\n\s*/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
-/** html 의 표들을 칸 격자로 — 표마다 [[글, …], …]. 합친 칸은 빈 칸으로 채웁니다. */
+/** html 의 표들을 칸 격자로 — 표마다 [[글, …], …]. 합친 칸은 빈 칸으로 채웁니다.
+    위아래로 합친 칸(rowspan)의 아래 칸은 grid.이어 에 [줄, 칸, 위 글, 위 줄] 로 남깁니다 — 발주서 표가 채워 씁니다. */
 function html표들_(html) {
   const out = [];
   const tables = String(html || '').match(/<table[\s\S]*?<\/table>/gi) || [];
   tables.forEach(function (tb) {
     const grid = [];
-    const 아래 = {}; // 칸 번호 → 아직 내려와 있는 rowspan 남은 줄 수
+    grid.이어 = [];
+    const 아래 = {}; // 칸 번호 → { n: 아직 내려와 있는 rowspan 남은 줄 수, v: 위 글, r: 위 줄 }
     (tb.match(/<tr[\s\S]*?<\/tr>/gi) || []).forEach(function (tr) {
       const row = [];
       let c = 0;
-      const 채움 = function () { while (아래[c] > 0) { 아래[c]--; row[c] = ''; c++; } };
+      const 채움 = function () {
+        while (아래[c] && 아래[c].n > 0) {
+          아래[c].n--; row[c] = '';
+          if (아래[c].v) grid.이어.push([grid.length, c, 아래[c].v, 아래[c].r]);
+          c++;
+        }
+      };
       (tr.match(/<t[dh][^>]*>[\s\S]*?<\/t[dh]>/gi) || []).forEach(function (td) {
         채움();
         const 열 = Number((/colspan="?(\d+)/i.exec(td) || [])[1] || 1);
@@ -1487,7 +1511,7 @@ function html표들_(html) {
         row[c] = html글_(td.replace(/^<t[dh][^>]*>/i, '').replace(/<\/t[dh]>$/i, ''));
         for (let k = 0; k < 열; k++) {
           if (k) row[c + k] = '';
-          if (행 > 1) 아래[c + k] = 행 - 1;
+          if (행 > 1) 아래[c + k] = { n: 행 - 1, v: k ? '' : row[c], r: grid.length };
         }
         c += 열;
       });
@@ -1497,6 +1521,20 @@ function html표들_(html) {
     out.push(grid);
   });
   return out;
+}
+
+/* ── 위아래로 합친 칸 채우기 ──
+   사장님 11-02 — 「내용보기 일부상품 코드가있음에도 내용이 안나타나는 경우가 있습니다」.
+   제헤우드 발주서 zh-26-27 은 색만 다른 myT_4C · myT_4B 가 ZH#·상품명·크기 칸을 위아래로 합쳐 씁니다.
+   합친 칸 글은 맨 윗줄에만 있어 4B 줄은 코드만 남았습니다(엑셀 CI 의 Product model 병합도 같음).
+   줄마다 단품 하나라 위 글을 아래 줄에도 넣습니다 — 단품 단추·복사가 줄마다 됩니다.
+   ⚠ 수량·금액·CBM 칸과 순수 숫자(번호·합친 금액)는 안 채웁니다 — 발주서 대조·합계에 두 번 더해집니다. 단가는 채웁니다. */
+const 숫자만_ = /^[\s¥$€£￥]*[\d,.\-]+[\s%]*$/;
+function 병합채울칸_(cols, c, v) {
+  if (!v) return false;
+  if (c === cols.qty || c === cols.amount || c === cols.cbm) return false;
+  if (c !== cols.price && 숫자만_.test(String(v))) return false;
+  return true;
 }
 
 function pdfTable_(html) {
@@ -1527,6 +1565,13 @@ function pdfTable_(html) {
       const 첫 = rows[i].filter(Boolean)[0] || '';
       if (/^(?:grand\s*)?total$|^합계$|^总计$|^合计$/i.test(첫)) { end = i + 1; break; }
     }
+    // 품목 줄의 위아래 합친 칸 — 머리줄 밑에서 시작한 것만, 합계줄은 빼고.
+    (rows.이어 || []).forEach(function (e) {
+      const r = e[0], c = e[1], v = e[2], 위 = e[3];
+      if (위 <= head || r >= end || TOTAL_ROW_.test(v)) return;
+      if (!병합채울칸_(cols, c, v)) return;
+      rows[r][c] = v; 병합채움++;
+    });
     const body = rows.slice(head, end).filter(function (r) { return !빈줄(r); });
     if (body.length < 2) continue;
 

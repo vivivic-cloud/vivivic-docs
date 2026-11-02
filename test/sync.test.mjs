@@ -24,6 +24,41 @@ test('pdfTable_ — 발주서 금액 칸이 ¥ 로 나오고 대조숫자로 읽
   assert.equal(대조숫자(t.rows[1][4]), 5650);
 });
 
+test('pdfTable_ — 위아래로 합친 ZH#·상품명·크기·단가를 아래 줄에도 (zh-26-27 myT_4B, 11-02)', () => {
+  // 실물 꼴: 4C·4B 가 ZH_02·이름·크기·단가를 합쳐 쓰고, 수량·금액은 줄마다. 금액을 합쳐 쓴 경우도 넣음.
+  const html = '<table>' +
+    '<tr><td>ZH#</td><td>Product model</td><td>Size</td><td>code#</td><td>ORDER QTY</td><td>PRICE</td><td>AMOUNT</td></tr>' +
+    '<tr><td>ZH_01</td><td>토리 3단</td><td>826*260*800</td><td>myT_3C</td><td>50</td><td>&yen;113.00</td><td>5,650</td></tr>' +
+    '<tr><td rowspan="2">ZH_02</td><td rowspan="2">토리 4단</td><td rowspan="2">826*260*1125</td><td>myT_4C</td><td>20</td><td rowspan="2">&yen;146.00</td><td rowspan="2">4,380</td></tr>' +
+    '<tr><td>myT_4B</td><td>10</td></tr>' +
+    '<tr><td>ZH_03</td><td>토리 낮은 3단</td><td>826*260*550</td><td>myT_L3C</td><td>100</td><td>&yen;111.00</td><td>11,100</td></tr>' +
+    '<tr><td colspan="4">TOTAL</td><td>180</td><td></td><td>21,130</td></tr>' +
+    '</table>';
+  const t = gs.pdfTable_(html);
+  assert.deepEqual([...t.rows[3]], ['ZH_02', '토리 4단', '826*260*1125', 'myT_4B', '10', '¥146.00', '']);
+  assert.deepEqual([...t.rows[2]], ['ZH_02', '토리 4단', '826*260*1125', 'myT_4C', '20', '¥146.00', '4,380']);
+  assert.equal(t.f, 5); // 합계줄 자리 그대로
+  // 견적서 쪽 html표들_ 격자는 그대로 빈 칸
+  assert.equal(gs.html표들_(html)[0][3][0], '');
+});
+
+test('원본표_ — 엑셀 CI 의 Product model 병합을 아래 줄에도, 수량·번호는 안 채움 (Zh-26-20, 11-02)', () => {
+  const shown = [
+    ['NO.', 'CODE#', 'Product model', 'Qty pcs', 'FOB', 'Amount'],
+    ['1', 'myT▁L3C', 'Tori mytoy Low 3s', '450', '111', '49950'],
+    ['', 'myT▁L3B', '', '20', '111', '2220'],
+    ['', 'TOTAL', '', '470', '', '52170'],
+  ];
+  const 칸 = (r, c, n, m = 1) => ({ getRow: () => r, getColumn: () => c, getNumRows: () => n, getNumColumns: () => m });
+  const sh = {
+    getName: () => 'CI',
+    getDataRange: () => ({ getDisplayValues: () => shown.map((r) => r.slice()), getMergedRanges: () => [칸(2, 1, 2), 칸(2, 3, 2)] }),
+  };
+  const t = gs.원본표_(shown, sh);
+  assert.deepEqual([...t.rows[2]], ['', 'myT▁L3B', 'Tori mytoy Low 3s', '20', '111', '2220']);
+  assert.equal(t.f, 3);
+});
+
 /* sync — 목록 먼저 쓰고, 서류는 읽는 대로 cipl 칸만 묶어 씁니다(10-30). 드라이브·Firestore 는 가짜. */
 function 가짜sync({ files, existing, props = {}, 읽기ms = 0, 시작 = 0 }) {
   const 쓰기 = [];
@@ -51,7 +86,7 @@ function 가짜sync({ files, existing, props = {}, 읽기ms = 0, 시작 = 0 }) {
   return { 쓰기, 차례, props };
 }
 const 파일 = (name, md5 = 'a') => ({ name, path: 'V/' + name, vendor: 'V', size: 1, mtime: 1, ctime: 1, driveId: 'd' + name, md5 });
-const 있던 = (f, cipl) => ({ name: f.name, vendor: f.vendor, size: '1', mtime: '1', ctime: '1', md5: f.md5, driveId: f.driveId, hasCipl: !!cipl, readV: cipl ? 14 : 0 });
+const 있던 = (f, cipl) => ({ name: f.name, vendor: f.vendor, size: '1', mtime: '1', ctime: '1', md5: f.md5, driveId: f.driveId, hasCipl: !!cipl, readV: cipl ? vm.runInContext('READ_VERSION', gs) : 0 });
 
 test('sync — 새 서류는 기본 칸이 먼저 커밋되고, 읽은 뒤 cipl 칸만 따로 쓴다', () => {
   const ci = 파일('제헤우드 26-1 CI&PL.xlsx'), 사진 = 파일('상차1.jpg');
