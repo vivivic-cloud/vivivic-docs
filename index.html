@@ -116,6 +116,25 @@
   :is(#docs-prod, .dpr-pop) .dpr-t tr.vpx td{ color:var(--vg-red); }
   .dpr-pop .vpx-t{ display:inline-block; font-size:11px; font-weight:700; line-height:16px; color:var(--vg-red);
     border:1px solid var(--vg-red); border-radius:4px; padding:0 4px; margin-left:6px; vertical-align:1px; white-space:nowrap; }
+  /* 단품 연결(v0.104.0) — 「벤더피아 없음」 옆 이름 일치 후보 코드(단품 단추 파랑) · 「직접」 · 이어 둔 줄의 「연결」 딱지 */
+  .dpr-pop .vpc-l{ margin-left:8px; font-size:11px; font-weight:700; color:var(--vg-muted); white-space:nowrap; }
+  .dpr-pop .vpc, .dpr-pop .vpl{ display:inline-block; margin:0 0 0 6px; padding:0 4px; border:1px solid #337ea9; border-radius:4px;
+    background:#fff; color:#337ea9; font:inherit; font-size:11px; font-weight:700; line-height:16px; cursor:pointer; white-space:nowrap; vertical-align:1px; }
+  .dpr-pop .vpc-e{ border-color:var(--vg-edge); color:var(--vg-muted); }
+  .dpr-pop .vpl{ border-color:var(--vg-edge); color:#337ea9; }
+  .dpr-pop .vpc:hover, .dpr-pop .vpl:hover{ text-decoration:underline; }
+  .dpr-pop .dpr-t tr.vpx td .vpc{ color:#337ea9; }
+  .dpr-pop .dpr-t tr.vpx td .vpc-e{ color:var(--vg-muted); }
+  .vpm .vpl-cands{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 0; margin-top:12px; }
+  .vpm .vpl-cands .vpc-l{ margin-left:0; }
+  .vpm .vpl-row{ display:grid; grid-template-columns:110px 1fr; align-items:center; gap:12px; margin-top:12px; font-size:13px; color:var(--vg-muted); }
+  .vpm .vpl-in{ min-height:44px; padding:0 12px; border:1px solid var(--vg-edge); border-radius:10px; font:inherit; font-size:15px; color:var(--vg-ink); min-width:0; }
+  .vpm .vpl-msg{ min-height:20px; margin:8px 0 0; font-size:13px; font-weight:700; color:var(--vg-ink); overflow-wrap:anywhere; }
+  .vpm .vpl-btns{ display:flex; gap:8px; }
+  .vpm .vpl-ok, .vpm .vpl-off{ flex:1; min-height:44px; border-radius:12px; font:inherit; font-size:14px; font-weight:800; cursor:pointer; }
+  .vpm .vpl-ok{ border:0; background:var(--vg-ink); color:#fff; }
+  .vpm .vpl-ok:disabled{ opacity:.35; cursor:default; }
+  .vpm .vpl-off{ border:1px solid var(--vg-edge); background:#fff; color:var(--vg-red); }
   /* 가격 가리기(v0.99.0) — 권한 없는 아이디는 가격 칸에 값 대신 흐린 자리(000,000)만. 딱지는 .vpx-t 꼴을 흐린 색으로 */
   .dpr-pop .dpr-t td.vv-blur{ filter:blur(5px); user-select:none; -webkit-user-select:none; color:var(--vg-muted); }
   .dpr-pop .dpr-lock{ display:inline-block; font-size:11px; font-weight:700; line-height:16px; color:var(--vg-muted);
@@ -319,7 +338,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.103.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.104.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -360,7 +379,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.103.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.104.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 가격칸 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 이름후보, 가격칸 } from '../js/match.js';
 import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
@@ -447,6 +447,46 @@ test('벤더피아맞대기 — 임시통합 발주 표(단품코드·단품명 
   const m = 벤더피아맞대기(b.표, 사전);
   assert.equal(m.칸.code, 4);
   assert.deepEqual([...m.줄].map(([i, x]) => [i, x.kind]), [[1, '맞음'], [2, '없음'], [3, '코드없음']]);
+});
+
+test('벤더피아맞대기 — 차례: 코드 일치 → 이어 둔 연결 → 이름 후보(제안만)', () => {
+  const 사전 = 벤더피아단품사전([{ id: '단품_1', 줄: [
+    'aloc_lgB\t알베로 원형(세라믹) 다리_블랙\t판매중\t5',
+    'alce10b\t알베로 원형(세라믹) 식탁 프레임 1000_블랙\t판매중\t37',
+    'X9\t알베로원형세라믹다리블랙\t판매중\t',
+    'BK\t블랙\t판매중\t',
+  ] }]);
+  const t = { h: 1, rows: [
+    { c: ['단품코드', '단품명'] },
+    { c: ['aloc_lgb', '알베로 원형(세라믹) 다리_블랙'] },
+    { c: ['alce10b', '알베로 원형(세라믹) 식탁 프레임 1000_블랙'] },
+    { c: ['zz_1', '아무 이름'] },
+  ] };
+  const r = 벤더피아맞대기(t, 사전);
+  const 없 = r.줄.get(1);
+  assert.equal(없.kind, '없음');                       // 대소문자 다르면 다른 코드 — 그대로
+  assert.equal(없.열쇠, 'aloc_lgb');
+  assert.deepEqual(없.후보.map((v) => v.코드), ['aloc_lgB', 'X9']);   // 같은 이름 둘 다, 「블랙」 은 짧아 안 걸림
+  assert.equal(r.줄.get(2).kind, '맞음');
+  assert.equal(r.줄.get(2).이음, false);
+  assert.deepEqual(r.줄.get(3).후보, []);
+  // 이어 두면 맞음(이음) — 연결이 코드 일치를 덮지는 않음
+  const 연결 = new Map([['aloc_lgb', 'aloc_lgB'], ['alce10b', 'X9'], ['zz_1', '없는코드']]);
+  const r2 = 벤더피아맞대기(t, 사전, 연결);
+  assert.equal(r2.줄.get(1).kind, '맞음');
+  assert.equal(r2.줄.get(1).이음, true);
+  assert.equal(r2.줄.get(1).vp.양품, 5);
+  assert.equal(r2.줄.get(2).vp.코드, 'alce10b');
+  assert.equal(r2.줄.get(2).이음, false);
+  assert.equal(r2.줄.get(3).kind, '없음');              // 목록에 없는 코드로 이은 것은 없음
+});
+
+test('이름후보 — 뼈가 같은 것 먼저, 품는 것은 4글자부터, 최대 개수', () => {
+  const 사전 = 벤더피아단품사전([{ id: '단품_1', 줄: ['A\t토리 3단 선반(화이트)\t판매중', 'B\t토리3단선반\t판매중', 'C\t토리 3단 선반 화이트\t판매중', 'D\t선반\t판매중'] }]);
+  assert.deepEqual(이름후보(['토리 3단 선반 화이트'], 사전).map((v) => v.코드), ['A', 'C', 'B']);
+  assert.deepEqual(이름후보(['토리 3단 선반 화이트'], 사전, 1).map((v) => v.코드), ['A']);
+  assert.deepEqual(이름후보([''], 사전), []);
+  assert.deepEqual(이름후보(['x'], null), []);
 });
 
 test('가격칸 — 머리줄 이름으로 가격 칸, 수량·CBM 은 그대로, 합계줄 돈도 가림', () => {

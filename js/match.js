@@ -423,6 +423,23 @@ export const 이름같음 = (x, y) => {
   return a.length > 1 && b.length > 1 && (a === b || a.includes(b) || b.includes(a));
 };
 
+/* 이름 후보(v0.104.0) — 사장님 11-02 「…벤더피아 없음으로 표기될경우 해당 상품명을 벤더피아연동 단품관리에서 검색하여
+   상품명이 일치하는경우 해당 단품코드를 보여주고 클릭/ 수정하여 연동이 가능하게 해줘」.
+   이름같음 그대로(뼈가 같거나 한쪽이 품음). 다만 품는 쪽 짧은 뼈가 4글자 아래면 안 봅니다 — 「블랙」 같은 낱말이 다 걸립니다.
+   같은 뼈가 먼저, 그다음 받은 차례. 제안만 합니다 — 맞음으로 치지 않습니다. */
+export function 이름후보(이름글들, 사전, 최대 = 6) {
+  const 뼈들 = [...new Set((이름글들 ?? []).map(이름뼈).filter((b) => b.length > 1))];
+  if (!뼈들.length || !사전) return [];
+  const 같음 = [], 품음 = [];
+  for (const vp of 사전.values()) {
+    const v = 이름뼈(vp.이름);
+    if (v.length < 2) continue;
+    if (뼈들.includes(v)) 같음.push(vp);
+    else if (뼈들.some((b) => Math.min(b.length, v.length) >= 4 && (b.includes(v) || v.includes(b)))) 품음.push(vp);
+  }
+  return [...같음, ...품음].slice(0, 최대);
+}
+
 // 상품명으로 볼 칸 — 해피코 「ITEM NAME/COLOR (KRO)」·「ITEM NAME (ENG)」, 제헤우드 「Product model」 …
 const 이름칸말 = /productmodel|itemname|품명|상품명|단품명|제품명|descriptionofgoods|^description$|^model$/;
 const 코드칸말 = [/^code#?$/, /^품번$/, /^코드$/, /^단품코드$/];
@@ -431,11 +448,13 @@ const 코드칸말 = [/^code#?$/, /^품번$/, /^코드$/, /^단품코드$/];
  * 내용보기 표 한 장의 몸줄을 벤더피아 단품과 맞댑니다.
  * @param t     서버가 떠 둔 { rows: [{c:[…]}], h, f }
  * @param 사전  벤더피아단품사전(…) 의 Map
- * @returns {{ 칸: {code, names}, 줄: Map<rowIndex, {kind, 칸?, vp?}> } | { 못댐: '코드 칸 없음' }}
+ * @param 연결  서류 코드열쇠 → 벤더피아 단품코드(사람이 이은 것, docs_config/단품연결). 없어도 됨.
+ * @returns {{ 칸: {code, names}, 줄: Map<rowIndex, {kind, 칸?, vp?, 열쇠?, 이음?, 후보?}> } | { 못댐: '코드 칸 없음' }}
  *   kind — '맞음'(코드만 맞으면, 칸 = 단추로 바꿀 상품명 칸) · '코드없음' · '없음'(벤더피아에 코드 없음).
+ *   맞대는 차례(v0.104.0): ① 코드 일치 → ② 이어 둔 연결(이음: true) → ③ 이름 후보(후보: [vp…], 제안만 — 여전히 '없음').
  *   머리줄·합계줄(f 뒤)·빈 줄·S/TOTAL 줄·코드 칸 글이 제품 꼴이 아닌 줄은 줄에 안 넣습니다(안 칠함).
  */
-export function 벤더피아맞대기(t, 사전) {
+export function 벤더피아맞대기(t, 사전, 연결) {
   const rows = (t?.rows ?? []).map((r) => (Array.isArray(r) ? r : r?.c ?? []));
   const h = Math.max(1, t?.h ?? 1), f = Math.min(t?.f ?? rows.length, rows.length);
   let code;
@@ -458,10 +477,12 @@ export function 벤더피아맞대기(t, 사전) {
     const 이름들 = names.filter((c) => 글(c));
     if (!코드) { if (이름들.length) 줄.set(i, { kind: '코드없음' }); continue; }
     if (!제품줄인가(코드)) continue;
-    const vp = 사전?.get(코드열쇠(코드));
-    if (!vp) { 줄.set(i, { kind: '없음' }); continue; }
+    const 열쇠 = 코드열쇠(코드);
+    let vp = 사전?.get(열쇠), 이음 = false;
+    if (!vp && 연결?.get(열쇠)) { vp = 사전?.get(코드열쇠(연결.get(열쇠))); 이음 = !!vp; }
+    if (!vp) { 줄.set(i, { kind: '없음', 열쇠, 후보: 이름후보(이름들.map(글), 사전) }); continue; }
     // 코드만 맞으면 맞음(사장님 11-02) — 단추는 이름이 닮은 칸, 없으면 첫 이름 칸.
-    줄.set(i, { kind: '맞음', 칸: 이름들.find((c) => 이름같음(글(c), vp.이름)) ?? 이름들[0], vp });
+    줄.set(i, { kind: '맞음', 칸: 이름들.find((c) => 이름같음(글(c), vp.이름)) ?? 이름들[0], vp, 열쇠, 이음 });
   }
   return { 칸: { code, names }, 줄 };
 }

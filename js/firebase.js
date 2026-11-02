@@ -373,6 +373,25 @@ export async function 가격보기읽기() {
   }
 }
 
+/* ── 단품 연결 (v0.104.0) ─────────────────────────────
+   서류 코드가 벤더피아 단품코드와 안 맞을 때 사람이 이어 둔 것. `docs_config/단품연결` 한 건 —
+   `{ 링크: { <서류 코드열쇠>: { vp: '<벤더피아 단품코드>', by, at } } }`. 모든 차수·서류·임시통합·단품관리가 같이 씁니다.
+   읽기는 창이 열린 동안 한 번(부르는 쪽 app.js), 쓰기는 잇거나 풀 때 한 번(merge — 다른 연결은 그대로). */
+export async function 단품연결읽기() {
+  try {
+    const s = await ctx.f.getDoc(ctx.f.doc(col(CONFIG), '단품연결'));
+    const 링크 = s.exists() ? s.data().링크 ?? {} : {};
+    return { ok: true, 링크: new Map(Object.entries(링크).filter(([, v]) => v?.vp).map(([k, v]) => [k, String(v.vp)])) };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 읽음' };
+  }
+}
+/** vp 가 빈칸이면 풉니다. */
+export async function 단품연결쓰기(열쇠, vp, email) {
+  const 값 = vp ? { vp, by: email ?? '', at: new Date().toISOString() } : ctx.f.deleteField();
+  await ctx.f.setDoc(ctx.f.doc(col(CONFIG), '단품연결'), { 링크: { [열쇠]: 값 } }, { merge: true });
+}
+
 /* ── 견적서 (제품관리 → 견적서 관리) ─────────────────────
    서버(sync.gs 견적읽기_)가 드라이브 견적 파일을 글자로 바꿔 driveId 마다 한 문서로 적습니다.
    여기서는 읽기만 합니다. */

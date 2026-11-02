@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 가격칸 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 가격칸 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -1657,11 +1657,15 @@ function renderDrawer(id) {
     if (!단품표 && !state.demo) 단품표읽기().then(() => {
       if (!$('#diffView').hidden && $('#diffBody [data-ciplview]')) openCiplView(고른, 단계);
     });
+    // 이어 둔 단품 연결(v0.104.0) — 창이 열린 동안 한 번. 읽히면 다시 그립니다.
+    if (!단품연결 && !state.demo) 단품연결읽기().then(() => {
+      if (!$('#diffView').hidden && $('#diffBody [data-ciplview]')) openCiplView(고른, 단계);
+    });
     // 가격 가리기(v0.99.0) — 허락을 모르는 동안도 가립니다. 읽히면 이 팝업이 떠 있을 때 다시 그립니다.
     if (가격허락 === null) 가격허락읽기().then(() => {
       if (!$('#diffView').hidden && $('#diffBody [data-ciplview]')) openCiplView(고른, 단계);
     });
-    const 표 = (t) => 원본표(t, 단품표?.ok ? 벤더피아맞대기(t, 단품표.사전) : null, 가격허락 === true ? null : 가격칸(t));
+    const 표 = (t) => 원본표(t, 단품표?.ok ? 벤더피아맞대기(t, 단품표.사전, 단품연결?.링크) : null, 가격허락 === true ? null : 가격칸(t));
     $('#diffBody').innerHTML = `
       <div class="p-5">
         <div class="flex items-center justify-between gap-3 mb-4">
@@ -1674,6 +1678,7 @@ function renderDrawer(id) {
         <div class="dpr-pop" data-ciplview>
           ${단품표 && !단품표.ok && 표들.length ? `<div class="dpr-sn">벤더피아 ${esc(단품표.why)}</div>` : ''}
           ${단품표?.ok && 단품표.양품없음 && 표들.length ? '<div class="dpr-sn">벤더피아 양품 없음</div>' : ''}
+          ${단품연결 && !단품연결.ok && 표들.length ? `<div class="dpr-sn">연결 ${esc(단품연결.why)}</div>` : ''}
           ${가격허락 === false && 표들.some(({ t }) => 가격칸(t).칸.size) ? '<div class="dpr-sn"><span class="dpr-lock">가격 정보 · 권한 있는 아이디만</span></div>' : ''}
           ${이름들.length > 1 ? `<div class="dpr-tabs">${이름들.map((n) =>
             `<button type="button" class="chip ${n === 고른 ? 'chip-on' : 'chip-off'}" data-ciplsheet="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
@@ -1689,6 +1694,12 @@ function renderDrawer(id) {
       $('#diffBody').querySelectorAll('.vpb.on').forEach((x) => x.classList.remove('on'));
       btn.classList.add('on');
       단품창(btn.dataset.vpk);
+    };
+    // 단품 연결 — 후보 코드는 누르면 곧장 잇고, 「직접」·「연결」 딱지는 고치는 창을 엽니다.
+    const 다시 = () => { if (!$('#diffView').hidden && $('#diffBody [data-ciplview]')) openCiplView(고른, 단계); };
+    for (const btn of $('#diffBody').querySelectorAll('[data-vplink]')) btn.onclick = () => {
+      if (btn.dataset.vpto) 단품잇기(btn.dataset.vplink, btn.dataset.vpto).then(다시);
+      else 연결창(btn.dataset.vplink, btn.dataset.vpraw, JSON.parse(btn.dataset.vpcand || '[]'), 다시);
     };
     $('#diffClose').onclick = () => {
       $('#diffView').hidden = true;
@@ -2455,8 +2466,19 @@ function 원본표(t, 맞댐, 가림) {
   /* 벤더피아 단품과 맞댄 줄(v0.87.0, js/match.js 벤더피아맞대기) — 맞으면 상품명 칸이 단품 단추, 아니면 줄을 붉게 + 코드 칸에 딱지.
      맞댐이 없으면(견적서·못 읽음) 예전 그대로입니다. */
   const 딱 = { 코드없음: '코드 없음', 없음: '벤더피아 없음' };
+  /* 단품 연결(v0.104.0) — 「벤더피아 없음」 줄에 이름이 같은 단품코드(후보)와 「직접」, 이어 둔 줄은 코드 옆 「연결」.
+     서류 코드는 그대로 보입니다(날것). 데모·읽기 전에도 그립니다 — 쓰기는 단품잇기 가 막습니다. */
+  const 잇는칸 = (v, m) => {
+    const raw = ` data-vplink="${esc(m.열쇠)}" data-vpraw="${esc(v)}"`;
+    if (m.kind === '맞음')
+      return `<td>${보임(v)}<button type="button" class="vpl"${raw} data-vpcand="[]" title="이어 둔 단품 · ${esc(m.vp.코드)}">연결</button></td>`;
+    const 후 = m.후보 ?? [];
+    return `<td>${보임(v)}<span class="vpx-t">${딱.없음}</span>${후.length ? '<span class="vpc-l">이름 일치</span>' : ''}${후.map((x) =>
+      `<button type="button" class="vpc"${raw} data-vpto="${esc(x.코드)}" title="${esc(x.이름)}">${보임(x.코드)}</button>`).join('')}<button type="button" class="vpc vpc-e"${raw} data-vpcand="${esc(JSON.stringify(후.map((x) => x.코드)))}">직접</button></td>`;
+  };
   const 몸칸 = (v, c, m, i) => {
     if (m?.kind === '맞음' && c === m.칸) return `<td>${단품단추(m.vp)}</td>`;
+    if (m && (m.kind === '없음' || m.이음) && c === 맞댐.칸.code) return 잇는칸(v, m);
     // 가격 칸(v0.99.0, js/match.js 가격칸) — 값은 아예 안 그리고 흐린 자리만. 복사해도 안 나옵니다.
     if (가림?.가릴(v, c, i)) return '<td class="num vv-blur" title="권한 있는 아이디만">000,000</td>';
     if (m && m.kind !== '맞음' && c === 맞댐.칸.code)
@@ -2498,6 +2520,68 @@ function 단품표읽기() {
   return 단품표읽는중;
 }
 let 상품표 = null;          // Promise<Map | null>
+
+/* ── 단품 연결 (v0.104.0) ─────────────────────────────
+   사장님 11-02 「내용보기에서 벤더피아와 코드일치가 되지 않아 벤더피아 없음으로 표기될경우 해당 상품명을 벤더피아연동 단품관리에서 검색하여
+   상품명이 일치하는경우 해당 단품코드를 보여주고 클릭/ 수정하여 연동이 가능하게 해줘」
+   저장 = `docs_config/단품연결` 한 건(firebase.js) — 서류 코드열쇠 → 벤더피아 단품코드. 모든 서류·차수·임시통합·단품관리가 같이 씁니다.
+   읽기 = 창이 열린 동안 한 번(못 읽어도 한 번). 쓰기 = 잇기·풀기 한 번씩 + 작업 기록. 데모는 메모리에만. */
+let 단품연결 = null;        // { ok, 링크: Map, why }
+let 연결읽는중 = null;
+function 단품연결읽기() {
+  if (단품연결) return Promise.resolve(단품연결);
+  if (state.demo) return Promise.resolve((단품연결 = { ok: true, 링크: new Map() }));
+  연결읽는중 ??= DB.단품연결읽기().then((r) => {
+    단품연결 = r.ok ? { ok: true, 링크: r.링크 } : { ok: false, why: `못 읽음 · ${r.why}`, 링크: new Map() };
+    연결읽는중 = null;
+    return 단품연결;
+  });
+  return 연결읽는중;
+}
+/** 잇기(vp 코드) · 풀기(빈칸). 목록에 없는 코드는 안 잇습니다. 되면 true. */
+async function 단품잇기(열쇠, vp) {
+  vp = String(vp ?? '').trim();
+  if (vp && !단품표?.사전?.has(코드열쇠(vp))) { 알림('목록에 없음'); return false; }
+  if (vp) vp = 단품표.사전.get(코드열쇠(vp)).코드;      // 목록 표기 그대로 저장
+  await 단품연결읽기();
+  if (!state.demo) {
+    try { await DB.단품연결쓰기(열쇠, vp, state.user?.email); }
+    catch (e) { 알림(`연결 저장 못 함 · ${e?.code || e?.message || ''}`); return false; }
+    기록(vp ? '단품 연결' : '단품 연결 풂', 열쇠, vp ? { vp } : null);
+  }
+  if (vp) 단품연결.링크.set(열쇠, vp); else 단품연결.링크.delete(열쇠);
+  return true;
+}
+function 알림(글) {
+  const 판 = vp창('연결', `<p class="vpl-msg">${esc(글)}</p>`, '', '');
+  판.querySelector('.vpm-foot').remove();
+}
+/** 고치는 창 — 단품코드 칸(후보·이은 것이 미리), 칠 때마다 목록에서 이름을 찾아 보이고, 잇기·풀기. */
+function 연결창(열쇠, 원래, 후보, 다시) {
+  const 이은 = 단품연결?.링크?.get(열쇠) ?? '';
+  const 판 = vp창(원래 || 열쇠, `
+      <dl><dt>서류 코드</dt><dd>${보임(원래 || 열쇠)}</dd></dl>
+      ${후보.length ? `<div class="vpl-cands"><span class="vpc-l">이름 일치</span>${후보.map((c) => `<button type="button" class="vpc" data-pick="${esc(c)}">${보임(c)}</button>`).join('')}</div>` : ''}
+      <label class="vpl-row"><span>단품코드</span><input class="vpl-in" autocomplete="off" spellcheck="false" value="${esc(이은 || 후보[0] || '')}"></label>
+      <p class="vpl-msg"></p>`, '', '');
+  const 발 = 판.querySelector('.vpm-foot');
+  발.innerHTML = `<div class="vpl-btns">${이은 ? '<button type="button" class="vpl-off">풀기</button>' : ''}<button type="button" class="vpl-ok">잇기</button></div>`;
+  const 칸 = 판.querySelector('.vpl-in'), 글 = 판.querySelector('.vpl-msg'), 잇 = 판.querySelector('.vpl-ok');
+  const 보기 = () => {
+    const v = 칸.value.trim();
+    const vp = v ? 단품표?.사전?.get(코드열쇠(v)) : null;
+    글.innerHTML = !v ? '' : vp ? `${보임(vp.이름 || vp.코드)}${양품딱지(vp.양품)}` : '<span class="vpx-t">목록에 없음</span>';
+    잇.disabled = !vp;
+  };
+  칸.oninput = 보기;
+  for (const b of 판.querySelectorAll('[data-pick]')) b.onclick = () => { 칸.value = b.dataset.pick; 보기(); 칸.focus(); };
+  잇.onclick = async () => { 잇.disabled = true; if (await 단품잇기(열쇠, 칸.value)) { 판.remove(); 다시?.(); } else 보기(); };
+  칸.onkeydown = (e) => { if (e.key === 'Enter' && !잇.disabled) 잇.onclick(); };
+  const 풀 = 판.querySelector('.vpl-off');
+  if (풀) 풀.onclick = async () => { 풀.disabled = true; if (await 단품잇기(열쇠, '')) { 판.remove(); 다시?.(); } else 풀.disabled = false; };
+  if (!단품표?.ok) { 글.textContent = '벤더피아 목록 없음'; 잇.disabled = true; } else 보기();
+  칸.focus();
+}
 
 /* 가격 보기 허락(v0.99.0) — 사장님 11-02 「…가격정보를 블러처리하여 나타나게 해주고 해당정보를 볼 수 있는 권한의 아이디만 볼 수 있다고 안내 해주세요.」
    허락 = 사장님 uid(아래) + `docs_config/가격보기` 의 emails·uids. 그 문서는 내용보기를 처음 열 때 한 번 읽습니다(읽기 +1).
@@ -2927,6 +3011,8 @@ window.docs단품 = (vendor) => {
     }
   }
   const 사전 = 벤더피아?.ok ? 벤더피아.사전 : null;
+  // 코드가 안 맞으면 이어 둔 연결(v0.104.0)로 — 사전과 같은 열쇠로 찾습니다.
+  const 이은열쇠 = (열쇠) => (사전?.has(열쇠) ? 열쇠 : 단품연결?.링크?.get(열쇠) ? 코드열쇠(단품연결.링크.get(열쇠)) : 열쇠);
   const codes = [...칸.entries()]
     .map(([열쇠, x]) => ({
       code: 머리꼴(x.꼴),
@@ -2935,8 +3021,8 @@ window.docs단품 = (vendor) => {
       밑줄꼴: x.꼴.size > 1 ? [...x.꼴.keys()] : null,
       // 벤더피아에서 찾은 단품명. 못 찾으면 비워 둡니다 — 지어내지 않습니다.
       // 저쪽 사전도 같은 열쇠로 지어져 있습니다(js/match.js 벤더피아사전).
-      vp: 사전?.get(열쇠) ?? '',
-      vpq: 벤더피아?.ok ? 벤더피아.양품.get(열쇠) : undefined,   // 양품수 — 재고조회에 없으면 undefined
+      vp: 사전?.get(이은열쇠(열쇠)) ?? '',
+      vpq: 벤더피아?.ok ? 벤더피아.양품.get(이은열쇠(열쇠)) : undefined,   // 양품수 — 재고조회에 없으면 undefined
       차수들: x.차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch))),
     }))
     .sort((a, z) => a.code.localeCompare(z.code));
@@ -3064,7 +3150,7 @@ let 벤더피아 = null;              // { ok, 사전: 코드열쇠 → 단품�
 
 window.벤더피아읽기 = async () => {
   if (벤더피아) return 벤더피아;                  // 창이 열려 있는 동안 한 번
-  const t = await 단품표읽기();
+  const [t] = await Promise.all([단품표읽기(), 단품연결읽기()]);
   벤더피아 = t.ok
     ? { ok: true, 사전: new Map([...t.사전].map(([k, v]) => [k, v.이름 || v.코드])), 양품: new Map([...t.사전].map(([k, v]) => [k, v.양품])), 단품수: t.사전.size, 양품없음: t.양품없음 }
     : { ok: false, why: t.why };
