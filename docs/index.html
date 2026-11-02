@@ -309,7 +309,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.91.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.92.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -337,7 +337,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.91.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.92.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -787,8 +787,8 @@
     // 벤더피아 — 읽혔으면 맞은 수를, 못 읽혔으면 한 줄만. 설명을 늘어놓지 않습니다.
     const vp = window.벤더피아본것?.();
     put('dit-vp', !vp ? ''
-      : vp.ok ? `벤더피아와 맞음 ${맞음 ?? 0} / 전체 ${codes.length} · 상품 ${vp.줄수}줄 · 단품 ${vp.단품수}가지`
-      : `벤더피아 자료를 못 읽습니다 — ${vp.why}`);
+      : vp.ok ? `벤더피아와 맞음 ${맞음 ?? 0} / 전체 ${codes.length} · 단품 ${vp.단품수}가지`
+      : `벤더피아 ${vp.why}`);
     if (!codes.length) { box.innerHTML = '<div class="dit-none">잔액서류에서 읽은 코드 없음</div>'; return; }
 
     const 값 = (이름, v) => (v === null || v === undefined || v === ''
@@ -3427,35 +3427,14 @@ async function 수량올리기(rows, 표) {
   }
 }
 
-/* ── 벤더피아 상품 ─────────────────────────────────────
-   벤더피아상품정리 앱이 적어 둔 자리를 **읽기만** 합니다. 한 글자도 안 씁니다.
-   ⚠ 그 자리의 화베 규칙은 사장님 계정만 들여보냅니다. 다른 계정이면 못 읽습니다 —
-     그때는 터뜨리지 않고 왜 못 읽었는지만 돌려줍니다. 화면이 그 한 줄을 적습니다.
-   ⚠ 열 때 한 번만 부릅니다. 코드마다 부르면 문서마다 돈이 듭니다. */
-const VP_상품 = 'vp_상품목록';
+/* ── 벤더피아 상품 (vp_상품목록) ─────────────────────────
+   v0.92.0 부터 안 읽습니다 — 단품관리도 `납품내역_단품목록`(아래)을 씁니다.
+   `vp_*` 는 화베 규칙이 사장님 uid 만 들여보내고, 10-03 엑셀로 한 번 올린 357줄뿐입니다.
+   벗기기는 시험이 쓰므로 남깁니다. */
 
 /** 벤더피아 문서 한 벌에서 **엑셀 한 줄**만 꺼냅니다. `fields` 가 없으면 그대로 돌려줍니다. */
 function 벤더피아줄벗기기(v) {
   return (v && typeof v.fields === 'object' && v.fields) ? v.fields : v;
-}
-
-async function 벤더피아상품() {
-  try {
-    const snap = await ctx.f.getDocs(col(VP_상품));
-    const rows = [];
-    /* ⚠⚠ **엑셀 한 줄은 `fields` 밑에 들어 있다. 벗겨서 내보내라.**
-          벤더피아상품정리가 담는 꼴이다(그 쪽 index.html 371줄) —
-            { fields: { 매출처명, 상품코드, 단품코드, 단품명, … },
-              source: '벤더피아 상품목록', fileName, updatedAt }
-          벗기지 않으면 `r.단품코드` 가 undefined 라 **사전이 통째로 빈다.**
-          화면은 「읽혔다」 고 하면서 「맞음 0 / 전체 N」 이 뜬다 — 읽기가 된 것처럼
-          보여서 더 나쁘다. 10-11 관리자가 진짜 문서 꼴로 재서 잡았다(단품 0가지).
-          ⚠ `fields` 가 없는 문서가 섞여 있어도 터지지 않게 그 줄은 그대로 쓴다. */
-    snap.forEach((d) => rows.push(벤더피아줄벗기기(d.data())));
-    return { ok: true, rows };
-  } catch (e) {
-    return { ok: false, why: e?.code || e?.message || '못 읽음' };
-  }
 }
 
 /* ── 벤더피아 단품 목록 · 상품 연결 (내용보기 단품 단추, v0.87.0) ──────
@@ -3484,11 +3463,11 @@ function watchQuotes(cb) {
   return ctx.f.onSnapshot(col(QUOTES), (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => cb([]));
 }
 
-return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, VP_상품, authMessage, fileKey, idToken, init, overlayKey, replaceFiles, saveCipl, saveKinds, saveLoading, saveOverlay, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOverlay, watchQuotes, watchRules, 벤더피아단품목록, 벤더피아상품, 벤더피아상품목록, 벤더피아줄벗기기, 수량열쇠, 수량올리기, 수량칸 };
+return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, authMessage, fileKey, idToken, init, overlayKey, replaceFiles, saveCipl, saveKinds, saveLoading, saveOverlay, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOverlay, watchQuotes, watchRules, 벤더피아단품목록, 벤더피아상품목록, 벤더피아줄벗기기, 수량열쇠, 수량올리기, 수량칸 };
 })();
 const { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath } = PARSE;
 const { progressWord } = PROGRESS;
-const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기 } = MATCH;
+const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기 } = MATCH;
 
 
 
@@ -5828,7 +5807,7 @@ function 단품표읽기() {
   if (단품표) return Promise.resolve(단품표);
   단품표읽는중 ??= DB.벤더피아단품목록().then((r) => {
     const 사전 = r.ok ? 벤더피아단품사전(r.문서들) : null;
-    단품표 = !r.ok ? { ok: false, why: '못 읽음' }
+    단품표 = !r.ok ? { ok: false, why: `못 읽음 · ${r.why}` }
       : 사전.size < 100 ? { ok: false, why: `목록 ${사전.size}개` } : { ok: true, 사전 };
     단품표읽는중 = null;
     return 단품표;
@@ -6342,22 +6321,20 @@ async function 수량한번(vendor) {
 
 /* ── 벤더피아 단품명 ───────────────────────────────────
    단품관리를 열 때 **한 번만** 읽습니다. 코드마다 읽으면 문서마다 돈이 듭니다.
-   ⚠ 읽기만 합니다. vp_상품목록 에 한 글자도 안 씁니다.
+   ⚠ 내용보기 단품 단추와 **같은 목록**(`납품내역_단품목록`, 단품표읽기)을 씁니다 — 창이 열린 동안 둘이 합쳐 한 번.
+     예전엔 `vp_상품목록` 을 읽었는데, 그건 10-03 엑셀로 한 번 올린 357줄(단품 213가지)뿐이고
+     화베 규칙이 사장님 uid 만 들여보내 다른 계정이면 permission-denied 였습니다(v0.92.0, 11-02).
    ⚠ 못 읽어도 단품관리는 그대로 떠야 합니다 — 여기서 터지면 안 됩니다.
    읽은 결과는 화면이 그대로 적습니다(맞음 N / 전체 M). 숨기지 않습니다. */
-let 벤더피아 = null;              // { ok, 사전, 줄수, 단품수, why }
-let 벤더피아읽는중 = null;        // 겹쳐 불려도 한 번만 읽습니다
+let 벤더피아 = null;              // { ok, 사전: 코드열쇠 → 단품명, 단품수, why }
 
 window.벤더피아읽기 = async () => {
   if (벤더피아) return 벤더피아;                  // 창이 열려 있는 동안 한 번
-  벤더피아읽는중 ??= DB.벤더피아상품().then((r) => {
-    벤더피아 = r.ok
-      ? { ok: true, ...벤더피아사전(r.rows) }
-      : { ok: false, why: r.why };
-    벤더피아읽는중 = null;
-    return 벤더피아;
-  });
-  return 벤더피아읽는중;
+  const t = await 단품표읽기();
+  벤더피아 = t.ok
+    ? { ok: true, 사전: new Map([...t.사전].map(([k, v]) => [k, v.이름 || v.코드])), 단품수: t.사전.size }
+    : { ok: false, why: t.why };
+  return 벤더피아;
 };
 window.벤더피아본것 = () => 벤더피아;
 

@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -2338,7 +2338,7 @@ function 단품표읽기() {
   if (단품표) return Promise.resolve(단품표);
   단품표읽는중 ??= DB.벤더피아단품목록().then((r) => {
     const 사전 = r.ok ? 벤더피아단품사전(r.문서들) : null;
-    단품표 = !r.ok ? { ok: false, why: '못 읽음' }
+    단품표 = !r.ok ? { ok: false, why: `못 읽음 · ${r.why}` }
       : 사전.size < 100 ? { ok: false, why: `목록 ${사전.size}개` } : { ok: true, 사전 };
     단품표읽는중 = null;
     return 단품표;
@@ -2852,22 +2852,20 @@ async function 수량한번(vendor) {
 
 /* ── 벤더피아 단품명 ───────────────────────────────────
    단품관리를 열 때 **한 번만** 읽습니다. 코드마다 읽으면 문서마다 돈이 듭니다.
-   ⚠ 읽기만 합니다. vp_상품목록 에 한 글자도 안 씁니다.
+   ⚠ 내용보기 단품 단추와 **같은 목록**(`납품내역_단품목록`, 단품표읽기)을 씁니다 — 창이 열린 동안 둘이 합쳐 한 번.
+     예전엔 `vp_상품목록` 을 읽었는데, 그건 10-03 엑셀로 한 번 올린 357줄(단품 213가지)뿐이고
+     화베 규칙이 사장님 uid 만 들여보내 다른 계정이면 permission-denied 였습니다(v0.92.0, 11-02).
    ⚠ 못 읽어도 단품관리는 그대로 떠야 합니다 — 여기서 터지면 안 됩니다.
    읽은 결과는 화면이 그대로 적습니다(맞음 N / 전체 M). 숨기지 않습니다. */
-let 벤더피아 = null;              // { ok, 사전, 줄수, 단품수, why }
-let 벤더피아읽는중 = null;        // 겹쳐 불려도 한 번만 읽습니다
+let 벤더피아 = null;              // { ok, 사전: 코드열쇠 → 단품명, 단품수, why }
 
 window.벤더피아읽기 = async () => {
   if (벤더피아) return 벤더피아;                  // 창이 열려 있는 동안 한 번
-  벤더피아읽는중 ??= DB.벤더피아상품().then((r) => {
-    벤더피아 = r.ok
-      ? { ok: true, ...벤더피아사전(r.rows) }
-      : { ok: false, why: r.why };
-    벤더피아읽는중 = null;
-    return 벤더피아;
-  });
-  return 벤더피아읽는중;
+  const t = await 단품표읽기();
+  벤더피아 = t.ok
+    ? { ok: true, 사전: new Map([...t.사전].map(([k, v]) => [k, v.이름 || v.코드])), 단품수: t.사전.size }
+    : { ok: false, why: t.why };
+  return 벤더피아;
 };
 window.벤더피아본것 = () => 벤더피아;
 

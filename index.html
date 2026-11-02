@@ -307,7 +307,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.91.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.92.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -335,7 +335,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.91.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.92.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -785,8 +785,8 @@
     // 벤더피아 — 읽혔으면 맞은 수를, 못 읽혔으면 한 줄만. 설명을 늘어놓지 않습니다.
     const vp = window.벤더피아본것?.();
     put('dit-vp', !vp ? ''
-      : vp.ok ? `벤더피아와 맞음 ${맞음 ?? 0} / 전체 ${codes.length} · 상품 ${vp.줄수}줄 · 단품 ${vp.단품수}가지`
-      : `벤더피아 자료를 못 읽습니다 — ${vp.why}`);
+      : vp.ok ? `벤더피아와 맞음 ${맞음 ?? 0} / 전체 ${codes.length} · 단품 ${vp.단품수}가지`
+      : `벤더피아 ${vp.why}`);
     if (!codes.length) { box.innerHTML = '<div class="dit-none">잔액서류에서 읽은 코드 없음</div>'; return; }
 
     const 값 = (이름, v) => (v === null || v === undefined || v === ''
