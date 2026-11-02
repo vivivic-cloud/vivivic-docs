@@ -1553,14 +1553,14 @@ function renderDrawer(id) {
      달력 하나뿐입니다. 달력에서 날을 고르고 '확인' 을 누르면 그때 정해지고,
      아무 때나 다시 열어 다른 날로 바꾸거나 비울 수 있습니다.
      칸이 곧 고른 날을 보여 주므로 따로 풀어 쓰지 않습니다. */
-  // 칸마다 「올리기」 「불러오기」(드라이브에서) — 그 차수 폴더를 못 찾으면 안 띄웁니다(11-01).
+  // 칸마다 「올리기」 — 그 차수 폴더를 못 찾으면 안 띄웁니다(11-01).
   const 폴더 = 차수폴더(b);
   const 알약 = (attr, key, 글, 뜻) => `
                 <button type="button" ${attr}="${key}" title="${뜻}"
                         class="min-h-[44px] -my-3 px-0.5 shrink-0 flex items-center justify-center">
                   <span class="text-[11px] font-bold px-2 py-1 rounded-md border bg-white text-faint border-line">${글}</span>
                 </button>`;
-  const 서랍단추 = (key) => (폴더 ? 알약('data-up', key, '올리기', '이 칸에 올리기') + 알약('data-pull', key, '불러오기', '드라이브에서 불러오기') : '');
+  const 서랍단추 = (key) => (폴더 ? 알약('data-up', key, '올리기', '이 칸에 올리기') : '');
   // 잔액서류·발주서 칸의 「내용보기」 — 둘 다 openCiplView 로 같은 팝업을 엽니다.
   const 내용보기단추 = (id) => `
               <div class="pl-[42px] pr-3 pb-2">
@@ -2023,7 +2023,6 @@ function renderDrawer(id) {
   }
   const 칸이름 = (key) => [...b.stages, ...(b.sub ?? [])].find((x) => x.key === key)?.label ?? key;
   for (const el of $('#drawerBody').querySelectorAll('[data-up]')) el.onclick = () => 서랍올리기(b, 폴더, el.dataset.up, 칸이름(el.dataset.up));
-  for (const el of $('#drawerBody').querySelectorAll('[data-pull]')) el.onclick = () => 서랍불러오기(b, 폴더, el.dataset.pull, 칸이름(el.dataset.pull));
   const ciplView = $('#ciplView');
   if (ciplView) ciplView.onclick = () => openCiplView();
   const orderView = $('#orderView');
@@ -2487,9 +2486,10 @@ window.docs견적고르기 = () => {
   찾기();
 };
 
-/* ── 차수 서랍: 올리기 · 드라이브에서 불러오기 (11-01 사장님) ──────────
+/* ── 차수 서랍: 올리기 (11-01 사장님) ──────────
    「차수별 상세에서 각 파일을 구글 드라이브에서 불러오는 방식과 직접 업로드 하면 해당 폴더에 저장되게」 → 「둘 다 맡기기」.
-   드라이브에 넣고 옮기는 것은 웹앱(sync.gs 서랍_)이 합니다 — 견적서 관리와 같은 자물쇠(shareAllow·fbKey + 로그인).
+   「드라이브에서 불러오기」(차수 밖 파일 옮기기)는 11-02 지웠습니다 — 「그럼 궂이 없어도 되는 버튼 같아」.
+   드라이브에 넣는 것은 웹앱(sync.gs 서랍_)이 합니다 — 견적서 관리와 같은 자물쇠(shareAllow·fbKey + 로그인).
    이름은 parse.js 올릴이름 — 그 칸·그 차수로 읽히게 모자란 낱말만 앞에 붙입니다. 붙여도 안 되면 길 규칙(직접 지정).
    서버가 docs_files 를 곧장 써서, 듣고 있던 목록에 저절로 뜹니다(sync 안 부름). */
 const 서랍최대 = 30 * 1024 * 1024;    // sync.gs 서랍최대_ 와 같게
@@ -2560,47 +2560,6 @@ function 서랍올리기(b, 폴더, key, 칸) {
     if (된) toast(`올림 ${된}건`);
   };
   고르개.click();
-}
-
-/* 「드라이브에서 불러오기」 — 그 거래처 폴더 안 차수 폴더 밖(분류전 등) 파일을 이 차수 폴더로 옮깁니다. 복사·지우기 없음. */
-async function 서랍불러오기(b, 폴더, key, 칸) {
-  if (state.demo) return toast('데모 · 저장 안 됨');
-  const 머리 = '드라이브에서 불러오기';
-  견적팝업(머리, `${b.vendor} ${b.batch}차 · ${칸}`, `
-          <input id="mvQ" type="search" class="field w-full mb-3" placeholder="파일 이름" />
-          <div id="mvList" class="flex flex-col gap-2"><div class="dpr-none">찾는 중</div></div>`);
-  const r = await 견적묻기({ 일: '옮길목록', path: 폴더 });
-  if ($('#diffView').hidden || !$('#mvList')) return;
-  if (!r?.ok) { if (r?.why === 'off') 서랍켜짐 = false; $('#mvList').innerHTML = `<div class="dpr-none">${esc(서랍탈[r?.why] ?? '실패')}</div>`; return; }
-  서랍켜짐 = true;
-  const 그리기 = () => {
-    const q = ($('#mvQ')?.value ?? '').trim().toLowerCase();
-    const 고른 = r.files.filter((f) => !q || `${f.name} ${f.dir}`.toLowerCase().includes(q)).slice(0, 200);
-    $('#mvList').innerHTML = 고른.map((f) => `
-            <div class="dhh-dbox w-full">
-              <span class="dnm break-words">${esc(f.name)}</span>
-              <div class="flex items-center gap-2">
-                <span class="dmt min-w-0 flex-1">${esc([f.dir, f.modified].join(' · '))}</span>
-                <button type="button" data-mv="${esc(f.id)}"
-                        class="min-h-[44px] min-w-[44px] -my-3 px-1 shrink-0 flex items-center justify-center">
-                  <span class="text-[11px] font-bold px-2 py-1 rounded-md border bg-white text-ink border-line">옮기기</span>
-                </button>
-              </div>
-            </div>`).join('') || '<div class="dpr-none">파일 없음</div>';
-    for (const btn of $('#mvList').querySelectorAll('[data-mv]')) btn.onclick = () => 옮기기(r.files.find((f) => f.id === btn.dataset.mv));
-  };
-  const 옮기기 = async (f) => {
-    견적팝업(머리, f.name, '<div class="dpr-none">옮기는 중</div>');
-    const 이름 = 올릴이름(f.name, key, b.batch);
-    const m = await 견적묻기({ 일: '옮기기', path: 폴더, sub: 서랍하위(key), driveId: f.id, name: 이름.name }, 360_000);
-    if (!m?.ok) return 서랍못함(머리, f.name, m?.why);
-    if (이름.rule) await 서랍규칙(m.path, key, b.batch);
-    $('#diffView').hidden = true;
-    document.documentElement.removeAttribute('data-docsdiff');
-    toast(`옮김 · ${m.name}`);
-  };
-  $('#mvQ').oninput = 그리기;
-  그리기();
 }
 
 /* 화면에서 한 번 더 거릅니다.

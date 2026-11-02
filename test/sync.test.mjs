@@ -251,7 +251,7 @@ test('밖지우기_ — 다른 거래처 overlay·rules·단품수량·boxes·qu
   assert.deepEqual(박스쓰기.update.fields.list.arrayValue.values.map((x) => x.mapValue.fields.vendor.stringValue), ['제헤우드']);
 });
 
-/* 차수 서랍 올리기·옮기기(11-01) — DriveApp·Firestore 는 가짜. */
+/* 차수 서랍 올리기(11-01) — DriveApp·Firestore 는 가짜. */
 function 가짜서랍({ props = { shareAllow: 'a@b.c', fbKey: 'k' } } = {}) {
   const ctx = vm.createContext({ console: { log() {}, error() {} } });
   vm.runInContext(readFileSync(new URL('../appsscript/sync.gs', import.meta.url), 'utf8'), ctx);
@@ -291,12 +291,12 @@ function 가짜서랍({ props = { shareAllow: 'a@b.c', fbKey: 'k' } } = {}) {
   ctx.commit_ = (w) => 쓰기.push(...w);
   ctx.orderCipl_ = () => ({ mapValue: { fields: {} } });
   ctx.ciplValue_ = () => ({ mapValue: { fields: {} } });
-  return { ctx, 쓰기, 불림, 차, 다른차, 분류전, 파일 };
+  return { ctx, 쓰기, 불림, 차 };
 }
 
 test('서랍 — 자물쇠: shareAllow·fbKey 가 비면 꺼짐, 확인은 로그인 확인 없이', () => {
   const 꺼짐 = 가짜서랍({ props: { shareAllow: 'a@b.c' } });
-  assert.equal(꺼짐.ctx.서랍_({ 일: '옮길목록' }).why, 'off');
+  assert.equal(꺼짐.ctx.서랍_({ 일: '올리기' }).why, 'off');
   const 켜짐 = 가짜서랍();
   assert.equal(켜짐.ctx.서랍_({ 일: '서랍확인' }).ok, true);
   assert.equal(켜짐.불림.표확인, 0);
@@ -323,22 +323,4 @@ test('서랍 — 올리기: 같은 이름은 (2), docs_files 기본 칸 + 기록
   assert.equal(쓰기[0].update.fields.md5.stringValue, 'm');
   assert.ok(쓰기[1].update.name.includes('docs_moves/'));
   assert.equal(쓰기[1].update.fields['일'].stringValue, '올림');
-});
-
-test('서랍 — 옮기기: 차수 폴더 밖에서만, 옛 문서는 지우고 기록에 어디서', () => {
-  const { ctx, 쓰기, 차, 다른차, 분류전, 파일 } = 가짜서랍();
-  const 밖 = new 파일('26-14 CI&PL.pdf', 분류전);
-  const 안 = new 파일('a.pdf', 다른차);
-  assert.equal(ctx.서랍_({ 일: '옮기기', path: '제헤우드/Zh-26-29', driveId: 안.id }).why, 'out');
-  const 목록 = ctx.서랍_({ 일: '옮길목록', path: '제헤우드/Zh-26-29' });
-  assert.deepEqual([...목록.files.map((f) => f.name)], ['26-14 CI&PL.pdf']);
-  const r = ctx.서랍_({ 일: '옮기기', path: '제헤우드/Zh-26-29', driveId: 밖.id, name: '26-29차_26-14 CI&PL.pdf' });
-  assert.equal(r.ok, true);
-  assert.equal(밖.parent, 차);
-  assert.equal(밖.name, '26-29차_26-14 CI&PL.pdf');
-  assert.ok(쓰기.some((w) => w.delete?.endsWith('docs_files/제헤우드~분류전~26-14 CI&PL.pdf')));
-  const 기록 = 쓰기.find((w) => w.update?.name.includes('docs_moves/')).update.fields;
-  assert.equal(기록.from.stringValue, '제헤우드/분류전/26-14 CI&PL.pdf');
-  assert.equal(기록.oldName.stringValue, '26-14 CI&PL.pdf');
-  assert.equal(기록.fromId.stringValue, 분류전.id);
 });
