@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath } from './parse.js';
+import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기 } from './match.js';
 import * as FS from './fsaccess.js';
@@ -23,6 +23,7 @@ const state = {
   ciplBusy: new Set(),
   viewer: { list: [], idx: 0 },
   unsub: [],
+  임시차수: [],         // 임시통합 — 연 구매사명의 차수(벤더피아 구매발주목록). 드라이브 차수와 따로 둡니다
   캐시: { files: true, rules: true, kinds: true },   // 아직 서버 값을 못 봤으면 true — 그동안은 안 씁니다
 };
 
@@ -39,6 +40,9 @@ const 진행알약 = (b) => {
   return 말 ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-ink text-white shrink-0">${말}</span>` : '';
 };
 
+/* 차수 목록·서랍이 보는 차수 — 드라이브 차수 + 임시통합에서 연 차수. 셈(거래처 박스·제품관리·수량 건네기)은 state.batches 만 봅니다. */
+const 모든차수 = () => (state.임시차수.length ? [...state.batches, ...state.임시차수] : state.batches);
+const 차수이름 = (b) => b.제목 ?? `${b.batch}차`;
 const fmtSize = (b) => (b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(1)} MB`);
 
 /* ── 부팅 ─────────────────────────────────────────────── */
@@ -171,6 +175,7 @@ async function loadDemo() {
   state.demo = true;
   state.files = data.files;
   state.overlay = data.overlay ?? {};
+  state.데모임시 = data.임시 ?? null;
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#userEmail').textContent = '데모';
@@ -292,8 +297,9 @@ async function syncFromFolder() {
 function visible() {
   const { vendor, status, q } = state.filter;
   const needle = q.toLowerCase();
-  return state.batches.filter((b) => {
+  return 모든차수().filter((b) => {
     if (vendor && b.vendor !== vendor) return false;
+    if (!vendor && b.임시) return false;
     if (status === 'issue' && !b.issues.length) return false;
     if (status && status !== 'issue' && b.status !== status) return false;
     if (needle) {
@@ -466,7 +472,7 @@ function renderGrid() {
         <div class="flex items-start justify-between gap-3 mb-2">
           <div>
             <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
-            <div class="text-[16px] font-bold leading-tight">${esc(b.batch)}차</div>
+            <div class="text-[16px] font-bold leading-tight">${esc(차수이름(b))}</div>
           </div>
           <div class="text-right shrink-0">
             <div class="text-[15px] font-bold leading-tight">${b.done}<span class="text-faint text-[12px]">/7</span></div>
@@ -476,7 +482,7 @@ function renderGrid() {
         <div class="flex items-center gap-2 flex-wrap text-[11px] font-semibold">
           ${진행알약(b)}
           ${b.lastDate ? `<span class="text-faint">최근 ${esc(b.lastDate)}</span>` : ''}
-          <span class="text-faint">서류 ${b.docs.length}건</span>
+          <span class="text-faint">${b.임시 ? 'PO' : '서류'} ${b.docs.length}건</span>
           ${warn ? `<span class="text-warn">이상 ${warn}</span>` : ''}
           ${info ? `<span class="text-faint">중복 ${info}</span>` : ''}
         </div>
@@ -1222,7 +1228,7 @@ async function setConfirmedOrder(batchId, path) {
 function openDrawer(id) {
   state.openId = id;
   renderDrawer(id);
-  const b = state.batches.find((x) => x.id === id);
+  const b = state.batches.find((x) => x.id === id);   // 임시통합 차수는 읽을 파일이 없어 안 찾습니다
   if (b) loadCipl(b);
   $('#scrim').hidden = false;
   requestAnimationFrame(() => $('#drawer').classList.remove('translate-x-full'));
@@ -1239,7 +1245,7 @@ function closeDrawer() {
 const 수정전펴둔 = new Set();
 
 function renderDrawer(id) {
-  const b = state.batches.find((x) => x.id === id);
+  const b = 모든차수().find((x) => x.id === id);
   if (!b) return closeDrawer();
   const ov = state.overlay[id] ?? {};
   const auto = ciplOfBatch(b) ?? ov.cipl ?? null;
@@ -1539,7 +1545,7 @@ function renderDrawer(id) {
         <div class="flex items-center justify-between gap-3 mb-4">
           <div class="min-w-0">
             <div class="text-[11px] font-bold text-faint tracking-wide">${esc(칸?.label ?? '')}</div>
-            <div class="text-[16px] font-bold leading-tight break-words">${esc(b.vendor)} ${esc(b.batch)}차</div>
+            <div class="text-[16px] font-bold leading-tight break-words">${esc(b.vendor)} ${esc(차수이름(b))}</div>
           </div>
           <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px] ml-auto">닫기</button>
         </div>
@@ -1618,7 +1624,24 @@ function renderDrawer(id) {
 
   /* 여러 장 중 하나를 확정하면 칸에는 확정 발주서만 — 나머지는 「수정전 발주서 보기 (n)」 를 눌러야 펴집니다
      (사장님 11-02). 단품관리 .dit-code 와 같은 꼴: 손가락으로 눌러 펴고, :hover 안 씀. */
+  /* 임시통합 — 서류 대신 PO 한 건이 한 줄. 드라이브 파일이 아니라 열기·보내기·확정이 없습니다. */
+  const 임시PO칸 = (docs) => `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${docs.map((d) => {
+    const p = d.임시;
+    return `
+    <li class="dhh-dbox">
+      <div class="flex items-start gap-2">
+        <span class="dnm text-left break-words">${esc(d.display)}</span>
+        ${p.구분 ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-chip text-muted shrink-0 mt-px ml-auto">${esc(p.구분)}</span>` : ''}
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="dmt min-w-0 flex-1">${esc([p.발주일, `${p.줄수}줄`, p.금액 ? `${fmtNum(p.금액)}원` : ''].filter(Boolean).join(' · '))}</span>
+        <span class="text-[11px] font-bold ${p.입고 ? 'text-ok' : 'text-faint'} shrink-0">${p.입고 ? '입고' : '미입고'}</span>
+      </div>
+    </li>`;
+  }).join('')}</ul>`;
+
   const 발주서칸 = (docs) => {
+    if (b.임시) return 임시PO칸(docs);
     const 줄 = (ds, 틀 = 'pl-[42px] pr-3 pb-2') => `<ul class="${틀} space-y-1.5">${ds.map((d) => docLink(d)).join('')}</ul>`;
     diffs = diffNotes(docs);
     if (docs.length < 2 || !확정발주서 || 고르셔야하나) return 줄(docs);
@@ -1922,7 +1945,7 @@ function renderDrawer(id) {
     <div class="sticky top-0 bg-white border-b border-line px-6 h-[65px] flex items-center gap-3 z-10">
       <div class="min-w-0">
         <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
-        <div class="text-[17px] font-bold leading-tight">${esc(b.batch)}차</div>
+        <div class="text-[17px] font-bold leading-tight">${esc(차수이름(b))}</div>
         <div class="flex items-center gap-[3px] mt-1">${stageDots(b)}</div>
       </div>
       <div class="ml-auto flex items-center gap-2">
@@ -1978,8 +2001,8 @@ function renderDrawer(id) {
                 ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
                 : s.key === 'order' ? 발주서칸(s.docs)
                 : `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${((diffs = diffNotes(s.docs)), s.docs.map((d) => docLink(d)).join(''))}</ul>`}
-              ${s.key === 'order' && s.docs.some((d) => /\.pdf$/i.test(d.name)) ? 내용보기단추('orderView') : ''}
-              ${s.key === 'order' ? 상차일칸() : ''}
+              ${s.key === 'order' && (b.임시 ? on : s.docs.some((d) => /\.pdf$/i.test(d.name))) ? 내용보기단추('orderView') : ''}
+              ${s.key === 'order' && !b.임시 ? 상차일칸() : ''}
               ${s.key === 'cipl' && on ? 내용보기단추('ciplView') : ''}
               ${s.key === 'cipl' && on ? 발주대조칸() : ''}
             </li>`;
@@ -1997,9 +2020,9 @@ function renderDrawer(id) {
             </div>`).join('')}
         </section>` : ''}
 
-      ${shipSummary(b, ov)}
+      ${b.임시 ? '' : shipSummary(b, ov)}
 
-      <section>
+      ${b.임시 ? '' : `<section>
         <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">직접 입력</h3>
         <div class="grid grid-cols-2 gap-3">
           ${field('piAmount', '계약 총액 (PI)', { placeholder: 'USD' })}
@@ -2026,11 +2049,12 @@ function renderDrawer(id) {
               : ''}
           </span>
         </div>
-      </section>
+      </section>`}
     </div>`;
 
   $('#drawerClose').onclick = closeDrawer;
-  $('#ovSave').onclick = () => saveOverlay(id);
+  const ovSave = $('#ovSave');
+  if (ovSave) ovSave.onclick = () => saveOverlay(id);
   const connect = $('#ciplConnect');
   if (connect)
     connect.onclick = () =>
@@ -2264,8 +2288,8 @@ window.docsVendorBoxes = (vendor) => {
   const 남은것 = mine.filter((d) => !담김.has(d.path));
   return {
     vendor,
-    batches: state.batches.filter((b) => b.vendor === vendor).length,
-    active: state.batches.filter((b) => b.vendor === vendor && b.status === 'active').length,
+    batches: 모든차수().filter((b) => b.vendor === vendor).length,
+    active: 모든차수().filter((b) => b.vendor === vendor && b.status === 'active').length,
     dev: 남은것.filter(isDevDoc).map(slimDoc),
     unsure: 남은것.filter((d) => !isDevDoc(d)).map(slimDoc),
     mine: mine2,
@@ -2884,6 +2908,48 @@ window.docsCounts = () => ({
   // 올린날이 아직 안 올라와 mtime 으로 갈음한 건수
   올린날갈음: state.files.filter((f) => !f.ctime && f.mtime).length,
 });
+
+/* ── 임시통합 — 벤더피아 구매발주목록 (v0.97.0, 11-02) ──────────────
+   사장님 11-02 「메인페이지에 임시통합 박스를 만들어서 분석 서류의 구매사명 기준으로 박스만들어 주고
+   해당박스클릭시 제헤우드 박스와 동일하게 작동하게 해줘 … 26년 차수별 발주 박스만들어줘
+   이 자료는 실제 수입서류 없으니 해당 발주내용을 내용보기에 넣어 정리해줘 단품코드 벤더피아와 일치시 현재 논리에 따라 표기해주고」
+   자료는 Firestore docs_임시발주(서버 sync.gs 임시발주_) — 공개 저장소·Pages 에는 안 둡니다.
+   읽기: 임시통합을 열 때 `_목록` 한 번, 구매사명을 열 때 그 문서 한 번(창이 열린 동안). 데모는 DEMO.임시.
+   차수는 parse.js 임시발주묶기. 차수 하나 = 거래처 차수와 같은 summarize 꼴(발주서 칸에 PO 마다 한 줄, 표는 cipl.sheets) —
+   차수 목록·서랍·내용보기·벤더피아 맞대기를 그대로 씁니다. 드라이브 일(올리기·발주하기)은 폴더가 없어 안 뜹니다. */
+let 임시목록 = null;                // Promise<{ ok, 사명들, why }>
+const 임시문서 = new Map();          // 구매사명 id → Promise<{ ok, 값, why }>
+const 데모임시 = () => state.데모임시;
+
+window.docs임시목록 = () => (임시목록 ??= (async () => {
+  const r = state.demo ? { ok: !!데모임시(), 값: 데모임시()?.목록 } : await DB.임시읽기('_목록');
+  if (!r.ok) { 임시목록 = null; return { ok: false, why: r.why ?? '없음' }; }
+  const 사명들 = (r.값.사명들 ?? []).map((m) => {
+    const 차수들 = 임시발주묶기(m.name, (m.po ?? []).map((x) => { const [po, 이름, 날] = x.c ?? x; return [po, 이름, '', '', 날]; }));
+    return { id: m.id, name: m.name, 구분: m.구분 ?? [], 줄: m.줄 ?? 0, po: (m.po ?? []).length, 차수: 차수들.length };
+  });
+  return { ok: true, 사명들, at: r.값.at ?? '' };
+})());
+window.docs임시본것 = () => 임시목록;
+window.docs임시인가 = (vendor) => state.임시차수.some((b) => b.vendor === vendor);
+
+/** 구매사명 하나를 엽니다 — 그 문서를 읽어 차수로 묶어 state.임시차수 에 얹습니다. */
+window.docs임시열기 = async (m) => {
+  if (!임시문서.has(m.id)) 임시문서.set(m.id, state.demo
+    ? Promise.resolve({ ok: true, 값: 데모임시()?.사명[m.id] })
+    : DB.임시읽기(m.id));
+  const r = await 임시문서.get(m.id);
+  if (!r.ok || !r.값) { 임시문서.delete(m.id); return { ok: false, why: r.why ?? '없음' }; }
+  const 차수들 = 임시발주묶기(m.name, r.값.rows ?? []).map((g) => {
+    const docs = g.pos.map((p) => ({
+      path: `임시/${m.id}/${p.po}`, name: `PO ${p.po}`, display: `PO ${p.po} · ${p.이름}`,
+      vendor: m.name, stageKey: 'order', date: p.발주일, 임시: p, cipl: { sheets: [g.표] },
+    }));
+    return { ...summarize({ id: g.id, vendor: m.name, batch: g.batch, year: 0, no: 0, docs }), 제목: g.제목, 임시: true };
+  });
+  state.임시차수 = [...state.임시차수.filter((b) => b.vendor !== m.name), ...차수들];
+  return { ok: true, 차수: 차수들.length };
+};
 
 /* ── 토스트 ───────────────────────────────────────────── */
 

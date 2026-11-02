@@ -55,7 +55,7 @@
      색 토큰·타일·알약을 그대로 가져왔고 새로 만든 색은 없습니다.
      이름은 전부 dhh- 로 시작합니다 — 짧은 이름은 텔윈드와 겹칩니다.
      이 블록과 #docs-home / #docs-back 두 덩어리만 빼면 그대로 되돌아갑니다. */
-  #docs-home, #docs-vendor, #docs-files, #docs-kinds, #docs-items, #docs-prod, #docs-quote{
+  #docs-home, #docs-vendor, #docs-files, #docs-kinds, #docs-items, #docs-prod, #docs-quote, #docs-temp{
     --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19;
     --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-fill:#F4F4F2; --vg-red:#FF3B30;
     position:fixed; left:0; right:0; bottom:0; z-index:8000;
@@ -71,6 +71,7 @@
   html[data-docsitems="1"]  #docs-items{ display:block; }
   html[data-docsprod="1"]   #docs-prod{ display:block; }
   html[data-docsquote="1"]  #docs-quote{ display:block; }
+  html[data-docstemp="1"]   #docs-temp{ display:block; }
   /* 견적서 관리에서 여는 팝업(#diffView)은 판 위로 */
   html[data-docsquote="1"]  #diffView{ z-index:8250; }
 
@@ -223,6 +224,11 @@
     border-radius:50%; background:var(--vg-red); box-shadow:0 0 0 3px var(--vg-ink); }
 
   .dhh-board .dhh-list{ display:flex; flex-direction:column; gap:9px; }
+  /* 임시통합 구매사명 박스의 내자·외자 딱지 — 작게, 오른쪽 위 */
+  .dhh-board .dhh-tag{ position:absolute; right:13px; top:13px; font-size:10.5px; font-weight:700;
+    padding:2px 7px; border-radius:999px; background:rgba(0,0,0,.06); color:var(--vg-muted); }
+  .dhh-board .dhh-tile.dhh-dark .dhh-tag{ background:rgba(255,255,255,.14); color:rgba(255,255,255,.7); }
+  .dhh-board .dhh-tile .dhh-nm.dhh-nm-s{ font-size:16px; word-break:keep-all; overflow-wrap:anywhere; }
   .dhh-board .dhh-row{ display:flex; align-items:center; gap:12px; background:var(--vg-fill);
     border-radius:999px; padding:8px 16px 8px 8px; border:0; width:100%; cursor:pointer;
     color:inherit; font:inherit; transition:transform .12s; }
@@ -269,14 +275,16 @@
   html[data-docskinds="1"] #docs-back,
   html[data-docsfiles="1"] #docs-back,
   html[data-docsitems="1"] #docs-back,
-  html[data-docsprod="1"] #docs-back{ display:block; }
+  html[data-docsprod="1"] #docs-back,
+  html[data-docstemp="1"] #docs-back{ display:block; }
   #docs-back button{ pointer-events:auto; background:#fff; border:1px solid #E2E2DF;
     border-radius:999px; padding:10px 18px; font-size:13px; font-weight:700; color:#111110;
     box-shadow:0 8px 22px -14px rgba(0,0,0,.5); cursor:pointer; }
   #docs-back button:active{ background:#F4F4F2; }
   html[data-docsvendor="1"] .dhh-wrap,
   html[data-docskinds="1"]  .dhh-wrap,
-  html[data-docsfiles="1"]  .dhh-wrap{ padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+  html[data-docsfiles="1"]  .dhh-wrap,
+  html[data-docstemp="1"]   .dhh-wrap{ padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
 
   /* ── 박스 안 — 그 박스가 맡은 구역만 남깁니다.
         숨기는 것이지 지우는 것이 아닙니다. 요소는 전부 그대로 있습니다.
@@ -307,7 +315,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.96.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.97.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -335,7 +343,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.96.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.97.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -392,6 +400,18 @@
       <span class="dhh-role">거래처</span>
     </div>
     <div class="dhh-tiles" id="dvn-tiles"></div>
+    <p class="dhh-foot"></p>
+  </div>
+</div>
+
+<!-- 임시통합 — 벤더피아 구매발주목록의 구매사명마다 박스 하나 (v0.97.0) -->
+<div id="docs-temp" class="dhh-board">
+  <div class="dhh-wrap">
+    <div class="dhh-head">
+      <span class="dhh-day">임시통합</span>
+      <span class="dhh-sub" id="dtp-sub">&nbsp;</span>
+    </div>
+    <div class="dhh-tiles" id="dtp-tiles"></div>
     <p class="dhh-foot"></p>
   </div>
 </div>
@@ -577,6 +597,7 @@
   let docsLevel = 'home';
   let docsVendor = null;      // 어느 거래처 안에 들어와 있는가
   let docsFiles = [];         // 지금 보고 있는 파일 목록
+  let docs임시 = false;        // 임시통합에서 들어온 구매사명인가
 
   function docsPaint() {
     window.docs견적듣기?.(docsLevel === 'prod' || docsLevel === 'quote');   // 견적서는 이 두 판에서만 듣습니다
@@ -585,7 +606,7 @@
     const has = c ? c.has : true;          // 아직 못 읽었으면 첫 화면을 그대로 둡니다
     const on = (name, yes) => yes ? root.setAttribute(name, '1') : root.removeAttribute(name);
     if (!has) {                            // 올라간 목록이 없으면 원래 안내를 보여 줍니다
-      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docskinds','data-docsitems','data-docsprod','data-docsquote']
+      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docskinds','data-docsitems','data-docsprod','data-docsquote','data-docstemp']
         .forEach((n) => root.removeAttribute(n));
       return;
     }
@@ -596,6 +617,7 @@
     on('data-docsitems',  docsLevel === 'items');
     on('data-docsprod',   docsLevel === 'prod');
     on('data-docsquote',  docsLevel === 'quote');
+    on('data-docstemp',   docsLevel === 'temp');
     on('data-docsv',      !!docsVendor);
     if (docsLevel !== 'box') root.removeAttribute('data-docsbox');
     const back = document.getElementById('dhh-back');
@@ -604,6 +626,7 @@
                                : (docsLevel === 'files' && docsKindWhere) ? '← ' + docsKindWhere
                                : (docsLevel === 'files' || docsLevel === 'kinds') ? '← ' + (docsVendor ?? '거래처')
                                : docsLevel === 'quote' ? '← 제품관리'
+                               : (docsLevel === 'vendor' && docs임시) ? '← 임시통합'
                                : '← 박스판';
   }
 
@@ -823,16 +846,17 @@
     // 파일 목록에서 구분 박스로 왔으면 구분 박스로 한 걸음만 물러납니다.
     if (docsLevel === 'files' && docsKindWhere) { docsKindOpen(docsKindWhere, docsKindList); return; }
     if (docsLevel === 'quote') { docsOpenProd(); return; }
+    if (docsLevel === 'vendor' && docs임시) { docsVendor = null; docsOpen임시(); return; }
     if (docsLevel === 'kinds') { docsKindWhere = ''; docsLevel = 'vendor'; }
     else if (docsLevel === 'files') docsLevel = 'vendor';
     else if (docsLevel === 'items' && docsVendor) docsLevel = 'vendor';
     else if (docsLevel === 'box' && docsVendor) docsLevel = 'vendor';
-    else { docsLevel = 'home'; docsVendor = null; }
+    else { docsLevel = 'home'; docsVendor = null; docs임시 = false; }
     if (docsLevel === 'vendor') docsVendorRefresh();
     else docsHomeRefresh();
     window.scrollTo(0, 0);
   }
-  function docsGoHome() { docsLevel = 'home'; docsVendor = null; docsFitTop(); docsHomeRefresh(); window.scrollTo(0, 0); }
+  function docsGoHome() { docsLevel = 'home'; docsVendor = null; docs임시 = false; docsFitTop(); docsHomeRefresh(); window.scrollTo(0, 0); }
 
   const dhhEsc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -843,6 +867,7 @@
     const it = docsBoxList[i];
     if (!it) return;
     docsVendor = it.name;
+    docs임시 = false;
     docsLevel = 'vendor';
     docsVendorRefresh();
     window.scrollTo(0, 0);
@@ -868,7 +893,15 @@
           <span class="dhh-nm">제품관리</span>
           <span class="dhh-pct">코드 ${(window.docs거래처들?.() ?? []).reduce((n, v) => n + (window.docs단품?.(v)?.codes.length ?? 0), 0)}개</span>
         </span>
+      </button>` +
+      `<button type="button" class="dhh-tile ${tone[(docsBoxList.length + 1) % tone.length]}" onclick="docsOpen임시()">
+        <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+        <span>
+          <span class="dhh-nm">임시통합</span>
+          <span class="dhh-pct" id="dhh-c-temp">구매발주</span>
+        </span>
       </button>`;
+    docs임시건수();
   }
 
   /* ── 거래처 판 ── 발주 · 개발/샘플 · 미확인 ─────────────────────── */
@@ -877,7 +910,15 @@
     const v = window.docsVendorBoxes?.(docsVendor);
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     put('dvn-name', docsVendor);
-    if (v) {
+    if (v && docs임시) {                    // 임시통합 구매사명 — 드라이브 파일이 없어 발주만
+      const box = document.getElementById('dvn-tiles');
+      if (box) box.innerHTML = `
+        <button type="button" class="dhh-tile dhh-dark" onclick="docsVendorBox('batch')">
+          <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+          <span><span class="dhh-nm">발주</span>
+            <span class="dhh-pct">차수 ${v.batches}개</span></span>
+        </button>`;
+    } else if (v) {
       const box = document.getElementById('dvn-tiles');
       if (box) box.innerHTML = `
         <button type="button" class="dhh-tile dhh-dark" onclick="docsVendorBox('batch')">
@@ -984,6 +1025,49 @@
       </button>`).join('');
     docsLevel = 'files';
     docsPaint();
+    window.scrollTo(0, 0);
+  }
+
+  /* ── 임시통합 판 ── 구매사명마다 박스 하나. 누르면 그 구매사명이 거래처 판처럼 열립니다(발주 → 차수 → 서랍).
+     자료는 이 판을 열 때 처음 읽습니다(목록 한 건) — 첫 판에서는 안 읽습니다. */
+  let docs임시목록 = [];
+  function docs임시건수() {
+    const el = document.getElementById('dhh-c-temp');
+    window.docs임시본것?.()?.then((r) => { if (el && r.ok) el.textContent = '구매사명 ' + r.사명들.length + '곳'; });
+  }
+  function docsOpen임시() {
+    docsLevel = 'temp';
+    docs임시 = false;
+    docsVendor = null;
+    const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    const box = document.getElementById('dtp-tiles');
+    if (!docs임시목록.length && box) box.innerHTML = '<p style="margin:0;color:var(--vg-muted);font-size:13px">읽는 중</p>';
+    docsPaint();
+    window.scrollTo(0, 0);
+    window.docs임시목록?.().then((r) => {
+      if (docsLevel !== 'temp') return;
+      if (!r.ok) { if (box) box.innerHTML = `<p style="margin:0;color:var(--vg-muted);font-size:13px">${dhhEsc(r.why)}</p>`; return; }
+      docs임시목록 = r.사명들;
+      put('dtp-sub', '구매사명 ' + r.사명들.length + '곳 · 차수 ' + r.사명들.reduce((n, m) => n + m.차수, 0) + '개');
+      const tone = ['dhh-dark', 'dhh-light', 'dhh-white', 'dhh-light'];
+      if (box) box.innerHTML = r.사명들.map((m, i) => `
+        <button type="button" class="dhh-tile ${tone[i % tone.length]}" onclick="docsOpen임시사명(${i})">
+          ${m.구분.length ? `<span class="dhh-tag">${dhhEsc(m.구분.join('·'))}</span>` : ''}
+          <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+          <span><span class="dhh-nm dhh-nm-s">${dhhEsc(m.name)}</span>
+            <span class="dhh-pct">차수 ${m.차수} · PO ${m.po}</span></span>
+        </button>`).join('');
+    });
+  }
+  async function docsOpen임시사명(i) {
+    const m = docs임시목록[i];
+    if (!m) return;
+    const r = await window.docs임시열기?.(m);
+    if (!r?.ok) { const el = document.getElementById('dtp-sub'); if (el) el.textContent = r?.why ?? '못 읽음'; return; }
+    docsVendor = m.name;
+    docs임시 = true;
+    docsLevel = 'vendor';
+    docsVendorRefresh();
     window.scrollTo(0, 0);
   }
 

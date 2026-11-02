@@ -66,6 +66,10 @@ function sync() {
       밖지운글 = '밖 지우기 실패: ' + String(e && e.message || e).slice(0, 120);   // 다음 sync 가 다시 해 봅니다
     }
   }
+  // 임시통합 — 구매발주목록 엑셀이 바뀌었을 때만 다시 씁니다(바뀐 게 없으면 UrlFetch 0).
+  let 임시글 = '';
+  try { 임시글 = 임시발주_(root); } catch (e) { 임시글 = '임시발주 실패: ' + String(e && e.message || e).slice(0, 120); }
+  if (임시글) 밖지운글 = 밖지운글 ? 밖지운글 + ' · ' + 임시글 : 임시글;
   // 잔액서류를 못 읽고 넘어간 게 있으면, 파일이 그대로여도 한 번 더 시도합니다.
   // (권한 승인 전에는 실패하니, 승인만 하면 다음 호출에서 저절로 채워집니다.)
   const retry = props.getProperty('retryCipl') === '1';
@@ -1990,6 +1994,143 @@ function 발주하기_(req) {
     } } },
   ]);
   return { ok: true, batchId: batchId, batch: 차수, folder: vendor + '/' + folder.getName() };
+}
+
+/* ── 임시통합 — 벤더피아 구매발주목록 (v0.97.0, 11-02) ─────────────
+   사장님 11-02 「메인페이지에 임시통합 박스를 만들어서 분석 서류의 구매사명 기준으로 박스만들어 주고 …
+   이 자료는 실제 수입서류 없으니 해당 발주내용을 내용보기에 넣어 정리해줘」.
+   연동 범위에 더한 것: `중국/26년 수입/` 의 「…구매발주목록…xlsx」 **한 파일**(가장 늦게 고친 것). 읽기만 합니다.
+   sync 마다 DriveApp 으로 그 파일의 id·고친 때·크기만 봅니다(UrlFetch 0) — 지난번과 같으면 끝.
+   바뀌었으면 시트로 사본(1) → 글자 그대로 읽고 → 사본 지움(1) → 구매사명마다 한 문서 + 목록 한 문서를 씁니다(1~2).
+   ⚠ 금액·거래처가 든 자료라 공개 저장소·Pages 에는 안 둡니다. Firestore(로그인해야 읽힘)에만.
+   줄 하나 = js/parse.js 임시칸 차례의 글자 13개. 차수 묶기는 앱(parse.js 임시발주묶기)이 합니다. */
+const 임시칸_ = ['PO번호', '구매발주명', '내자/외자 구분', '입고창고', '발주일', '입고일', '단품코드', '단품명', '발주수량', '입고수량', '단가', '금액', '입고여부'];
+const 임시곳_ = '26년 수입';
+const 임시파일_ = /구매발주목록/;
+const 임시칸판_ = 1;          // 칸·묶는 법을 바꾸면 올립니다 — 파일이 그대로여도 다시 씁니다
+const 임시모음_ = DATA_ + 'docs_임시발주';
+
+/** 시트 글자(2차원) → { 사명들: [{ id, name, 구분, rows }], 목록 } — Apps Script 를 안 불러 Node 시험이 됩니다. */
+function 임시발주표_(grid) {
+  const 머리자리 = (grid || []).findIndex(function (r) {
+    return r.some(function (v) { return NFC_(v) === 'PO번호'; }) && r.some(function (v) { return NFC_(v) === '구매사명'; });
+  });
+  if (머리자리 < 0) return null;
+  const 머리 = grid[머리자리].map(NFC_);
+  const 자리 = function (k) { return 머리.indexOf(k); };
+  const 칸자리 = 임시칸_.map(자리);
+  const 사명자리 = 자리('구매사명');
+  const 사명들 = {};
+  const 차례 = [];
+  let po = '';
+  for (let i = 머리자리 + 1; i < grid.length; i++) {
+    const r = grid[i];
+    const 이 = NFC_(r[칸자리[0]]);
+    if (이) po = 이;                                   // PO번호는 PO마다 세로로 합쳐져 첫 줄에만 있습니다
+    const 사명 = NFC_(r[사명자리]);
+    const c = 칸자리.map(function (k) { return k < 0 ? '' : NFC_(r[k]); });   // 단품코드 끝 빈칸도 여기서 뗍니다
+    if (!사명 || !po || !(c[6] || c[7])) continue;
+    c[0] = po;
+    if (!사명들[사명]) { 사명들[사명] = { id: docId_(사명), name: 사명, 구분: [], rows: [], pos: {} }; 차례.push(사명); }
+    const m = 사명들[사명];
+    if (c[2] && m.구분.indexOf(c[2]) < 0) m.구분.push(c[2]);
+    if (!m.pos[po]) m.pos[po] = [po, c[1], c[4]];
+    m.rows.push(c);
+  }
+  const list = 차례.map(function (k) { return 사명들[k]; });
+  return {
+    사명들: list,
+    목록: list.map(function (m) {
+      return { id: m.id, name: m.name, 구분: m.구분, 줄: m.rows.length,
+        po: Object.keys(m.pos).map(function (k) { return m.pos[k]; }) };
+    }),
+    줄: list.reduce(function (n, m) { return n + m.rows.length; }, 0),
+  };
+}
+
+/** JS 값 → Firestore 값(글자·정수·배열·맵). 배열 안 배열은 안 되니 줄은 {c:[…]} 로 감쌉니다. */
+function 임시값_(v) {
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(function (x) { return Array.isArray(x) ? { mapValue: { fields: { c: 임시값_(x) } } } : 임시값_(x); }) } };
+  if (typeof v === 'number') return { integerValue: String(Math.round(v)) };
+  if (v && typeof v === 'object') {
+    const f = {};
+    Object.keys(v).forEach(function (k) { f[k] = 임시값_(v[k]); });
+    return { mapValue: { fields: f } };
+  }
+  return { stringValue: String(v == null ? '' : v) };
+}
+
+/** 쓸 것들 — 구매사명마다 한 문서(통째 바꿈) + 목록 `_목록` 한 문서. 예전에 있다 없어진 구매사명은 지웁니다. */
+function 임시쓰기_(표, 예전ids, 파일, at) {
+  const 문서 = function (id, 칸) { return { update: { name: NAME + '/' + 임시모음_ + '/' + id, fields: 임시값_(칸).mapValue.fields } }; };
+  const 새ids = 표.사명들.map(function (m) { return m.id; });
+  const writes = 표.사명들.map(function (m) { return 문서(m.id, { name: m.name, 구분: m.구분, rows: m.rows, at: at }); });
+  (예전ids || []).forEach(function (id) {
+    if (새ids.indexOf(id) < 0) writes.push({ delete: NAME + '/' + 임시모음_ + '/' + id });
+  });
+  writes.push(문서('_목록', { 파일: 파일, at: at, 줄: 표.줄, 칸: 임시칸_, 사명들: 표.목록 }));
+  return { writes: writes, ids: 새ids };
+}
+
+function 임시발주_(root) {
+  const props = PropertiesService.getScriptProperties();
+  const 곳 = 자식폴더_(root, 임시곳_, false);
+  if (!곳) return '';
+  let 파일 = null;
+  const it = 곳.getFiles();
+  while (it.hasNext()) {
+    const f = it.next();
+    const n = NFC_(f.getName());
+    if (/^~\$/.test(n) || !임시파일_.test(n) || !/\.xlsx?$/i.test(n)) continue;
+    if (!파일 || f.getLastUpdated() > 파일.getLastUpdated()) 파일 = f;
+  }
+  if (!파일) return '';
+  const mark = [임시칸판_, 파일.getId(), 파일.getLastUpdated().getTime(), 파일.getSize()].join('|');
+  if (props.getProperty('임시mark') === mark) return '';
+
+  let copyId = null;
+  try {
+    const res = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + 파일.getId() + '/copy', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token_() },
+      payload: JSON.stringify({ name: TEMP_PREFIX + 파일.getName(), mimeType: SHEET_MIME, parents: ['root'] }),
+      muteHttpExceptions: true,
+    });
+    if (res.getResponseCode() !== 200) return '임시발주 변환 실패 ' + res.getResponseCode();
+    copyId = JSON.parse(res.getContentText()).id;
+    let ss = null;
+    for (let tries = 0; tries < 3 && !ss; tries++) {
+      try { ss = SpreadsheetApp.openById(copyId); } catch (e) { if (tries === 2) throw e; Utilities.sleep(1500); }
+    }
+    // 필터가 걸려 있어도(C칸 「외자」) 숨은 줄까지 다 읽힙니다 — getDisplayValues 는 필터와 상관없습니다.
+    let 표 = null;
+    ss.getSheets().some(function (sh) { 표 = 임시발주표_(sh.getDataRange().getDisplayValues()); return !!표; });
+    if (!표) return '임시발주 머리줄 없음';
+    const 예전 = JSON.parse(props.getProperty('임시ids') || '[]');
+    const 쓸 = 임시쓰기_(표, 예전, NFC_(파일.getName()), new Date().toISOString());
+    // 한 번에 너무 크게 안 보내게 2MB 쯤에서 끊습니다(문서 하나는 1MB 아래 — 큰 구매사명도 0.4MB).
+    let 묶 = [], 크기 = 0;
+    쓸.writes.forEach(function (w) {
+      const n = JSON.stringify(w).length;
+      if (묶.length && 크기 + n > 2000000) { commit_(묶); 묶 = []; 크기 = 0; }
+      묶.push(w); 크기 += n;
+    });
+    if (묶.length) commit_(묶);
+    props.setProperty('임시ids', JSON.stringify(쓸.ids));
+    props.setProperty('임시mark', mark);
+    return '임시발주 ' + 표.사명들.length + '곳 · ' + 표.줄 + '줄';
+  } catch (e) {
+    return '임시발주 실패: ' + String(e && e.message || e).slice(0, 120);
+  } finally {
+    if (copyId) {
+      try {
+        UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + copyId, {
+          method: 'delete', headers: { Authorization: 'Bearer ' + token_() }, muteHttpExceptions: true,
+        });
+      } catch (e) { /* 임시 사본은 휴지통에 남아도 큰일은 아닙니다 */ }
+    }
+  }
 }
 
 /* ── 서류 간추리기 (js/parse.js 의 readBrief 와 같은 규칙) ── */

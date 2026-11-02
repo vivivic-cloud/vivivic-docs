@@ -391,3 +391,29 @@ test('발주하기 — 자물쇠, 목록(빈 폴더 포함), 같은 차수는 �
   // 서랍 「올리기」 가 그 폴더를 곧장 찾는다
   assert.equal(ctx.차수곳_('제헤우드/Zh-26-30', '').path, '제헤우드/Zh-26-30');
 });
+
+test('임시발주표_ — 머리줄 찾기, 세로 합친 PO번호 채움, 코드 끝 빈칸 뗌, 필터 상관없이 내자·외자 다', () => {
+  const 머리 = ['PO번호', '구매발주명', '내자/외자 구분', '구매사명', '입고창고', '발주일', '입고일', '단품코드', '단품명', '옵션', '발주수량', '입고수량', '단가', '금액', '배송사', '송장번호', '송장등록', '입고여부'];
+  const 줄 = (po, 명, 구분, 사명, 코드) => [po, 명, 구분, 사명, '0.본사', '2026-10-28', '', 코드, 코드 ? '이름' : '', '', '2', '', '1,000', '2,000', '', '', '', 'N'];
+  const t = gs.임시발주표_([머리, 줄('2230', 'ZH26-01', '외자', '가공장-수입', 'A1 '), 줄('', 'ZH26-01', '외자', '가공장-수입', 'A2'),
+    줄('2229', '1028나가구', '내자', '나가구', 'n_x1'), 줄('2228', '본사', '내/외자', '가공장-수입', '')]);
+  assert.equal(t.줄, 3);                                     // 코드·이름 다 빈 줄은 뺌
+  const [a, b] = t.사명들;
+  assert.equal(a.name, '가공장-수입');
+  assert.deepEqual([...a.rows[1]].slice(0, 7), ['2230', 'ZH26-01', '외자', '0.본사', '2026-10-28', '', 'A2']);
+  assert.equal(a.rows[0][6], 'A1');
+  assert.deepEqual([...b.구분], ['내자']);
+  assert.deepEqual([...a.구분], ['외자']);
+  assert.deepEqual(JSON.parse(JSON.stringify(t.목록[1])), { id: '나가구', name: '나가구', 구분: ['내자'], 줄: 1, po: [['2229', '1028나가구', '2026-10-28']] });
+});
+
+test('임시쓰기_ — 구매사명마다 한 문서 + _목록, 없어진 구매사명은 지움', () => {
+  const t = gs.임시발주표_([['PO번호', '구매발주명', '구매사명', '단품코드'], ['1', 'a', '가', 'X']]);
+  const r = gs.임시쓰기_(t, ['가', '옛곳'], '파일.xlsx', '2026-11-02');
+  const names = [...r.writes].map((w) => (w.update ? w.update.name : w.delete).split('/').slice(-2).join('/'));
+  assert.deepEqual(names, ['docs_임시발주/가', 'docs_임시발주/옛곳', 'docs_임시발주/_목록']);
+  assert.ok(r.writes[1].delete);
+  const 칸 = r.writes[0].update.fields;
+  assert.equal(칸.rows.arrayValue.values[0].mapValue.fields.c.arrayValue.values[0].stringValue, '1');   // 줄은 {c:[…]}
+  assert.equal(r.writes[2].update.fields['사명들'].arrayValue.values[0].mapValue.fields.po.arrayValue.values[0].mapValue.fields.c.arrayValue.values[1].stringValue, 'a');
+});

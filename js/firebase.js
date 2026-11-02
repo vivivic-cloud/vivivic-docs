@@ -367,3 +367,16 @@ export const QUOTES = 'docs_quotes';
 export function watchQuotes(cb) {
   return ctx.f.onSnapshot(col(QUOTES), (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => cb([]));
 }
+
+/* ── 임시통합 — 벤더피아 구매발주목록 (v0.97.0) ─────────────
+   서버(sync.gs 임시발주_)가 구매사명마다 한 문서 + `_목록` 한 문서로 적습니다. 여기서는 읽기만.
+   ⚠ 부르는 쪽(app.js)이 임시통합을 열 때 목록 한 번, 구매사명을 열 때 그 문서 한 번만 부릅니다. */
+export const 임시모음 = 'docs_임시발주';
+export async function 임시읽기(id) {
+  try {
+    const s = await ctx.f.getDoc(ctx.f.doc(col(임시모음), id));
+    return s.exists() ? { ok: true, 값: s.data() } : { ok: false, why: '아직 없음' };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 읽음' };
+  }
+}

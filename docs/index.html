@@ -58,7 +58,7 @@
      색 토큰·타일·알약을 그대로 가져왔고 새로 만든 색은 없습니다.
      이름은 전부 dhh- 로 시작합니다 — 짧은 이름은 텔윈드와 겹칩니다.
      이 블록과 #docs-home / #docs-back 두 덩어리만 빼면 그대로 되돌아갑니다. */
-  #docs-home, #docs-vendor, #docs-files, #docs-kinds, #docs-items, #docs-prod, #docs-quote{
+  #docs-home, #docs-vendor, #docs-files, #docs-kinds, #docs-items, #docs-prod, #docs-quote, #docs-temp{
     --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19;
     --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-fill:#F4F4F2; --vg-red:#FF3B30;
     position:fixed; left:0; right:0; bottom:0; z-index:8000;
@@ -74,6 +74,7 @@
   html[data-docsitems="1"]  #docs-items{ display:block; }
   html[data-docsprod="1"]   #docs-prod{ display:block; }
   html[data-docsquote="1"]  #docs-quote{ display:block; }
+  html[data-docstemp="1"]   #docs-temp{ display:block; }
   /* 견적서 관리에서 여는 팝업(#diffView)은 판 위로 */
   html[data-docsquote="1"]  #diffView{ z-index:8250; }
 
@@ -226,6 +227,11 @@
     border-radius:50%; background:var(--vg-red); box-shadow:0 0 0 3px var(--vg-ink); }
 
   .dhh-board .dhh-list{ display:flex; flex-direction:column; gap:9px; }
+  /* 임시통합 구매사명 박스의 내자·외자 딱지 — 작게, 오른쪽 위 */
+  .dhh-board .dhh-tag{ position:absolute; right:13px; top:13px; font-size:10.5px; font-weight:700;
+    padding:2px 7px; border-radius:999px; background:rgba(0,0,0,.06); color:var(--vg-muted); }
+  .dhh-board .dhh-tile.dhh-dark .dhh-tag{ background:rgba(255,255,255,.14); color:rgba(255,255,255,.7); }
+  .dhh-board .dhh-tile .dhh-nm.dhh-nm-s{ font-size:16px; word-break:keep-all; overflow-wrap:anywhere; }
   .dhh-board .dhh-row{ display:flex; align-items:center; gap:12px; background:var(--vg-fill);
     border-radius:999px; padding:8px 16px 8px 8px; border:0; width:100%; cursor:pointer;
     color:inherit; font:inherit; transition:transform .12s; }
@@ -272,14 +278,16 @@
   html[data-docskinds="1"] #docs-back,
   html[data-docsfiles="1"] #docs-back,
   html[data-docsitems="1"] #docs-back,
-  html[data-docsprod="1"] #docs-back{ display:block; }
+  html[data-docsprod="1"] #docs-back,
+  html[data-docstemp="1"] #docs-back{ display:block; }
   #docs-back button{ pointer-events:auto; background:#fff; border:1px solid #E2E2DF;
     border-radius:999px; padding:10px 18px; font-size:13px; font-weight:700; color:#111110;
     box-shadow:0 8px 22px -14px rgba(0,0,0,.5); cursor:pointer; }
   #docs-back button:active{ background:#F4F4F2; }
   html[data-docsvendor="1"] .dhh-wrap,
   html[data-docskinds="1"]  .dhh-wrap,
-  html[data-docsfiles="1"]  .dhh-wrap{ padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+  html[data-docsfiles="1"]  .dhh-wrap,
+  html[data-docstemp="1"]   .dhh-wrap{ padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
 
   /* ── 박스 안 — 그 박스가 맡은 구역만 남깁니다.
         숨기는 것이지 지우는 것이 아닙니다. 요소는 전부 그대로 있습니다.
@@ -309,7 +317,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.96.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.97.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -337,7 +345,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.96.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.97.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -394,6 +402,18 @@
       <span class="dhh-role">거래처</span>
     </div>
     <div class="dhh-tiles" id="dvn-tiles"></div>
+    <p class="dhh-foot"></p>
+  </div>
+</div>
+
+<!-- 임시통합 — 벤더피아 구매발주목록의 구매사명마다 박스 하나 (v0.97.0) -->
+<div id="docs-temp" class="dhh-board">
+  <div class="dhh-wrap">
+    <div class="dhh-head">
+      <span class="dhh-day">임시통합</span>
+      <span class="dhh-sub" id="dtp-sub">&nbsp;</span>
+    </div>
+    <div class="dhh-tiles" id="dtp-tiles"></div>
     <p class="dhh-foot"></p>
   </div>
 </div>
@@ -579,6 +599,7 @@
   let docsLevel = 'home';
   let docsVendor = null;      // 어느 거래처 안에 들어와 있는가
   let docsFiles = [];         // 지금 보고 있는 파일 목록
+  let docs임시 = false;        // 임시통합에서 들어온 구매사명인가
 
   function docsPaint() {
     window.docs견적듣기?.(docsLevel === 'prod' || docsLevel === 'quote');   // 견적서는 이 두 판에서만 듣습니다
@@ -587,7 +608,7 @@
     const has = c ? c.has : true;          // 아직 못 읽었으면 첫 화면을 그대로 둡니다
     const on = (name, yes) => yes ? root.setAttribute(name, '1') : root.removeAttribute(name);
     if (!has) {                            // 올라간 목록이 없으면 원래 안내를 보여 줍니다
-      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docskinds','data-docsitems','data-docsprod','data-docsquote']
+      ['data-docshome','data-docsvendor','data-docsfiles','data-docsbox','data-docsv','data-docskinds','data-docsitems','data-docsprod','data-docsquote','data-docstemp']
         .forEach((n) => root.removeAttribute(n));
       return;
     }
@@ -598,6 +619,7 @@
     on('data-docsitems',  docsLevel === 'items');
     on('data-docsprod',   docsLevel === 'prod');
     on('data-docsquote',  docsLevel === 'quote');
+    on('data-docstemp',   docsLevel === 'temp');
     on('data-docsv',      !!docsVendor);
     if (docsLevel !== 'box') root.removeAttribute('data-docsbox');
     const back = document.getElementById('dhh-back');
@@ -606,6 +628,7 @@
                                : (docsLevel === 'files' && docsKindWhere) ? '← ' + docsKindWhere
                                : (docsLevel === 'files' || docsLevel === 'kinds') ? '← ' + (docsVendor ?? '거래처')
                                : docsLevel === 'quote' ? '← 제품관리'
+                               : (docsLevel === 'vendor' && docs임시) ? '← 임시통합'
                                : '← 박스판';
   }
 
@@ -825,16 +848,17 @@
     // 파일 목록에서 구분 박스로 왔으면 구분 박스로 한 걸음만 물러납니다.
     if (docsLevel === 'files' && docsKindWhere) { docsKindOpen(docsKindWhere, docsKindList); return; }
     if (docsLevel === 'quote') { docsOpenProd(); return; }
+    if (docsLevel === 'vendor' && docs임시) { docsVendor = null; docsOpen임시(); return; }
     if (docsLevel === 'kinds') { docsKindWhere = ''; docsLevel = 'vendor'; }
     else if (docsLevel === 'files') docsLevel = 'vendor';
     else if (docsLevel === 'items' && docsVendor) docsLevel = 'vendor';
     else if (docsLevel === 'box' && docsVendor) docsLevel = 'vendor';
-    else { docsLevel = 'home'; docsVendor = null; }
+    else { docsLevel = 'home'; docsVendor = null; docs임시 = false; }
     if (docsLevel === 'vendor') docsVendorRefresh();
     else docsHomeRefresh();
     window.scrollTo(0, 0);
   }
-  function docsGoHome() { docsLevel = 'home'; docsVendor = null; docsFitTop(); docsHomeRefresh(); window.scrollTo(0, 0); }
+  function docsGoHome() { docsLevel = 'home'; docsVendor = null; docs임시 = false; docsFitTop(); docsHomeRefresh(); window.scrollTo(0, 0); }
 
   const dhhEsc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -845,6 +869,7 @@
     const it = docsBoxList[i];
     if (!it) return;
     docsVendor = it.name;
+    docs임시 = false;
     docsLevel = 'vendor';
     docsVendorRefresh();
     window.scrollTo(0, 0);
@@ -870,7 +895,15 @@
           <span class="dhh-nm">제품관리</span>
           <span class="dhh-pct">코드 ${(window.docs거래처들?.() ?? []).reduce((n, v) => n + (window.docs단품?.(v)?.codes.length ?? 0), 0)}개</span>
         </span>
+      </button>` +
+      `<button type="button" class="dhh-tile ${tone[(docsBoxList.length + 1) % tone.length]}" onclick="docsOpen임시()">
+        <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+        <span>
+          <span class="dhh-nm">임시통합</span>
+          <span class="dhh-pct" id="dhh-c-temp">구매발주</span>
+        </span>
       </button>`;
+    docs임시건수();
   }
 
   /* ── 거래처 판 ── 발주 · 개발/샘플 · 미확인 ─────────────────────── */
@@ -879,7 +912,15 @@
     const v = window.docsVendorBoxes?.(docsVendor);
     const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     put('dvn-name', docsVendor);
-    if (v) {
+    if (v && docs임시) {                    // 임시통합 구매사명 — 드라이브 파일이 없어 발주만
+      const box = document.getElementById('dvn-tiles');
+      if (box) box.innerHTML = `
+        <button type="button" class="dhh-tile dhh-dark" onclick="docsVendorBox('batch')">
+          <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+          <span><span class="dhh-nm">발주</span>
+            <span class="dhh-pct">차수 ${v.batches}개</span></span>
+        </button>`;
+    } else if (v) {
       const box = document.getElementById('dvn-tiles');
       if (box) box.innerHTML = `
         <button type="button" class="dhh-tile dhh-dark" onclick="docsVendorBox('batch')">
@@ -986,6 +1027,49 @@
       </button>`).join('');
     docsLevel = 'files';
     docsPaint();
+    window.scrollTo(0, 0);
+  }
+
+  /* ── 임시통합 판 ── 구매사명마다 박스 하나. 누르면 그 구매사명이 거래처 판처럼 열립니다(발주 → 차수 → 서랍).
+     자료는 이 판을 열 때 처음 읽습니다(목록 한 건) — 첫 판에서는 안 읽습니다. */
+  let docs임시목록 = [];
+  function docs임시건수() {
+    const el = document.getElementById('dhh-c-temp');
+    window.docs임시본것?.()?.then((r) => { if (el && r.ok) el.textContent = '구매사명 ' + r.사명들.length + '곳'; });
+  }
+  function docsOpen임시() {
+    docsLevel = 'temp';
+    docs임시 = false;
+    docsVendor = null;
+    const put = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    const box = document.getElementById('dtp-tiles');
+    if (!docs임시목록.length && box) box.innerHTML = '<p style="margin:0;color:var(--vg-muted);font-size:13px">읽는 중</p>';
+    docsPaint();
+    window.scrollTo(0, 0);
+    window.docs임시목록?.().then((r) => {
+      if (docsLevel !== 'temp') return;
+      if (!r.ok) { if (box) box.innerHTML = `<p style="margin:0;color:var(--vg-muted);font-size:13px">${dhhEsc(r.why)}</p>`; return; }
+      docs임시목록 = r.사명들;
+      put('dtp-sub', '구매사명 ' + r.사명들.length + '곳 · 차수 ' + r.사명들.reduce((n, m) => n + m.차수, 0) + '개');
+      const tone = ['dhh-dark', 'dhh-light', 'dhh-white', 'dhh-light'];
+      if (box) box.innerHTML = r.사명들.map((m, i) => `
+        <button type="button" class="dhh-tile ${tone[i % tone.length]}" onclick="docsOpen임시사명(${i})">
+          ${m.구분.length ? `<span class="dhh-tag">${dhhEsc(m.구분.join('·'))}</span>` : ''}
+          <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+          <span><span class="dhh-nm dhh-nm-s">${dhhEsc(m.name)}</span>
+            <span class="dhh-pct">차수 ${m.차수} · PO ${m.po}</span></span>
+        </button>`).join('');
+    });
+  }
+  async function docsOpen임시사명(i) {
+    const m = docs임시목록[i];
+    if (!m) return;
+    const r = await window.docs임시열기?.(m);
+    if (!r?.ok) { const el = document.getElementById('dtp-sub'); if (el) el.textContent = r?.why ?? '못 읽음'; return; }
+    docsVendor = m.name;
+    docs임시 = true;
+    docsLevel = 'vendor';
+    docsVendorRefresh();
     window.scrollTo(0, 0);
   }
 
@@ -1122,7 +1206,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 <script type="module">
 
 const SINGLE_FILE = false;
-const DEMO = {"note": "데모용 샘플입니다. 파일명 형식만 실제와 같게 두고 거래처·제품명은 바꿨습니다. 상차 이미지는 차수 폴더에 넣는 실제 구조를 흉내 냈습니다.", "files": [{"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_20260730.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_20260730.pdf", "size": 99321, "vendor": "한신우드"}, {"name": "AMT2026-18A型加B型订单合同8.03.xlsx", "path": "한신우드/AMT2026-18A型加B型订单合同8.03.xlsx", "size": 301000, "vendor": "한신우드"}, {"name": "TalkFile__26-094-AMT-HW-18(한신우드 26-18차)_계약금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile__26-094-AMT-HW-18(한신우드 26-18차)_계약금 인보이스영수증.pdf.pdf", "size": 144388, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "size": 83762, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "size": 83762, "vendor": "한신우드"}, {"name": "AMT2026-19A型订单合同8.19.xlsx", "path": "한신우드/AMT2026-19A型订单合同8.19.xlsx", "size": 396259, "vendor": "한신우드"}, {"name": "TalkFile_26-083-AMT-HW-15(한신우드 26-15차)_잔금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile_26-083-AMT-HW-15(한신우드 26-15차)_잔금 인보이스영수증.pdf.pdf", "size": 141142, "vendor": "한신우드"}, {"name": "HSWD-ING26 -15   2026.08.06- CI&PL...xls", "path": "한신우드/HSWD-ING26 -15   2026.08.06- CI&PL...xls", "size": 250368, "vendor": "한신우드"}, {"name": "TalkFile_26-080-AMT-HW-14(한신우드 26-14차)_잔금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile_26-080-AMT-HW-14(한신우드 26-14차)_잔금 인보이스영수증.pdf.pdf", "size": 141219, "vendor": "한신우드"}, {"name": "HSWD-ING26 -14 2026.07.30- CI&PL...xls", "path": "한신우드/HSWD-ING26 -14 2026.07.30- CI&PL...xls", "size": 251904, "vendor": "한신우드"}, {"name": "FTA ING26-14.pdf", "path": "한신우드/FTA ING26-14.pdf", "size": 1572266, "vendor": "한신우드"}, {"name": "TalkFile_26-079-AMT-HW-13(한신우드 26-13차)_잔금인보이스영수증.pdf", "path": "한신우드/TalkFile_26-079-AMT-HW-13(한신우드 26-13차)_잔금인보이스영수증.pdf", "size": 144485, "vendor": "한신우드"}, {"name": "FTA-ING 26-13.pdf", "path": "한신우드/FTA-ING 26-13.pdf", "size": 1566833, "vendor": "한신우드"}, {"name": "SHBL-CARRIERXX0783101.pdf", "path": "한신우드/SHBL-CARRIERXX0783101.pdf", "size": 219636, "vendor": "한신우드"}, {"name": "SHBL-CARRIERXX0783102.pdf", "path": "한신우드/SHBL-CARRIERXX0783102.pdf", "size": 219627, "vendor": "한신우드"}, {"name": "26-16.17订单，报价，立方数26.08.03.xlsx", "path": "한신우드/26-16.17订单，报价，立方数26.08.03.xlsx", "size": 1022726, "vendor": "한신우드"}, {"name": "26-16.17订单，报价，立方数26.07.30.xlsx", "path": "한신우드/26-16.17订单，报价，立方数26.07.30.xlsx", "size": 965818, "vendor": "한신우드"}, {"name": "HSWD-ING26 -102026.06.18- CI&PL...xls", "path": "한신우드/HSWD-ING26 -102026.06.18- CI&PL...xls", "size": 262656, "vendor": "한신우드"}, {"name": "AMT2026-14床订单(18)合同6.25.xlsx", "path": "한신우드/AMT2026-14床订单(18)合同6.25.xlsx", "size": 221123, "vendor": "한신우드"}, {"name": "TalkFile_올리브 침대 확장패널_서랍협탁400 300_선반협탁_Re 260806.pdf", "path": "한신우드/TalkFile_올리브 침대 확장패널_서랍협탁400 300_선반협탁_Re 260806.pdf", "size": 839935, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 확장패널_서랍협탁_선반협탁.pdf", "path": "한신우드/TalkFile_비스타 침대 확장패널_서랍협탁_선반협탁.pdf", "size": 1048815, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 헤드.pdf", "path": "한신우드/TalkFile_비스타 침대 헤드.pdf", "size": 621456, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 SS.pdf", "path": "한신우드/TalkFile_비스타 침대 SS.pdf", "size": 652842, "vendor": "한신우드"}, {"name": "TalkFile_ING_HW_다이토 테이블_협탁 2차 견적서 및 샘플요청 _2026.08.14.xlsx", "path": "한신우드/TalkFile_ING_HW_다이토 테이블_협탁 2차 견적서 및 샘플요청 _2026.08.14.xlsx", "size": 735465, "vendor": "한신우드"}, {"name": "어린이 침대 견적서_2026.06.18.xlsx.xlsx", "path": "한신우드/어린이 침대 견적서_2026.06.18.xlsx.xlsx", "size": 1502641, "vendor": "한신우드"}, {"name": "어린이 슈벤치 변경 견적서_2026.06.18.xlsx.xlsx", "path": "한신우드/어린이 슈벤치 변경 견적서_2026.06.18.xlsx.xlsx", "size": 624670, "vendor": "한신우드"}, {"name": "올리브침대(신규)_2종_작업지지서 피드백_260707 (1).pdf", "path": "한신우드/올리브침대(신규)_2종_작업지지서 피드백_260707 (1).pdf", "size": 587750, "vendor": "한신우드"}, {"name": "TalkFile_올리브침대_신규깔판2종_도면_260708.dxf", "path": "한신우드/TalkFile_올리브침대_신규깔판2종_도면_260708.dxf", "size": 664196, "vendor": "한신우드"}, {"name": "HW31.pdf", "path": "한신우드/HW31.pdf", "size": 61535, "vendor": "한신우드"}, {"name": "HW32.pdf", "path": "한신우드/HW32.pdf", "size": 62937, "vendor": "한신우드"}, {"name": "HW33.pdf", "path": "한신우드/HW33.pdf", "size": 62910, "vendor": "한신우드"}, {"name": "ING- 선수금 2026031711 PI.xls", "path": "장쑤세라믹/ING- 선수금 2026031711 PI.xls", "size": 410112, "vendor": "장쑤세라믹"}, {"name": "TalkFile_26-1_PO for Ceramic table _ 2nd revised 260317.pdf", "path": "장쑤세라믹/TalkFile_26-1_PO for Ceramic table _ 2nd revised 260317.pdf", "size": 131170, "vendor": "장쑤세라믹"}, {"name": "0131b84db3cfa55a0.JPG", "path": "한신우드/HW-26-18차/0131b84db3cfa55a0.JPG", "size": 2400000, "mtime": 1755000000000, "vendor": "한신우드"}, {"name": "18a5a1b675590faa1.JPG", "path": "한신우드/HW-26-18차/18a5a1b675590faa1.JPG", "size": 2413000, "mtime": 1755000060000, "vendor": "한신우드"}, {"name": "2db4b5d5619cff722.JPG", "path": "한신우드/HW-26-18차/2db4b5d5619cff722.JPG", "size": 2426000, "mtime": 1755000120000, "vendor": "한신우드"}, {"name": "32dee2d8ab1689343.JPG", "path": "한신우드/HW-26-18차/32dee2d8ab1689343.JPG", "size": 2439000, "mtime": 1755000180000, "vendor": "한신우드"}, {"name": "56d4840e4c8780a04.JPG", "path": "한신우드/HW-26-18차/56d4840e4c8780a04.JPG", "size": 2452000, "mtime": 1755000240000, "vendor": "한신우드"}, {"name": "5ed26dda0d7724115.JPG", "path": "한신우드/HW-26-18차/5ed26dda0d7724115.JPG", "size": 2465000, "mtime": 1755000300000, "vendor": "한신우드"}, {"name": "6af135bce0db1a356.JPG", "path": "한신우드/HW-26-18차/6af135bce0db1a356.JPG", "size": 2478000, "mtime": 1755000360000, "vendor": "한신우드"}, {"name": "81950a043fcffa1a7.JPG", "path": "한신우드/HW-26-18차/81950a043fcffa1a7.JPG", "size": 2491000, "mtime": 1755000420000, "vendor": "한신우드"}, {"name": "8f0df7f820157de88.JPG", "path": "한신우드/HW-26-18차/8f0df7f820157de88.JPG", "size": 2504000, "mtime": 1755000480000, "vendor": "한신우드"}, {"name": "b32a02f3b9a48c8a9.JPG", "path": "한신우드/HW-26-18차/b32a02f3b9a48c8a9.JPG", "size": 2517000, "mtime": 1755000540000, "vendor": "한신우드"}], "overlay": {"한신우드::26-18": {"piAmount": "예시 · 실제 값 아님", "memo": "발주서가 8/13에 1차 수정됐습니다. 7/30 원본과 대조 필요."}}};
+const DEMO = {"note": "데모용 샘플입니다. 파일명 형식만 실제와 같게 두고 거래처·제품명은 바꿨습니다. 상차 이미지는 차수 폴더에 넣는 실제 구조를 흉내 냈습니다.", "files": [{"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_20260730.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_20260730.pdf", "size": 99321, "vendor": "한신우드"}, {"name": "AMT2026-18A型加B型订单合同8.03.xlsx", "path": "한신우드/AMT2026-18A型加B型订单合同8.03.xlsx", "size": 301000, "vendor": "한신우드"}, {"name": "TalkFile__26-094-AMT-HW-18(한신우드 26-18차)_계약금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile__26-094-AMT-HW-18(한신우드 26-18차)_계약금 인보이스영수증.pdf.pdf", "size": 144388, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "size": 83762, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "size": 83762, "vendor": "한신우드"}, {"name": "AMT2026-19A型订单合同8.19.xlsx", "path": "한신우드/AMT2026-19A型订单合同8.19.xlsx", "size": 396259, "vendor": "한신우드"}, {"name": "TalkFile_26-083-AMT-HW-15(한신우드 26-15차)_잔금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile_26-083-AMT-HW-15(한신우드 26-15차)_잔금 인보이스영수증.pdf.pdf", "size": 141142, "vendor": "한신우드"}, {"name": "HSWD-ING26 -15   2026.08.06- CI&PL...xls", "path": "한신우드/HSWD-ING26 -15   2026.08.06- CI&PL...xls", "size": 250368, "vendor": "한신우드"}, {"name": "TalkFile_26-080-AMT-HW-14(한신우드 26-14차)_잔금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile_26-080-AMT-HW-14(한신우드 26-14차)_잔금 인보이스영수증.pdf.pdf", "size": 141219, "vendor": "한신우드"}, {"name": "HSWD-ING26 -14 2026.07.30- CI&PL...xls", "path": "한신우드/HSWD-ING26 -14 2026.07.30- CI&PL...xls", "size": 251904, "vendor": "한신우드"}, {"name": "FTA ING26-14.pdf", "path": "한신우드/FTA ING26-14.pdf", "size": 1572266, "vendor": "한신우드"}, {"name": "TalkFile_26-079-AMT-HW-13(한신우드 26-13차)_잔금인보이스영수증.pdf", "path": "한신우드/TalkFile_26-079-AMT-HW-13(한신우드 26-13차)_잔금인보이스영수증.pdf", "size": 144485, "vendor": "한신우드"}, {"name": "FTA-ING 26-13.pdf", "path": "한신우드/FTA-ING 26-13.pdf", "size": 1566833, "vendor": "한신우드"}, {"name": "SHBL-CARRIERXX0783101.pdf", "path": "한신우드/SHBL-CARRIERXX0783101.pdf", "size": 219636, "vendor": "한신우드"}, {"name": "SHBL-CARRIERXX0783102.pdf", "path": "한신우드/SHBL-CARRIERXX0783102.pdf", "size": 219627, "vendor": "한신우드"}, {"name": "26-16.17订单，报价，立方数26.08.03.xlsx", "path": "한신우드/26-16.17订单，报价，立方数26.08.03.xlsx", "size": 1022726, "vendor": "한신우드"}, {"name": "26-16.17订单，报价，立方数26.07.30.xlsx", "path": "한신우드/26-16.17订单，报价，立方数26.07.30.xlsx", "size": 965818, "vendor": "한신우드"}, {"name": "HSWD-ING26 -102026.06.18- CI&PL...xls", "path": "한신우드/HSWD-ING26 -102026.06.18- CI&PL...xls", "size": 262656, "vendor": "한신우드"}, {"name": "AMT2026-14床订单(18)合同6.25.xlsx", "path": "한신우드/AMT2026-14床订单(18)合同6.25.xlsx", "size": 221123, "vendor": "한신우드"}, {"name": "TalkFile_올리브 침대 확장패널_서랍협탁400 300_선반협탁_Re 260806.pdf", "path": "한신우드/TalkFile_올리브 침대 확장패널_서랍협탁400 300_선반협탁_Re 260806.pdf", "size": 839935, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 확장패널_서랍협탁_선반협탁.pdf", "path": "한신우드/TalkFile_비스타 침대 확장패널_서랍협탁_선반협탁.pdf", "size": 1048815, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 헤드.pdf", "path": "한신우드/TalkFile_비스타 침대 헤드.pdf", "size": 621456, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 SS.pdf", "path": "한신우드/TalkFile_비스타 침대 SS.pdf", "size": 652842, "vendor": "한신우드"}, {"name": "TalkFile_ING_HW_다이토 테이블_협탁 2차 견적서 및 샘플요청 _2026.08.14.xlsx", "path": "한신우드/TalkFile_ING_HW_다이토 테이블_협탁 2차 견적서 및 샘플요청 _2026.08.14.xlsx", "size": 735465, "vendor": "한신우드"}, {"name": "어린이 침대 견적서_2026.06.18.xlsx.xlsx", "path": "한신우드/어린이 침대 견적서_2026.06.18.xlsx.xlsx", "size": 1502641, "vendor": "한신우드"}, {"name": "어린이 슈벤치 변경 견적서_2026.06.18.xlsx.xlsx", "path": "한신우드/어린이 슈벤치 변경 견적서_2026.06.18.xlsx.xlsx", "size": 624670, "vendor": "한신우드"}, {"name": "올리브침대(신규)_2종_작업지지서 피드백_260707 (1).pdf", "path": "한신우드/올리브침대(신규)_2종_작업지지서 피드백_260707 (1).pdf", "size": 587750, "vendor": "한신우드"}, {"name": "TalkFile_올리브침대_신규깔판2종_도면_260708.dxf", "path": "한신우드/TalkFile_올리브침대_신규깔판2종_도면_260708.dxf", "size": 664196, "vendor": "한신우드"}, {"name": "HW31.pdf", "path": "한신우드/HW31.pdf", "size": 61535, "vendor": "한신우드"}, {"name": "HW32.pdf", "path": "한신우드/HW32.pdf", "size": 62937, "vendor": "한신우드"}, {"name": "HW33.pdf", "path": "한신우드/HW33.pdf", "size": 62910, "vendor": "한신우드"}, {"name": "ING- 선수금 2026031711 PI.xls", "path": "장쑤세라믹/ING- 선수금 2026031711 PI.xls", "size": 410112, "vendor": "장쑤세라믹"}, {"name": "TalkFile_26-1_PO for Ceramic table _ 2nd revised 260317.pdf", "path": "장쑤세라믹/TalkFile_26-1_PO for Ceramic table _ 2nd revised 260317.pdf", "size": 131170, "vendor": "장쑤세라믹"}, {"name": "0131b84db3cfa55a0.JPG", "path": "한신우드/HW-26-18차/0131b84db3cfa55a0.JPG", "size": 2400000, "mtime": 1755000000000, "vendor": "한신우드"}, {"name": "18a5a1b675590faa1.JPG", "path": "한신우드/HW-26-18차/18a5a1b675590faa1.JPG", "size": 2413000, "mtime": 1755000060000, "vendor": "한신우드"}, {"name": "2db4b5d5619cff722.JPG", "path": "한신우드/HW-26-18차/2db4b5d5619cff722.JPG", "size": 2426000, "mtime": 1755000120000, "vendor": "한신우드"}, {"name": "32dee2d8ab1689343.JPG", "path": "한신우드/HW-26-18차/32dee2d8ab1689343.JPG", "size": 2439000, "mtime": 1755000180000, "vendor": "한신우드"}, {"name": "56d4840e4c8780a04.JPG", "path": "한신우드/HW-26-18차/56d4840e4c8780a04.JPG", "size": 2452000, "mtime": 1755000240000, "vendor": "한신우드"}, {"name": "5ed26dda0d7724115.JPG", "path": "한신우드/HW-26-18차/5ed26dda0d7724115.JPG", "size": 2465000, "mtime": 1755000300000, "vendor": "한신우드"}, {"name": "6af135bce0db1a356.JPG", "path": "한신우드/HW-26-18차/6af135bce0db1a356.JPG", "size": 2478000, "mtime": 1755000360000, "vendor": "한신우드"}, {"name": "81950a043fcffa1a7.JPG", "path": "한신우드/HW-26-18차/81950a043fcffa1a7.JPG", "size": 2491000, "mtime": 1755000420000, "vendor": "한신우드"}, {"name": "8f0df7f820157de88.JPG", "path": "한신우드/HW-26-18차/8f0df7f820157de88.JPG", "size": 2504000, "mtime": 1755000480000, "vendor": "한신우드"}, {"name": "b32a02f3b9a48c8a9.JPG", "path": "한신우드/HW-26-18차/b32a02f3b9a48c8a9.JPG", "size": 2517000, "mtime": 1755000540000, "vendor": "한신우드"}], "overlay": {"한신우드::26-18": {"piAmount": "예시 · 실제 값 아님", "memo": "발주서가 8/13에 1차 수정됐습니다. 7/30 원본과 대조 필요."}}, "임시": {"목록": {"at": "2026-11-02", "사명들": [{"id": "가공장-수입", "name": "가공장-수입", "구분": ["외자"], "줄": 7, "po": [{"c": ["901", "HB26-07", "2026-08-01"]}, {"c": ["902", "HB26-08 (1/2)", "2026-09-02"]}, {"c": ["903", "HB26-08 (2/2)", "2026-09-03"]}, {"c": ["904", "26-031-HB-06", "2026-07-01"]}]}, {"id": "나가구(국내)", "name": "나가구(국내)", "구분": ["내자"], "줄": 4, "po": [{"c": ["905", "나가구1012", "2026-10-12"]}, {"c": ["906", "1020나가구", "2026-10-20"]}, {"c": ["907", "나가구0915", "2026-09-15"]}]}]}, "사명": {"가공장-수입": {"name": "가공장-수입", "rows": [{"c": ["901", "HB26-07", "외자", "0.본사", "2026-08-01", "2026-09-10", "HB_01", "한빛 3단 선반", "40", "40", "52,000", "2,080,000", "Y"]}, {"c": ["901", "HB26-07", "외자", "0.본사", "2026-08-01", "2026-09-10", "HB_02", "한빛 4단 선반", "30", "30", "61,000", "1,830,000", "Y"]}, {"c": ["901", "HB26-07", "외자", "0.본사", "2026-08-01", "2026-09-10", "HB_03 ", "한빛 낮은 선반", "20", "20", "0", "0", "Y"]}, {"c": ["902", "HB26-08 (1/2)", "외자", "0.본사", "2026-09-02", "", "HB_01", "한빛 3단 선반", "50", "", "52,000", "2,600,000", "N"]}, {"c": ["902", "HB26-08 (1/2)", "외자", "0.본사", "2026-09-02", "", "HB_04", "한빛 서랍장", "10", "", "88,000", "880,000", "N"]}, {"c": ["903", "HB26-08 (2/2)", "외자", "0.본사", "2026-09-03", "", "HB_05", "한빛 협탁", "25", "", "34,000", "850,000", "N"]}, {"c": ["904", "26-031-HB-06", "외자", "0.본사", "2026-07-01", "2026-08-11", "HB_02", "한빛 4단 선반", "60", "60", "61,000", "3,660,000", "Y"]}]}, "나가구(국내)": {"name": "나가구(국내)", "rows": [{"c": ["905", "나가구1012", "내자", "0.본사", "2026-10-12", "2026-10-13", "NA-t1", "나 테이블", "5", "5", "120,000", "600,000", "Y"]}, {"c": ["905", "나가구1012", "내자", "0.본사", "2026-10-12", "2026-10-13", "NA-c1", "나 의자", "20", "20", "30,000", "600,000", "Y"]}, {"c": ["906", "1020나가구", "내자", "0.본사", "2026-10-20", "", "NA-t1", "나 테이블", "3", "", "120,000", "360,000", "N"]}, {"c": ["907", "나가구0915", "내자", "0.본사", "2026-09-15", "2026-09-16", "NA-b1", "나 침대", "2", "2", "310,000", "620,000", "Y"]}]}}}};
 const PARSE = (() => {
 /**
  * VIVIVIC 서류관리 — 파일명 파서
@@ -2426,7 +2510,147 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, CJK_GLOSS, KINDS, STAGES, STAGE_BY_KEY, SUBDIRS, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, kindOf, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, subdirOf, suggestKeyword, summarize, 글귀_, 다음차수, 밑줄보기, 올릴이름, 제품줄인가, 칸낱말, 코드열쇠 };
+/* ── 임시통합 — 벤더피아 구매발주목록 (v0.97.0, 11-02) ─────────────
+   사장님 11-02 「메인페이지에 임시통합 박스를 만들어서 분석 서류의 구매사명 기준으로 박스만들어 주고 …
+   26년 차수별 발주 박스만들어줘 이 자료는 실제 수입서류 없으니 해당 발주내용을 내용보기에 넣어 정리해줘」.
+   서버(sync.gs 임시발주_)가 `중국/26년 수입/` 의 구매발주목록 엑셀을 구매사명마다 한 문서로 적고, 여기서 차수로 묶습니다.
+   줄 하나 = 임시칸 차례의 글자 13개(서버가 그대로 떠 둔 것). */
+const 임시칸 = ['PO번호', '구매발주명', '내자/외자 구분', '입고창고', '발주일', '입고일', '단품코드', '단품명', '발주수량', '입고수량', '단가', '금액', '입고여부'];
+const 임시자리 = Object.fromEntries(임시칸.map((k, i) => [k, i]));
+
+/**
+ * 발주명 → 차수. 꼴이 섞여 있어(26-004-AMT-ZH-01 · ZH26-17 (1/2)수정 · 260723 제헤우드 26-11차 · HPC26-24 …)
+ * 날짜·일련번호를 먼저 걷고 차례로 봅니다.
+ *   ① 일련번호 꼴 `26-118-ABC-06` · `26-AB-03` · `26-054-ABC-26-01` → 해 + 끝 번호 (kind 차수)
+ *   ② 해·차수 꼴 `26-17` · `ZH26-17` · `해피코 25-20` (뒤에 「월」 이면 아님) → (kind 차수)
+ *   ③ 해 없는 `가나 27차` · `다라침대 1차-철물` → 앞 낱말 + 차 (kind 이름)
+ *   ④ 아무것도 없으면 발주일의 달 `26년 10월` (kind 달)
+ * 25년 차수(해피코 25-19 등)도 2026년에 낸 발주라 그대로 둡니다. 「25-4」 같은 오타 짐작은 고치지 않습니다.
+ */
+function 임시차수(이름, 발주일 = '') {
+  let s = String(이름 ?? '').normalize('NFC')
+    .replace(/\(\s*\d{2}\s*-\s*\d{3}\s*\)/g, ' ')                 // (26-150) — 일련번호
+    .replace(/(?<!\d)(?:20)?\d{2}\.\d{1,2}\.\d{1,2}(?!\d)/g, ' ')  // 2026.02.03 · 26.03.17
+    .replace(/(?<!\d)\d{4}-\d{2}-\d{1,2}(?!\d)/g, ' ')            // 2610-06-08 (본사 번호)
+    .replace(/(?<!\d)\d{6,8}(?!\d)/g, ' ')                        // 20260928 · 260415 · 2620303
+    .replace(/\s+/g, ' ').trim();
+  const 차수 = (y, n, 계) => {
+    const no = Number(n);
+    if (!(no >= 1 && no <= 99)) return null;
+    const key = `${y}-${String(no).padStart(2, '0')}`;
+    return { kind: '차수', key, 제목: `${key}차`, year: Number(y), no, 계열: 임시계열(계) };
+  };
+  const 일련 = s.match(/^(2[4-7])-(?:\d{3}-)?((?:[A-Za-z][\w&()]*-)+)(?:(2[4-7])-)?(\d{1,2})(?!\d)/);
+  if (일련) { const r = 차수(일련[3] ?? 일련[1], 일련[4], 일련[2]); if (r) return r; }
+  const 해 = s.match(/(?<!\d)(2[4-7])\s*-\s*(\d{1,2})(?![\d월])/);
+  if (해) { const r = 차수(해[1], 해[2], s.slice(0, 해.index).match(/([A-Za-z가-힣][\w가-힣&()-]*?)[\s_-]*$/)?.[1]); if (r) return r; }
+  const 이름차 = s.match(/^(.*?)\s*(\d{1,3})\s*차/);
+  if (이름차 && Number(이름차[2]) > 0) {
+    const 앞 = 이름차[1].replace(/[\s_\-+&]+$/, '').trim();
+    const no = Number(이름차[2]);
+    const 제목 = `${앞 ? `${앞} ` : ''}${no}차`;
+    return { kind: '이름', key: 제목.replace(/\s+/g, ''), 제목, year: 0, no, 계열: '' };
+  }
+  const d = String(발주일 ?? '').match(/^(?:20)?(\d{2})[-.](\d{1,2})/);
+  if (d) {
+    const 달 = String(Number(d[2])).padStart(2, '0');
+    return { kind: '달', key: `${d[1]}년${달}월`, 제목: `${d[1]}년 ${Number(d[2])}월`, year: Number(d[1]), no: Number(d[2]), 계열: '' };
+  }
+  return { kind: '달', key: '날없음', 제목: '날 없음', year: 0, no: 0, 계열: '' };
+}
+
+/* 차수 앞 이름(계열) — 한 구매사명 안에 여러 공장·제품의 차수가 섞여 있습니다(제헤우드 26-06 · 다른 공장 26-06 …).
+   계열이 다르면 번호가 같아도 다른 차수입니다. 같은 것을 다르게 쓴 이름만 하나로 — ZH·AMT-ZH = 제헤우드, HPC = 해피코.
+   줄여 쓴 이름(앞 글자가 같고 글자가 차례로 다 들어 있는 것, 「ABC」 ↔ 「AXBYCZ」)은 임시발주묶기가 구매사명 안에서 합칩니다. */
+const 계열같음 = [[/^(ZH|AMT-ZH|제헤우드)$/, '제헤우드'], [/^(HPC|해피코)$/, '해피코']];
+function 임시계열(v) {
+  const s = String(v ?? '').toUpperCase().replace(/^ING-/, '').replace(/-[A-Z]$/, '').replace(/[-_\s]+$/, '').trim();
+  return 계열같음.find(([re]) => re.test(s))?.[1] ?? s;
+}
+const 줄임인가 = (짧, 긴) => {
+  if (짧.length < 2 || 짧.length >= 긴.length || 짧[0] !== 긴[0]) return false;
+  let i = 0;
+  for (const ch of 긴) if (ch === 짧[i]) i++;
+  return i === 짧.length;
+};
+
+const 임시수 = (v) => {
+  const n = Number(String(v ?? '').replace(/[,\s원₩]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+};
+const 임시셈 = (n) => (Math.round(n * 100) / 100).toLocaleString('en-US');
+
+/**
+ * 구매사명 하나의 줄들 → 차수 묶음. 같은 차수의 PO 여럿((1/2)·(2/2)·수정)은 한 차수, 안에 PO 별로.
+ * 차례: 해 있는 차수(26 → 25, 큰 번호 먼저) · 이름 차수(늦은 발주일 먼저) · 달(늦은 달 먼저).
+ * 표(내용보기)는 원본처럼 PO번호·발주명·발주일을 PO 첫 줄에만, 끝에 합계줄 — { name, rows:[{c}], h:1, f }.
+ */
+function 임시발주묶기(vendor, rows) {
+  const pos = new Map();
+  for (const r of rows ?? []) {
+    const c = r.c ?? r;
+    const po = String(c[임시자리.PO번호] ?? '').trim();
+    if (!po) continue;
+    if (!pos.has(po)) pos.set(po, { po, 이름: String(c[임시자리.구매발주명] ?? '').trim(), 구분: String(c[임시자리['내자/외자 구분']] ?? '').trim(),
+      발주일: String(c[임시자리.발주일] ?? '').trim(), 입고일: String(c[임시자리.입고일] ?? '').trim(), 줄: [] });
+    pos.get(po).줄.push(c);
+  }
+  const 차수꼴 = [...pos.values()].map((p) => [p, 임시차수(p.이름, p.발주일)]);
+  const 계열모두 = [...new Set(차수꼴.map(([, k]) => k.계열).filter(Boolean))];
+  const 긴이름 = (g) => 계열모두.filter((x) => 줄임인가(g, x)).sort((a, b) => b.length - a.length)[0] ?? g;
+  const 묶음 = new Map();
+  for (const [p, k] of 차수꼴) {
+    if (k.계열) k.계열 = 긴이름(k.계열);
+    const 열쇠 = k.kind === '차수' && k.계열 ? `${k.계열} ${k.key}` : k.key;
+    if (!묶음.has(열쇠)) 묶음.set(열쇠, { ...k, key: 열쇠, pos: [] });
+    묶음.get(열쇠).pos.push(p);
+  }
+  // 계열이 둘 이상일 때만 차수 앞에 계열 이름을 붙입니다 — 하나뿐이면 「26-17차」 그대로.
+  const 계열들 = new Set([...묶음.values()].filter((g) => g.kind === '차수').map((g) => g.계열));
+  if (계열들.size > 1) for (const g of 묶음.values()) if (g.kind === '차수' && g.계열) g.제목 = `${g.계열} ${g.제목}`;
+  const 늦은날 = (g) => g.pos.map((p) => p.발주일).sort().pop() ?? '';
+  const 차례 = { 차수: 0, 이름: 1, 달: 2 };
+  return [...묶음.values()]
+    .map((g) => {
+      g.pos.sort((a, b) => a.발주일.localeCompare(b.발주일) || Number(a.po) - Number(b.po));
+      return { ...g, 끝날: 늦은날(g) };
+    })
+    .sort((a, b) => 차례[a.kind] - 차례[b.kind] || (a.kind === '이름' ? b.끝날.localeCompare(a.끝날) : b.year - a.year || b.no - a.no || a.계열.localeCompare(b.계열)))
+    .map((g) => ({
+      id: `임시:${vendor}::${g.key}`,
+      vendor,
+      batch: g.key,
+      제목: g.제목,
+      kind: g.kind,
+      끝날: g.끝날,
+      pos: g.pos.map(({ 줄, ...p }) => ({ ...p, 줄수: 줄.length,
+        금액: 줄.reduce((n, c) => n + 임시수(c[임시자리.금액]), 0),
+        입고: 줄.every((c) => /^y/i.test(String(c[임시자리.입고여부] ?? '').trim())) })),
+      표: 임시표(g.pos),
+    }));
+}
+
+const 표칸 = ['PO번호', '구매발주명', '발주일', '입고일', '단품코드', '단품명', '발주수량', '입고수량', '단가', '금액', '입고여부'];
+function 임시표(pos) {
+  const 숫칸 = new Set(['발주수량', '입고수량', '단가', '금액']);
+  const 합 = { 발주수량: 0, 입고수량: 0, 금액: 0 };
+  const rows = [{ c: 표칸.map((k) => (k === '구매발주명' ? '발주명' : k)) }];
+  for (const p of pos) {
+    p.줄.forEach((c, i) => {
+      for (const k of Object.keys(합)) 합[k] += 임시수(c[임시자리[k]]);
+      rows.push({ c: 표칸.map((k) => {
+        if (i && (k === 'PO번호' || k === '구매발주명' || k === '발주일')) return '';
+        const v = String(c[임시자리[k]] ?? '').trim();
+        return 숫칸.has(k) && v !== '' ? 임시셈(임시수(v)) : v;
+      }) });
+    });
+  }
+  const f = rows.length;
+  rows.push({ c: 표칸.map((k) => (k === 'PO번호' ? '합계' : k in 합 ? 임시셈(합[k]) : '')) });
+  return { name: '발주', rows, h: 1, f };
+}
+
+return { ASIDE, CJK_GLOSS, KINDS, STAGES, STAGE_BY_KEY, SUBDIRS, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, kindOf, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, subdirOf, suggestKeyword, summarize, 글귀_, 다음차수, 밑줄보기, 올릴이름, 임시계열, 임시발주묶기, 임시차수, 임시칸, 제품줄인가, 칸낱말, 코드열쇠 };
 })();
 const PROGRESS = (() => {
 /**
@@ -3467,9 +3691,22 @@ function watchQuotes(cb) {
   return ctx.f.onSnapshot(col(QUOTES), (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => cb([]));
 }
 
-return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, authMessage, fileKey, idToken, init, overlayKey, replaceFiles, saveCipl, saveKinds, saveLoading, saveOverlay, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOverlay, watchQuotes, watchRules, 벤더피아단품목록, 벤더피아상품목록, 벤더피아줄벗기기, 수량열쇠, 수량올리기, 수량칸 };
+/* ── 임시통합 — 벤더피아 구매발주목록 (v0.97.0) ─────────────
+   서버(sync.gs 임시발주_)가 구매사명마다 한 문서 + `_목록` 한 문서로 적습니다. 여기서는 읽기만.
+   ⚠ 부르는 쪽(app.js)이 임시통합을 열 때 목록 한 번, 구매사명을 열 때 그 문서 한 번만 부릅니다. */
+const 임시모음 = 'docs_임시발주';
+async function 임시읽기(id) {
+  try {
+    const s = await ctx.f.getDoc(ctx.f.doc(col(임시모음), id));
+    return s.exists() ? { ok: true, 값: s.data() } : { ok: false, why: '아직 없음' };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 읽음' };
+  }
+}
+
+return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, authMessage, fileKey, idToken, init, overlayKey, replaceFiles, saveCipl, saveKinds, saveLoading, saveOverlay, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOverlay, watchQuotes, watchRules, 벤더피아단품목록, 벤더피아상품목록, 벤더피아줄벗기기, 수량열쇠, 수량올리기, 수량칸, 임시모음, 임시읽기 };
 })();
-const { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath } = PARSE;
+const { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } = PARSE;
 const { progressWord } = PROGRESS;
 const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기 } = MATCH;
 
@@ -3496,6 +3733,7 @@ const state = {
   ciplBusy: new Set(),
   viewer: { list: [], idx: 0 },
   unsub: [],
+  임시차수: [],         // 임시통합 — 연 구매사명의 차수(벤더피아 구매발주목록). 드라이브 차수와 따로 둡니다
   캐시: { files: true, rules: true, kinds: true },   // 아직 서버 값을 못 봤으면 true — 그동안은 안 씁니다
 };
 
@@ -3512,6 +3750,9 @@ const 진행알약 = (b) => {
   return 말 ? `<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-ink text-white shrink-0">${말}</span>` : '';
 };
 
+/* 차수 목록·서랍이 보는 차수 — 드라이브 차수 + 임시통합에서 연 차수. 셈(거래처 박스·제품관리·수량 건네기)은 state.batches 만 봅니다. */
+const 모든차수 = () => (state.임시차수.length ? [...state.batches, ...state.임시차수] : state.batches);
+const 차수이름 = (b) => b.제목 ?? `${b.batch}차`;
 const fmtSize = (b) => (b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(1)} MB`);
 
 /* ── 부팅 ─────────────────────────────────────────────── */
@@ -3644,6 +3885,7 @@ async function loadDemo() {
   state.demo = true;
   state.files = data.files;
   state.overlay = data.overlay ?? {};
+  state.데모임시 = data.임시 ?? null;
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#userEmail').textContent = '데모';
@@ -3765,8 +4007,9 @@ async function syncFromFolder() {
 function visible() {
   const { vendor, status, q } = state.filter;
   const needle = q.toLowerCase();
-  return state.batches.filter((b) => {
+  return 모든차수().filter((b) => {
     if (vendor && b.vendor !== vendor) return false;
+    if (!vendor && b.임시) return false;
     if (status === 'issue' && !b.issues.length) return false;
     if (status && status !== 'issue' && b.status !== status) return false;
     if (needle) {
@@ -3939,7 +4182,7 @@ function renderGrid() {
         <div class="flex items-start justify-between gap-3 mb-2">
           <div>
             <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
-            <div class="text-[16px] font-bold leading-tight">${esc(b.batch)}차</div>
+            <div class="text-[16px] font-bold leading-tight">${esc(차수이름(b))}</div>
           </div>
           <div class="text-right shrink-0">
             <div class="text-[15px] font-bold leading-tight">${b.done}<span class="text-faint text-[12px]">/7</span></div>
@@ -3949,7 +4192,7 @@ function renderGrid() {
         <div class="flex items-center gap-2 flex-wrap text-[11px] font-semibold">
           ${진행알약(b)}
           ${b.lastDate ? `<span class="text-faint">최근 ${esc(b.lastDate)}</span>` : ''}
-          <span class="text-faint">서류 ${b.docs.length}건</span>
+          <span class="text-faint">${b.임시 ? 'PO' : '서류'} ${b.docs.length}건</span>
           ${warn ? `<span class="text-warn">이상 ${warn}</span>` : ''}
           ${info ? `<span class="text-faint">중복 ${info}</span>` : ''}
         </div>
@@ -4695,7 +4938,7 @@ async function setConfirmedOrder(batchId, path) {
 function openDrawer(id) {
   state.openId = id;
   renderDrawer(id);
-  const b = state.batches.find((x) => x.id === id);
+  const b = state.batches.find((x) => x.id === id);   // 임시통합 차수는 읽을 파일이 없어 안 찾습니다
   if (b) loadCipl(b);
   $('#scrim').hidden = false;
   requestAnimationFrame(() => $('#drawer').classList.remove('translate-x-full'));
@@ -4712,7 +4955,7 @@ function closeDrawer() {
 const 수정전펴둔 = new Set();
 
 function renderDrawer(id) {
-  const b = state.batches.find((x) => x.id === id);
+  const b = 모든차수().find((x) => x.id === id);
   if (!b) return closeDrawer();
   const ov = state.overlay[id] ?? {};
   const auto = ciplOfBatch(b) ?? ov.cipl ?? null;
@@ -5012,7 +5255,7 @@ function renderDrawer(id) {
         <div class="flex items-center justify-between gap-3 mb-4">
           <div class="min-w-0">
             <div class="text-[11px] font-bold text-faint tracking-wide">${esc(칸?.label ?? '')}</div>
-            <div class="text-[16px] font-bold leading-tight break-words">${esc(b.vendor)} ${esc(b.batch)}차</div>
+            <div class="text-[16px] font-bold leading-tight break-words">${esc(b.vendor)} ${esc(차수이름(b))}</div>
           </div>
           <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px] ml-auto">닫기</button>
         </div>
@@ -5091,7 +5334,24 @@ function renderDrawer(id) {
 
   /* 여러 장 중 하나를 확정하면 칸에는 확정 발주서만 — 나머지는 「수정전 발주서 보기 (n)」 를 눌러야 펴집니다
      (사장님 11-02). 단품관리 .dit-code 와 같은 꼴: 손가락으로 눌러 펴고, :hover 안 씀. */
+  /* 임시통합 — 서류 대신 PO 한 건이 한 줄. 드라이브 파일이 아니라 열기·보내기·확정이 없습니다. */
+  const 임시PO칸 = (docs) => `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${docs.map((d) => {
+    const p = d.임시;
+    return `
+    <li class="dhh-dbox">
+      <div class="flex items-start gap-2">
+        <span class="dnm text-left break-words">${esc(d.display)}</span>
+        ${p.구분 ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-chip text-muted shrink-0 mt-px ml-auto">${esc(p.구분)}</span>` : ''}
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="dmt min-w-0 flex-1">${esc([p.발주일, `${p.줄수}줄`, p.금액 ? `${fmtNum(p.금액)}원` : ''].filter(Boolean).join(' · '))}</span>
+        <span class="text-[11px] font-bold ${p.입고 ? 'text-ok' : 'text-faint'} shrink-0">${p.입고 ? '입고' : '미입고'}</span>
+      </div>
+    </li>`;
+  }).join('')}</ul>`;
+
   const 발주서칸 = (docs) => {
+    if (b.임시) return 임시PO칸(docs);
     const 줄 = (ds, 틀 = 'pl-[42px] pr-3 pb-2') => `<ul class="${틀} space-y-1.5">${ds.map((d) => docLink(d)).join('')}</ul>`;
     diffs = diffNotes(docs);
     if (docs.length < 2 || !확정발주서 || 고르셔야하나) return 줄(docs);
@@ -5395,7 +5655,7 @@ function renderDrawer(id) {
     <div class="sticky top-0 bg-white border-b border-line px-6 h-[65px] flex items-center gap-3 z-10">
       <div class="min-w-0">
         <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
-        <div class="text-[17px] font-bold leading-tight">${esc(b.batch)}차</div>
+        <div class="text-[17px] font-bold leading-tight">${esc(차수이름(b))}</div>
         <div class="flex items-center gap-[3px] mt-1">${stageDots(b)}</div>
       </div>
       <div class="ml-auto flex items-center gap-2">
@@ -5451,8 +5711,8 @@ function renderDrawer(id) {
                 ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
                 : s.key === 'order' ? 발주서칸(s.docs)
                 : `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${((diffs = diffNotes(s.docs)), s.docs.map((d) => docLink(d)).join(''))}</ul>`}
-              ${s.key === 'order' && s.docs.some((d) => /\.pdf$/i.test(d.name)) ? 내용보기단추('orderView') : ''}
-              ${s.key === 'order' ? 상차일칸() : ''}
+              ${s.key === 'order' && (b.임시 ? on : s.docs.some((d) => /\.pdf$/i.test(d.name))) ? 내용보기단추('orderView') : ''}
+              ${s.key === 'order' && !b.임시 ? 상차일칸() : ''}
               ${s.key === 'cipl' && on ? 내용보기단추('ciplView') : ''}
               ${s.key === 'cipl' && on ? 발주대조칸() : ''}
             </li>`;
@@ -5470,9 +5730,9 @@ function renderDrawer(id) {
             </div>`).join('')}
         </section>` : ''}
 
-      ${shipSummary(b, ov)}
+      ${b.임시 ? '' : shipSummary(b, ov)}
 
-      <section>
+      ${b.임시 ? '' : `<section>
         <h3 class="text-[12px] font-bold text-faint tracking-wide mb-3">직접 입력</h3>
         <div class="grid grid-cols-2 gap-3">
           ${field('piAmount', '계약 총액 (PI)', { placeholder: 'USD' })}
@@ -5499,11 +5759,12 @@ function renderDrawer(id) {
               : ''}
           </span>
         </div>
-      </section>
+      </section>`}
     </div>`;
 
   $('#drawerClose').onclick = closeDrawer;
-  $('#ovSave').onclick = () => saveOverlay(id);
+  const ovSave = $('#ovSave');
+  if (ovSave) ovSave.onclick = () => saveOverlay(id);
   const connect = $('#ciplConnect');
   if (connect)
     connect.onclick = () =>
@@ -5737,8 +5998,8 @@ window.docsVendorBoxes = (vendor) => {
   const 남은것 = mine.filter((d) => !담김.has(d.path));
   return {
     vendor,
-    batches: state.batches.filter((b) => b.vendor === vendor).length,
-    active: state.batches.filter((b) => b.vendor === vendor && b.status === 'active').length,
+    batches: 모든차수().filter((b) => b.vendor === vendor).length,
+    active: 모든차수().filter((b) => b.vendor === vendor && b.status === 'active').length,
     dev: 남은것.filter(isDevDoc).map(slimDoc),
     unsure: 남은것.filter((d) => !isDevDoc(d)).map(slimDoc),
     mine: mine2,
@@ -6357,6 +6618,48 @@ window.docsCounts = () => ({
   // 올린날이 아직 안 올라와 mtime 으로 갈음한 건수
   올린날갈음: state.files.filter((f) => !f.ctime && f.mtime).length,
 });
+
+/* ── 임시통합 — 벤더피아 구매발주목록 (v0.97.0, 11-02) ──────────────
+   사장님 11-02 「메인페이지에 임시통합 박스를 만들어서 분석 서류의 구매사명 기준으로 박스만들어 주고
+   해당박스클릭시 제헤우드 박스와 동일하게 작동하게 해줘 … 26년 차수별 발주 박스만들어줘
+   이 자료는 실제 수입서류 없으니 해당 발주내용을 내용보기에 넣어 정리해줘 단품코드 벤더피아와 일치시 현재 논리에 따라 표기해주고」
+   자료는 Firestore docs_임시발주(서버 sync.gs 임시발주_) — 공개 저장소·Pages 에는 안 둡니다.
+   읽기: 임시통합을 열 때 `_목록` 한 번, 구매사명을 열 때 그 문서 한 번(창이 열린 동안). 데모는 DEMO.임시.
+   차수는 parse.js 임시발주묶기. 차수 하나 = 거래처 차수와 같은 summarize 꼴(발주서 칸에 PO 마다 한 줄, 표는 cipl.sheets) —
+   차수 목록·서랍·내용보기·벤더피아 맞대기를 그대로 씁니다. 드라이브 일(올리기·발주하기)은 폴더가 없어 안 뜹니다. */
+let 임시목록 = null;                // Promise<{ ok, 사명들, why }>
+const 임시문서 = new Map();          // 구매사명 id → Promise<{ ok, 값, why }>
+const 데모임시 = () => state.데모임시;
+
+window.docs임시목록 = () => (임시목록 ??= (async () => {
+  const r = state.demo ? { ok: !!데모임시(), 값: 데모임시()?.목록 } : await DB.임시읽기('_목록');
+  if (!r.ok) { 임시목록 = null; return { ok: false, why: r.why ?? '없음' }; }
+  const 사명들 = (r.값.사명들 ?? []).map((m) => {
+    const 차수들 = 임시발주묶기(m.name, (m.po ?? []).map((x) => { const [po, 이름, 날] = x.c ?? x; return [po, 이름, '', '', 날]; }));
+    return { id: m.id, name: m.name, 구분: m.구분 ?? [], 줄: m.줄 ?? 0, po: (m.po ?? []).length, 차수: 차수들.length };
+  });
+  return { ok: true, 사명들, at: r.값.at ?? '' };
+})());
+window.docs임시본것 = () => 임시목록;
+window.docs임시인가 = (vendor) => state.임시차수.some((b) => b.vendor === vendor);
+
+/** 구매사명 하나를 엽니다 — 그 문서를 읽어 차수로 묶어 state.임시차수 에 얹습니다. */
+window.docs임시열기 = async (m) => {
+  if (!임시문서.has(m.id)) 임시문서.set(m.id, state.demo
+    ? Promise.resolve({ ok: true, 값: 데모임시()?.사명[m.id] })
+    : DB.임시읽기(m.id));
+  const r = await 임시문서.get(m.id);
+  if (!r.ok || !r.값) { 임시문서.delete(m.id); return { ok: false, why: r.why ?? '없음' }; }
+  const 차수들 = 임시발주묶기(m.name, r.값.rows ?? []).map((g) => {
+    const docs = g.pos.map((p) => ({
+      path: `임시/${m.id}/${p.po}`, name: `PO ${p.po}`, display: `PO ${p.po} · ${p.이름}`,
+      vendor: m.name, stageKey: 'order', date: p.발주일, 임시: p, cipl: { sheets: [g.표] },
+    }));
+    return { ...summarize({ id: g.id, vendor: m.name, batch: g.batch, year: 0, no: 0, docs }), 제목: g.제목, 임시: true };
+  });
+  state.임시차수 = [...state.임시차수.filter((b) => b.vendor !== m.name), ...차수들];
+  return { ok: true, 차수: 차수들.length };
+};
 
 /* ── 토스트 ───────────────────────────────────────────── */
 
