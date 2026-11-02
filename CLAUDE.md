@@ -30,7 +30,7 @@ Apps Script 는 `clasp` 로 밀어넣습니다 (`.clasp.json` 에 scriptId).
 
 | 파일 | 역할 |
 |---|---|
-| `index.html` | 화면 전체. 모달·서랍·액션바가 전부 여기 있음 |
+| `index.html` | 화면 전체. 박스판·서랍·팝업이 전부 여기 있음 |
 | `js/parse.js` | 파일명 → 거래처·차수·단계 판정. **순수 함수만.** 테스트 대상 |
 | `js/fsaccess.js` | File System Access API, 폴더 핸들을 IndexedDB에 영속 |
 | `js/firebase.js` | Auth·Firestore. SDK는 동적 import |
@@ -190,7 +190,7 @@ OCR 탓이 아니었습니다. PDF 글자층(이 맥 311개)도, 구글 문서 �
 **텍스트화 표의 밑줄은 화면에서 표준 `_` 로 찍습니다 — 날것은 그대로 (v0.82.0, 10-29).** 사장님 「…_ 표기를 복사해서 다른 프로그램에 넣으면 이언더바를 인식하지 못해 … 실제 표준자판의 _ 표기로 복사되도록」.
 - 10-29 실물(드라이브 동기 폴더 `중국/` 엑셀·PDF)에서 센 밑줄 꼴: `_`(U+005F) 와 `▁`(U+2581 LOWER ONE EIGHTH BLOCK) 둘뿐. `▁` 는 xlsx 31개·726번 · xls 20개·662번 · PDF 9개·145번. `＿`(U+FF3F)·`‗`(U+2017)·`̲`(U+0332)·`﹍`류는 0.
 - 공용 함수 `js/parse.js` `밑줄보기(v)` — `코드열쇠` 와 같은 `밑줄꼴_` 로 바꿉니다. app.js 는 `보임(s)` = `esc(밑줄보기(s))`, index.html 은 `dhh보임`(`window.밑줄보기`).
-- 쓰는 곳: `원본표`(발주서·잔액서류 CI·PL 내용보기 · 견적서 표) · 견적서 「글자」 · `diffTable`(발주서 대조·변동 상세) · 서류 품목 표 · `제품답` · 엑셀 미리보기(`sheet_to_html` 결과째) · `dpr표`(제품관리, `data-q`·검색어도) · 단품관리 · 코드관리.
+- 쓰는 곳: `원본표`(발주서·잔액서류 CI·PL 내용보기 · 견적서 표) · 견적서 「글자」 · `diffTable`(발주서 대조·변동 상세) · 서류 품목 표 · `제품답` · 엑셀 미리보기(`sheet_to_html` 결과째) · `dpr표`(제품관리, `data-q`·검색어도) · 단품관리.
 - ⚠ **담은 값(`cipl.items`·`sheets`)·`코드열쇠`·`밑줄꼴`·「밑줄 묶음 n쌍」 셈은 날것 그대로입니다.** 그릴 때만 바꿉니다. `data-doc` 처럼 다시 읽어 맞대는 속성에는 쓰지 마세요. 서버 안 고침, `READ_VERSION` 그대로.
 - 새 텍스트화 표를 만들면 칸 글자를 `esc` 말고 `보임`/`dhh보임` 으로.
 
@@ -245,6 +245,17 @@ OCR 탓이 아니었습니다. PDF 글자층(이 맥 311개)도, 구글 문서 �
 - 편 상태는 모듈 `수정전펴둔`(차수 id Set) — 스냅샷·확정 바꿈으로 서랍을 다시 그려도 펴 둔 채. 새로고침하면 접힘.
 - 펼친 목록 안에서도 확정 바꾸기·풀기·보내기·열기 그대로(같은 `docLink`). 풀면 전부 다시 보임.
 - 기준(11-02 확인, 안 바꿈): **발주서 대조**(`발주대조칸`)는 확정 발주서 기준. **발주서 내용보기**(`openCiplView(undefined,'order')`)는 확정과 상관없이 그 칸 **모든** 발주서의 표(같은 표는 하나)를 이름 딱지 밑에 차례로 보입니다.
+
+**⚠ 규칙 — 첫 판 박스 = 다섯 개 (사장님 11-02, v0.87.0).** 「서류관리에서 해피코 제헤우드 베이지아 견적관리 제품관리를 제외한 나머지 박스들 모두 삭제해주고 관련코드도 삭제해줘」.
+- 첫 판(`#docs-home`)에는 거래처 박스 **해피코 · 제헤우드 · 베이지아** + **제품관리** 타일 + **견적서** 줄만 섭니다. 늘리려면 사장님께 먼저.
+- 거래처 박스는 `js/app.js` `첫판거래처` 로 거릅니다(`docsCounts().boxes`). 데모(`?demo=1`)는 거래처가 가명이라 거르지 않습니다. `docs거래처들`(제품관리가 모으는 거래처)은 거르지 않습니다.
+- 「견적관리」 는 첫 판의 「견적서」 줄(`docsOpen견적` — 이름에 견적·报价 든 `docs_files` 목록)로 보았습니다. 「견적서 관리」(`docs_quotes`, v0.77.0)는 여태처럼 제품관리 안에 있습니다 — 첫 판에 따로 안 만들었습니다.
+- 베이지아는 서버 연동 범위(`VENDOR_DIRS`) 밖이라 `@58` 이 자료를 지워 **지금은 박스가 안 섭니다.** 범위에 넣으면 저절로 섭니다.
+- 지운 것: 첫 판 「나머지」 줄 일곱(모든 차수 · 진행 현황 · 차수가 붙지 않은 파일 · 지시 내용 · 코드관리 · 규칙 · 제외함)과 「＋ 새 박스」(첫 판·거래처 판·파일 목록·차수 목록의 점선 칸, 떠 있는 ＋, 만들기 칸).
+  따라 지운 코드 — index.html `#docs-orders`·`#docs-codes`·`#docs-fab`·`#docs-sheet`·`#kpis`·`#define`·`#actionBar`·`#assignScrim`(지정 모달)·`#panel`(규칙·제외함 서랍), `docsOpenAll`·`docsOpenRest`·`docsPressChip`·`docsOpenOrders`·`docsOrdersRefresh`·`docsOpenCodes`·`docsCodesRefresh`·`docsMake*`, `DOCS_BOXES` 의 status·loose.
+  js/app.js `BOX_CUT`·`BOX_CUTS`(→ `거래처박스()`), `renderKpis`·`renderDefine`·`LOOSE_LABEL`·선택(`toggleSelect`·`paintRow`·`renderActionBar`·`clearSelection`·`state.selected`)·지정(`openAssign`·`saveAssign`·`closeAssign`)·패널(`openPanel`·`renderPanel`·`closePanel`)·`docsNewBox`·`docsAddVendorBox`·`docsCountInVendor`·`docsCountKeyword`·`docsOrders`·`docsCodes`. js/firebase.js `watchOrders`(`wt_dev` 듣기 — 이제 안 읽음)·`saveBox`·`saveRule`·`deleteRule`.
+- 남긴 것: 거래처 판(발주 · 개발/샘플 · 미확인 · 단품관리 · 이미 만든 손박스 보기 — `watchBoxes`, 만들기만 지움), 구분·파일 목록 판, 차수 목록(`DOCS_BOXES.batch`)·서랍 전부, `docs_rules` 판정·`saveRules`(서랍 올리기 길 규칙이 씀), `state.excluded`(파서가 냄). Firestore 는 아무것도 안 지웠습니다.
+- `data-docsdiff` 표시(팝업들이 겁니다)는 이제 거는 곳만 남았습니다(보던 ＋ 단추가 없어짐). 다른 방이 고치는 `openCiplView` 안이라 안 건드렸습니다.
 
 **서류에서 뽑는 규칙을 고치면 `sync.gs` 의 `READ_VERSION` 을 올립니다.**
 `MARK_VERSION` 만 올리면 전체를 다시 훑기는 하지만, 파일별로 "이미 `cipl` 칸이 있다"고

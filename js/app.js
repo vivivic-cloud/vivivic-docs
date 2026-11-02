@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, extOf, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS } from './parse.js';
+import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조 } from './match.js';
 import * as FS from './fsaccess.js';
@@ -14,13 +14,10 @@ const state = {
   boxes: [],            // 거래처 안에 손으로 만든 박스
   kinds: {},            // 파일 갈래 구분저장 — 경로 → cad/spread/ppt/pdf/etc
   loading: {},          // 차수별 상차일 — 고른 날(pick) · 확정한 날(fixed)
-  orders: [],           // 작업대에 오간 지시와 답 — 읽기만 합니다
   quotes: [],           // 견적서 관리 — 드라이브에서 불러와 글자로 바꿔 둔 견적 파일
   overlay: {},
   rules: [],
   excluded: [],
-  selected: new Set(),
-  assignMode: 'assign',
   filter: { vendor: null, status: null, q: '' },
   openId: null,
   ciplBusy: new Set(),
@@ -60,15 +57,6 @@ async function boot() {
   $('#btnSignOut').onclick = () => DB.signOut();
   $('#btnSync').onclick = $('#btnSync2').onclick = syncFromFolder;
   $('#scrim').onclick = closeDrawer;
-  $('#panelScrim').onclick = closePanel;
-  $('#btnRules').onclick = () => openPanel('rules');
-  $('#btnExcluded').onclick = () => openPanel('excluded');
-  $('#btnAssign').onclick = () => openAssign('assign');
-  $('#btnExclude').onclick = () => openAssign('exclude');
-  $('#btnClearSel').onclick = clearSelection;
-  $('#asCancel').onclick = closeAssign;
-  $('#asSave').onclick = saveAssign;
-  $('#asRule').onchange = (e) => ($('#asKeyword').hidden = !e.target.checked);
   $('#viewerClose').onclick = closeViewer;
   $('#viewerPrev').onclick = () => stepViewer(-1);
   $('#viewerNext').onclick = () => stepViewer(1);
@@ -81,8 +69,6 @@ async function boot() {
     }
     if (e.key !== 'Escape') return;
     if (!$('#viewerScrim').hidden) return closeViewer();
-    if (!$('#assignScrim').hidden) return closeAssign();
-    if (!$('#panelScrim').hidden) return closePanel();
     closeDrawer();
   });
 
@@ -139,7 +125,6 @@ async function enterApp(user) {
     DB.watchOverlay((ov) => { state.overlay = ov; render(); }),
     DB.watchRules((rules, 캐시) => { state.rules = rules; state.캐시.rules = 캐시; applyParse(); }),
     DB.watchBoxes((boxes) => { state.boxes = boxes; window.docsBoxesChanged?.(); }),
-    DB.watchOrders((msgs) => { state.orders = msgs; window.docsOrdersChanged?.(); }),
     DB.watchKinds((map, 캐시) => { state.kinds = map; state.캐시.kinds = 캐시; window.docsBoxesChanged?.(); saveKindsIfNew(); }),
     DB.watchLoading((map) => { state.loading = map; if (state.openId) renderDrawer(state.openId); })
   );
@@ -406,27 +391,11 @@ function renderFileHits() {
 
 function render() {
   if ($('#dash').hidden) return;
-  renderKpis();
   renderChips();
   renderFileHits();
   renderGrid();
-  renderDefine();
   window.docsHomeRefresh?.();
   if (state.openId) renderDrawer(state.openId);
-}
-
-function renderKpis() {
-  const all = state.batches;
-  const cards = [
-    ['진행 중', all.filter((b) => b.status === 'active').length, 'text-info'],
-  ];
-  $('#kpis').innerHTML = cards
-    .map(([label, value, cls]) => `
-      <div class="card px-5 py-4">
-        <div class="text-[11px] font-bold text-faint tracking-wide mb-1">${label}</div>
-        <div class="text-[26px] font-bold leading-none ${cls}">${value}</div>
-      </div>`)
-    .join('');
 }
 
 function renderChips() {
@@ -492,272 +461,10 @@ function renderGrid() {
         </div>
       </button>`;
     })
-    .join('') +
-    // 차수 목록도 박스가 있는 화면입니다 — 줄 끝에 '＋ 새 박스' 를 같이 둡니다.
-    // 떠 있는 단추는 폰에서 아래 주소창에 가릴 수 있어 이것이 있어야 보입니다.
-    `<button type="button" class="dhh-newbox" onclick="docsMakeOpen()">
-       <b>＋</b><span>새 박스</span></button>`;
+    .join('');
 
   for (const el of document.querySelectorAll('[data-open]')) el.onclick = () => openDrawer(el.dataset.open);
 }
-
-const LOOSE_LABEL = {
-  ...Object.fromEntries(STAGES.map((x) => [x.key, `${x.label} · 차수 모름`])),
-  dev: '제품개발 자료',
-  fta: 'FTA · 원산지',
-  etc: '분류하지 못한 파일',
-};
-
-function renderDefine() {
-  const hasAny = state.unassigned.length || state.excluded.length || state.rules.length;
-  $('#define').hidden = !hasAny;
-  if (!hasAny) return;
-
-  const shown = state.filter.vendor
-    ? state.unassigned.filter((d) => d.vendor === state.filter.vendor || !d.vendor || d.vendor === '(루트)')
-    : state.unassigned;
-  $('#defineCount').textContent =
-    shown.length === state.unassigned.length ? `${state.unassigned.length}건` : `${shown.length}건 / 전체 ${state.unassigned.length}건`;
-  $('#ruleCount').textContent = state.rules.length ? String(state.rules.length) : '';
-  $('#excludedCount').textContent = state.excluded.length ? String(state.excluded.length) : '';
-
-  // 거래처별로 묶습니다. 차수를 못 읽었어도 어느 거래처 것인지는 아는 경우가 대부분이라,
-  // 파일 종류로 쪼개는 것보다 거래처로 모아 보는 편이 손이 덜 갑니다.
-  const UNKNOWN = '거래처를 모르는 파일';
-  const vendorOf = (d) => (!d.vendor || d.vendor === '(루트)' ? UNKNOWN : d.vendor);
-
-  const groups = new Map();
-  for (const d of state.unassigned) {
-    const key = vendorOf(d);
-    // 거래처 칩을 골라 두면 그 거래처 것만 봅니다. 모르는 파일은 늘 남겨 둡니다.
-    if (state.filter.vendor && key !== state.filter.vendor && key !== UNKNOWN) continue;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(d);
-  }
-
-  // 거래처를 모르는 묶음은 늘 맨 끝입니다.
-  const order = [...groups.entries()].sort((a, b) => {
-    if (a[0] === UNKNOWN) return 1;
-    if (b[0] === UNKNOWN) return -1;
-    return b[1].length - a[1].length;
-  });
-
-  $('#looseGroups').innerHTML = order
-    .map(([key, docs]) => `
-      <div class="card p-5 ${key === UNKNOWN ? 'border-warn/40' : ''}">
-        <div class="flex items-center gap-2 mb-3">
-          <button class="text-[11px] font-bold text-info hover:underline" data-pick="${esc(key)}">전체 선택</button>
-          <span class="font-bold text-[14px] ml-1">${esc(key)}</span>
-          <span class="ml-auto text-[12px] text-faint font-semibold">${docs.length}건</span>
-        </div>
-        ${key === UNKNOWN
-          ? '<p class="text-[11px] text-muted mb-2 leading-relaxed">거래처 단서 없음</p>'
-          : ''}
-        <ul class="space-y-0.5 max-h-[280px] overflow-y-auto pr-1">
-          ${docs.map((d) => row(d)).join('')}
-        </ul>
-      </div>`)
-    .join('');
-
-  for (const el of $('#looseGroups').querySelectorAll('[data-sel]')) {
-    el.onclick = (e) => {
-      if (e.target.tagName === 'A') return;
-      // 체크박스를 누르면 선택, 파일명을 누르면 실제 내용을 봅니다.
-      if (e.target.closest('[data-check]')) return toggleSelect(el.dataset.sel);
-      const doc = state.unassigned.find((d) => d.path === el.dataset.sel);
-      if (doc) openDoc(doc);
-    };
-  }
-  for (const el of $('#looseGroups').querySelectorAll('[data-pick]')) {
-    el.onclick = () => {
-      const docs = groups.get(el.dataset.pick) ?? [];
-      const allOn = docs.every((d) => state.selected.has(d.path));
-      docs.forEach((d) => {
-        allOn ? state.selected.delete(d.path) : state.selected.add(d.path);
-        paintRow(d.path);
-      });
-      renderActionBar();
-    };
-  }
-  renderActionBar();
-
-  function row(d) {
-    const on = state.selected.has(d.path);
-    return `
-      <li data-sel="${esc(d.path)}"
-          class="flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-all
-                 ${on ? 'bg-chip' : 'hover:bg-hover'}">
-        <span data-check="${esc(d.path)}" class="w-3.5 h-3.5 rounded border shrink-0 flex items-center justify-center text-[10px] font-bold
-              ${on ? 'bg-ink border-ink text-white' : 'border-line bg-white'}">${on ? '✓' : ''}</span>
-        <span class="text-[12px] truncate" title="${esc(fileTitle(d))}">${esc(d.display)}</span>
-        ${/* 못 붙은 서류에 **갈 자리**를 적습니다 — 사장님 10-15.
-             「26-18?」 처럼 물음표를 답니다. 짐작이지 정한 것이 아닙니다. */ ''}
-        ${linkBadge(d)}
-        <span class="ml-auto shrink-0 text-[10px] font-bold text-faint">${esc(STAGE_LABEL[d.stageKey] ?? d.stageKey)}</span>
-      </li>`;
-  }
-}
-
-function toggleSelect(path) {
-  if (state.selected.has(path)) state.selected.delete(path);
-  else state.selected.add(path);
-  paintRow(path);
-  renderActionBar();
-}
-
-/** 목록 전체를 다시 그리지 않고 해당 줄만 칠합니다 (스크롤 유지). */
-function paintRow(path) {
-  const li = $('#looseGroups').querySelector(`[data-sel="${CSS.escape(path)}"]`);
-  if (!li) return;
-  const on = state.selected.has(path);
-  li.className = `flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-all ${on ? 'bg-chip' : 'hover:bg-hover'}`;
-  const box = li.firstElementChild;
-  box.className = `w-3.5 h-3.5 rounded border shrink-0 flex items-center justify-center text-[10px] font-bold ${on ? 'bg-ink border-ink text-white' : 'border-line bg-white'}`;
-  box.textContent = on ? '\u2713' : '';
-}
-
-function renderActionBar() {
-  const n = state.selected.size;
-  $('#actionBar').hidden = n === 0;
-  $('#selCount').textContent = `${n}건 선택`;
-}
-
-function clearSelection() {
-  const paths = [...state.selected];
-  state.selected.clear();
-  paths.forEach(paintRow);
-  renderActionBar();
-}
-
-/* ── 지정 모달 ────────────────────────────────────────── */
-
-function openAssign(mode) {
-  if (!state.selected.size) return;
-  state.assignMode = mode;
-  const paths = [...state.selected];
-  const first = state.unassigned.find((d) => d.path === paths[0]);
-
-  $('#assignScrim').querySelector('h3').textContent = mode === 'exclude' ? '선택한 파일 제외' : '선택한 파일 지정';
-  $('#assignSummary').textContent =
-    paths.length === 1 ? first?.display ?? paths[0] : `${paths.length}건 · ${first?.display ?? ''} 외`;
-
-  const isAssign = mode === 'assign';
-  $('#asVendor').closest('label').hidden = !isAssign;
-  $('#asStage').closest('label').hidden = !isAssign;
-  $('#asBatch').closest('label').hidden = !isAssign;
-  $('#asVendorNew').hidden = true;
-  $('#asBatchNew').hidden = true;
-  $('#asBatchDocs').innerHTML = '';
-
-  $('#asStage').innerHTML =
-    '<option value="">그대로</option>' +
-    STAGES.map((x) => `<option value="${x.key}">${esc(x.label)}</option>`).join('') +
-    '<option value="dev">제품개발</option><option value="fta">FTA · 원산지</option>';
-  $('#asStage').value = '';
-
-  const vendors = [...new Set(state.batches.map((b) => b.vendor))].sort();
-  $('#asVendor').innerHTML =
-    '<option value="">그대로</option>' +
-    vendors.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('') +
-    '<option value="__new__">+ 새 거래처</option>';
-  $('#asVendor').value = first?.vendor && vendors.includes(first.vendor) ? first.vendor : '';
-
-  const syncBatchOptions = () => {
-    const vendorSel = $('#asVendor').value;
-    const vendor = vendorSel === '__new__' ? '' : vendorSel || first?.vendor || '';
-    const batches = [...new Set(state.batches.filter((b) => !vendor || b.vendor === vendor).map((b) => b.batch))]
-      .sort()
-      .reverse();
-    $('#asBatch').innerHTML =
-      '<option value="">그대로</option>' +
-      batches.map((b) => `<option value="${esc(b)}">${esc(b)}차</option>`).join('') +
-      '<option value="__new__">+ 새 차수</option>';
-    $('#asBatch').value = '';
-    $('#asBatchNew').hidden = true;
-    $('#asBatchDocs').innerHTML = '';
-  };
-  syncBatchOptions();
-
-  $('#asVendor').onchange = () => {
-    $('#asVendorNew').hidden = $('#asVendor').value !== '__new__';
-    syncBatchOptions();
-  };
-
-  $('#asBatch').onchange = () => {
-    const val = $('#asBatch').value;
-    $('#asBatchNew').hidden = val !== '__new__';
-    if (!val || val === '__new__') return ($('#asBatchDocs').innerHTML = '');
-    const vendorSel = $('#asVendor').value;
-    const vendor = vendorSel === '__new__' ? '' : vendorSel || first?.vendor || '';
-    const b = state.batches.find((x) => x.vendor === vendor && x.batch === val);
-    const docs = b?.docs ?? [];
-    $('#asBatchDocs').innerHTML = docs.length
-      ? `<div class="text-[11px] font-bold text-faint tracking-wide mb-1.5">${esc(vendor)} ${esc(val)}차의 다른 파일 — 눌러서 실제 내용 확인</div>
-         <ul class="space-y-0.5 max-h-[160px] overflow-y-auto border border-line rounded-lg p-2">
-           ${docs.map((d) => `<li><button type="button" data-asdoc="${esc(d.path)}"
-             class="text-left text-[12px] text-info hover:underline truncate w-full">${esc(d.display)}</button></li>`).join('')}
-         </ul>`
-      : `<p class="text-[11px] text-faint">다른 파일 없음</p>`;
-    for (const el of $('#asBatchDocs').querySelectorAll('[data-asdoc]')) {
-      el.onclick = () => openDoc(docs.find((d) => d.path === el.dataset.asdoc));
-    }
-  };
-
-  $('#asRule').checked = paths.length > 1;
-  $('#asKeyword').value = first ? suggestKeyword(first.name) : '';
-  $('#asKeyword').hidden = !$('#asRule').checked;
-  $('#assignScrim').hidden = false;
-}
-
-const closeAssign = () => ($('#assignScrim').hidden = true);
-
-async function saveAssign() {
-  const paths = [...state.selected];
-  const mode = state.assignMode;
-  const useRule = $('#asRule').checked;
-  const keyword = $('#asKeyword').value.trim();
-
-  const vendorSel = $('#asVendor').value;
-  const vendor = vendorSel === '__new__' ? $('#asVendorNew').value.trim() : vendorSel;
-  const batchSel = $('#asBatch').value;
-  // 손으로 적어 넣은 차수도 파일명에서 읽을 때와 같은 잣대로 받습니다.
-  // 여기가 헐거워서 '99-99' 같은 없는 차수가 규칙으로 굳어, 카드로 떠 있었습니다.
-  const 적은차수 = batchSel === '__new__' ? $('#asBatchNew').value.trim() : '';
-  const batch = batchSel === '__new__' ? (parseBatch(`${적은차수}차`)?.label ?? '') : batchSel;
-  if (적은차수 && !batch) return toast(`'${적은차수}' 차수 아님 · 26-18 처럼`);
-
-  const body =
-    mode === 'exclude'
-      ? { action: 'exclude' }
-      : {
-          action: 'assign',
-          ...(batch ? { batch } : {}),
-          ...($('#asStage').value ? { stageKey: $('#asStage').value } : {}),
-          ...(vendor ? { vendor } : {}),
-        };
-
-  if (mode === 'assign' && !body.batch && !body.stageKey && !body.vendor)
-    return toast('값 없음');
-  if (useRule && !keyword) return toast('키워드 없음');
-
-  const rules = useRule
-    ? [{ ...body, matchType: 'contains', match: keyword, note: `${paths.length}건에서 만듦` }]
-    : paths.map((path) => ({ ...body, matchType: 'path', match: path }));
-
-  if (state.demo) {
-    closeAssign();
-    return toast('데모 · 저장 안 됨');
-  }
-  try {
-    await DB.saveRules(rules, state.user?.email);
-    closeAssign();
-    clearSelection();
-    toast(useRule ? `규칙 저장 — "${keyword}"` : `${rules.length}건 지정`);
-  } catch (e) {
-    toast(`저장 실패: ${e.message}`);
-  }
-}
-
 
 /* ── 드라이브 미리보기 ───────────────────────────────── */
 
@@ -1263,77 +970,6 @@ async function connectFolder() {
   }
 }
 
-/* ── 규칙 · 제외함 패널 ───────────────────────────────── */
-
-function openPanel(tab) {
-  renderPanel(tab);
-  $('#panelScrim').hidden = false;
-  requestAnimationFrame(() => $('#panel').classList.remove('translate-x-full'));
-}
-
-function closePanel() {
-  $('#panel').classList.add('translate-x-full');
-  $('#panelScrim').hidden = true;
-}
-
-function renderPanel(tab) {
-  const isRules = tab === 'rules';
-  const desc = (r) => {
-    if (r.action === 'exclude') return '제외';
-    return [r.batch && `${r.batch}차`, r.stageKey && (STAGES.find((x) => x.key === r.stageKey)?.label ?? r.stageKey), r.vendor]
-      .filter(Boolean)
-      .join(' · ');
-  };
-
-  $('#panelBody').innerHTML = `
-    <div class="sticky top-0 bg-white border-b border-line px-6 h-[65px] flex items-center gap-3 z-10">
-      <div class="text-[17px] font-bold">${isRules ? '규칙' : '제외함'}</div>
-      <span class="text-[12px] text-faint font-semibold">${isRules ? state.rules.length : state.excluded.length}건</span>
-      <button id="panelClose" class="btn btn-ghost ml-auto">닫기</button>
-    </div>
-    <div class="p-6">
-      ${
-        isRules
-          ? state.rules.length
-            ? `<ul class="space-y-2">${state.rules
-                .map(
-                  (r) => `
-                <li class="flex items-start gap-3 p-3 rounded-lg border border-line">
-                  <div class="min-w-0">
-                    <div class="text-[13px] font-semibold truncate">${esc(r.matchType === 'path' ? r.match.split('/').pop() : r.match)}</div>
-                    <div class="text-[11px] text-faint mt-0.5">
-                      ${r.matchType === 'path' ? '이 파일만' : r.matchType === 'regex' ? '정규식' : '이름에 포함'}
-                      · ${esc(desc(r))}
-                    </div>
-                  </div>
-                  <button class="ml-auto text-[12px] text-danger hover:underline shrink-0" data-del="${esc(r.id)}">삭제</button>
-                </li>`
-                )
-                .join('')}</ul>`
-            : '<p class="text-muted text-[13px]">규칙 없음</p>'
-          : state.excluded.length
-            ? `<ul class="space-y-1">${state.excluded
-                .map(
-                  (d) => `<li class="text-[12px] text-muted truncate px-2 py-1.5 rounded hover:bg-hover" title="${esc(d.path)}">${esc(d.display)}</li>`
-                )
-                .join('')}</ul>`
-            : '<p class="text-muted text-[13px]">제외한 파일 없음</p>'
-      }
-    </div>`;
-
-  $('#panelClose').onclick = closePanel;
-  for (const el of $('#panelBody').querySelectorAll('[data-del]')) {
-    el.onclick = async () => {
-      try {
-        await DB.deleteRule(el.dataset.del);
-        toast('규칙 지움');
-      } catch (e) {
-        toast(`지우기 실패: ${e.message}`);
-      }
-    };
-  }
-}
-
 /* ── 잔액서류 요약 ────────────────────────────────────── */
 
 const SHEET_EXT = /\.(xlsx?|xlsm)$/i;
@@ -1567,7 +1203,6 @@ function openDrawer(id) {
   const b = state.batches.find((x) => x.id === id);
   if (b) loadCipl(b);
   $('#scrim').hidden = false;
-  document.documentElement.setAttribute('data-docsdrawer', '1');   // 서랍 위에 ＋ 가 뜨지 않게
   requestAnimationFrame(() => $('#drawer').classList.remove('translate-x-full'));
 }
 
@@ -1576,7 +1211,6 @@ function closeDrawer() {
   state.openId = null;
   $('#drawer').classList.add('translate-x-full');
   $('#scrim').hidden = true;
-  document.documentElement.removeAttribute('data-docsdrawer');
 }
 
 /* 「수정전 발주서 보기」 를 편 차수 — 서랍을 다시 그려도(스냅샷·확정 바꿈) 펴 둔 채로 둡니다. 처음엔 접힘. */
@@ -2530,57 +2164,35 @@ async function saveOverlay(id) {
 /* ── 박스판에 건넬 셈 ─────────────────────────────────────
    첫 화면(박스판)은 index.html 에 있습니다. 여기서는 숫자만 내어 줍니다.
    화면 안쪽은 아무것도 건드리지 않습니다. */
-/* 박스를 무엇으로 자를지 — 바꾸실 곳은 이 한 줄입니다.
-   'vendor' 거래처별 · 'status' 진행 상태별. 지금은 "일단 거래처로". */
-const BOX_CUT = 'vendor';
+/* 첫 판에 서는 거래처 박스 — 사장님 11-02 「해피코 제헤우드 베이지아 견적관리 제품관리를 제외한
+   나머지 박스들 모두 삭제」. 늘리려면 사장님께 먼저. 데모는 거래처가 가명이라 거르지 않습니다. */
+const 첫판거래처 = ['해피코', '제헤우드', '베이지아'];
 
-/** 박스 하나 = { name, note, warn, chips(눌러 줄 칩), chipIn(칩이 있는 줄) } */
-const BOX_CUTS = {
-  // 차수가 있는 거래처 + 차수는 없고 파일만 있는 곳까지 모두 박스를 줍니다.
-  // 그래야 어느 박스에도 안 드는 파일이 생기지 않습니다.
-  vendor: () =>
-    [...new Set([
-      ...state.batches.map((b) => b.vendor),
-      ...state.unassigned.map((d) => d.vendor).filter((v) => v && v !== '(루트)'),
-    ])]
-      .map((name) => {
-        const mine = state.batches.filter((b) => b.vendor === name);
-        const loose = state.unassigned.filter((d) => d.vendor === name).length;
-        const active = mine.filter((b) => b.status === 'active').length;
-        return {
-          name,
-          note: mine.length ? `${mine.length}차 · 진행 중 ${active}` : `차수 없음 · 파일 ${loose}건`,
-          warn: mine.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
-          chip: name,
-          chipIn: '#vendorChips',
-          active,
-          count: mine.length,
-          loose,
-        };
-      })
-      // 차수가 있는 곳이 먼저, 그중에도 진행 중이 많은 곳이 앞입니다
-      .sort((a, b) =>
-        (b.count > 0) - (a.count > 0) || b.active - a.active || b.count - a.count ||
-        b.loose - a.loose || a.name.localeCompare(b.name, 'ko')),
-
-  status: () =>
-    [
-      ['진행 중', (b) => b.status === 'active'],
-      ['완료', (b) => b.status === 'done'],
-      ['문제 있음', (b) => b.issues.length > 0],
-    ].map(([name, hit]) => {
-      const mine = state.batches.filter(hit);
+/** 박스 하나 = { name, note, warn } */
+// 차수가 있는 거래처 + 차수는 없고 파일만 있는 곳까지 모두 박스를 줍니다.
+// 그래야 어느 박스에도 안 드는 파일이 생기지 않습니다.
+const 거래처박스 = () =>
+  [...new Set([
+    ...state.batches.map((b) => b.vendor),
+    ...state.unassigned.map((d) => d.vendor).filter((v) => v && v !== '(루트)'),
+  ])]
+    .map((name) => {
+      const mine = state.batches.filter((b) => b.vendor === name);
+      const loose = state.unassigned.filter((d) => d.vendor === name).length;
+      const active = mine.filter((b) => b.status === 'active').length;
       return {
         name,
-        note: `${mine.length}차`,
-        warn: 0,
-        chip: name,
-        chipIn: '#statusChips',
-        active: mine.length,
+        note: mine.length ? `${mine.length}차 · 진행 중 ${active}` : `차수 없음 · 파일 ${loose}건`,
+        warn: mine.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
+        active,
         count: mine.length,
+        loose,
       };
-    }),
-};
+    })
+    // 차수가 있는 곳이 먼저, 그중에도 진행 중이 많은 곳이 앞입니다
+    .sort((a, b) =>
+      (b.count > 0) - (a.count > 0) || b.active - a.active || b.count - a.count ||
+      b.loose - a.loose || a.name.localeCompare(b.name, 'ko'));
 
 /* 거래처 하나에 딸린, 차수가 안 붙은 파일을 두 갈래로 가릅니다.
    개발·샘플 : 파서가 '제품개발'로 본 것(견적·도면·지시서·사양) + 이름에 샘플이 든 것.
@@ -2628,79 +2240,6 @@ window.docsVendorBoxes = (vendor) => {
   };
 };
 
-/* 거래처 안에 박스 하나를 더합니다. 드라이브에는 아무것도 만들지 않습니다 —
-   화면에서만 묶어 봅니다. 판정 규칙과 따로 두어 단계 판정은 흔들리지 않습니다. */
-window.docsAddVendorBox = async (vendor, name, word) => {
-  vendor = String(vendor ?? '').trim();
-  name = String(name ?? '').trim();
-  word = String(word ?? '').trim();
-  if (!vendor) return { ok: false, msg: '거래처 모름' };
-  if (!name) return { ok: false, msg: '이름 없음' };
-  if (!word) return { ok: false, msg: '낱말 없음' };
-
-  const 있는것 = new Set([
-    '발주', '개발 / 샘플', '개발/샘플', '미확인',
-    ...(state.boxes ?? []).filter((b) => b.vendor === vendor).map((b) => String(b.name).trim()),
-  ]);
-  if (있는것.has(name)) return { ok: false, msg: `'${name}' 이미 있음` };
-
-  const hit = state.unassigned.filter((d) => d.vendor === vendor && inBox({ word }, d));
-  if (!hit.length) return { ok: false, msg: `'${word}' 든 파일 없음` };
-  if (state.demo) return { ok: false, msg: '데모 · 저장 안 됨' };
-
-  try {
-    await DB.saveBox({ vendor, name, word }, state.user?.email);
-    return { ok: true, msg: `'${name}' 만듦 · ${hit.length}건` };
-  } catch (e) {
-    return { ok: false, msg: `저장 실패: ${e.message}` };
-  }
-};
-
-/** 거래처 안에서 이 말이 든 파일이 몇 건인지 미리 세어 봅니다. */
-window.docsCountInVendor = (vendor, word) => {
-  const w = String(word ?? '').trim();
-  if (!w) return 0;
-  return state.unassigned.filter((d) => d.vendor === vendor && inBox({ word: w }, d)).length;
-};
-
-/* 새 박스 만들기.
-   이 앱에서 박스는 파일이 있어야 생깁니다 — 빈 박스는 둘 자리가 없습니다.
-   그래서 "이 말이 든 파일은 이 거래처 것" 이라는 규칙 한 줄을 세웁니다.
-   원래 있던 '규칙' 장치를 그대로 쓰는 것이라, 나중에 규칙 서랍에서 지우면
-   박스도 같이 사라집니다. 드라이브는 건드리지 않습니다 — 화면에서만 갈립니다. */
-window.docsNewBox = async (name, keyword) => {
-  name = String(name ?? '').trim();
-  keyword = String(keyword ?? '').trim();
-  if (!name) return { ok: false, msg: '이름 없음' };
-  if (!keyword) return { ok: false, msg: '낱말 없음' };
-
-  // 이름이 겹치면 두 거래처 자료가 한 박스에 섞입니다. 겹치면 만들지 않습니다.
-  const 있는것 = new Set([
-    ...state.batches.map((b) => b.vendor),
-    ...state.unassigned.map((d) => d.vendor),
-  ].filter(Boolean).map((v) => v.trim()));
-  if (있는것.has(name)) return { ok: false, msg: `'${name}' 이미 있음` };
-
-  const hit = state.files.filter((f) => `${f.name ?? ''} ${f.path ?? ''}`.toLowerCase().includes(keyword.toLowerCase()));
-  if (!hit.length) return { ok: false, msg: `'${keyword}' 든 파일 없음` };
-  if (state.demo) return { ok: false, msg: '데모 · 저장 안 됨' };
-
-  try {
-    await DB.saveRule({ action: 'assign', vendor: name, matchType: 'contains', match: keyword, note: '새 박스에서 만듦' },
-                      state.user?.email);
-    return { ok: true, msg: `'${name}' 만듦 · ${hit.length}건` };
-  } catch (e) {
-    return { ok: false, msg: `저장 실패: ${e.message}` };
-  }
-};
-
-/** 이 말이 든 파일이 몇 건인지 미리 세어 봅니다. 아무것도 바꾸지 않습니다. */
-window.docsCountKeyword = (keyword) => {
-  const k = String(keyword ?? '').trim().toLowerCase();
-  if (!k) return 0;
-  return state.files.filter((f) => `${f.name ?? ''} ${f.path ?? ''}`.toLowerCase().includes(k)).length;
-};
-
 /* 발주 박스 — 그 거래처 것만 걸러 둡니다.
    칩을 눌러 거르면 차수가 없는 거래처(삐에노·리나 같은 곳)는 칩이 없어
    아무것도 안 걸리고 남의 차수까지 그대로 나옵니다. 그래서 여기서 곧장 겁니다. */
@@ -2708,19 +2247,6 @@ window.docsFilterVendor = (vendor) => {
   state.filter.vendor = vendor ?? null;
   state.filter.status = null;   // 그 거래처 차수를 다 보여 줍니다
   render();
-};
-
-/* 작업대에 오간 지시와 답. 사장님 말씀은 '나', 답은 작업자 이름으로 옵니다.
-   새것이 위로 오게 뒤집어 건넵니다. 여기서는 읽기만 합니다. */
-window.docsOrders = () => {
-  const ms = [...(state.orders ?? [])].sort((a, b) => (b.at ?? 0) - (a.at ?? 0));
-  return ms.map((m) => ({
-    말: m.who === '나',
-    누가: m.who === '나' ? '사장님' : (m.who ?? '작업자'),
-    글: String(m.text ?? ''),
-    때: m.at ? new Date(m.at * 1000).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
-    답함: !!m.답한때,
-  }));
 };
 
 /** 박스 판에서 파일 한 장을 그대로 열어 봅니다 — 원래 쓰던 그 보기 창입니다. */
@@ -2976,47 +2502,6 @@ async function 서랍불러오기(b, 폴더, key, 칸) {
   그리기();
 }
 
-/* ── 코드관리 ─────────────────────────────────────────────
-   발주서 PDF 에서 읽어 둔 코드를 거래처별로 모읍니다.
-   ⚠ 코드는 여기서 새로 뽑지 않습니다. sync.gs 가 발주서 PDF 를 읽어 cipl.items 에
-     담아 둔 것을 그대로 씁니다. 코드열을 무엇으로 보았는지는 js/parse.js 의
-     readPdfItems 가 정합니다 — 단가·수량·금액 세 칸 바로 앞에 선 칸입니다.
-   ⚠ 읽기만 합니다. 드라이브도 Firestore 도 안 건드립니다. */
-window.docsCodes = () => {
-  const 거래처 = new Map();                     // 거래처 → Map(코드 → {code, name, 차수들})
-  for (const b of state.batches) {
-    const 이름 = b.vendor || '(루트)';
-    for (const d of b.docs ?? []) {
-      if (d.stageKey !== 'order') continue;
-      for (const it of 제품줄만(d.cipl?.items)) {
-        const code = String(it.code ?? '').trim();
-        if (!code) continue;
-        if (!거래처.has(이름)) 거래처.set(이름, new Map());
-        const 칸 = 거래처.get(이름);
-        // 밑줄 꼴만 다른 코드는 한 제품입니다 — 열쇠로 묶고 날것 꼴을 셉니다.
-        const 열쇠 = 코드열쇠(code);
-        const 있던것 = 칸.get(열쇠);
-        if (있던것) {
-          있던것.꼴.set(code, (있던것.꼴.get(code) ?? 0) + 1);
-          if (b.batch) 있던것.차수들.add(b.batch);
-          if (!있던것.name && it.name) 있던것.name = it.name;
-        } else 칸.set(열쇠, { 꼴: new Map([[code, 1]]), name: it.name ?? '',
-                              차수들: new Set(b.batch ? [b.batch] : []) });
-      }
-    }
-  }
-  return [...거래처.entries()]
-    .map(([vendor, 칸]) => ({
-      vendor,
-      codes: [...칸.values()]
-        .map((x) => ({ code: 머리꼴(x.꼴), name: x.name, 차수: [...x.차수들].sort(),
-                       밑줄꼴: x.꼴.size > 1 ? [...x.꼴.keys()] : null }))
-        .sort((a, b2) => a.code.localeCompare(b2.code)),
-      밑줄묶음: [...칸.values()].filter((x) => x.꼴.size > 1).length,
-    }))
-    .sort((a, b2) => b2.codes.length - a.codes.length || a.vendor.localeCompare(b2.vendor));
-};
-
 /* 화면에서 한 번 더 거릅니다.
    거르는 규칙은 js/parse.js 의 readItems 가 이미 갖고 있지만, **이미 올라가 있는 자료**에는
    묵은 글귀(주소·은행)가 그대로 남아 있습니다. 서버를 다시 밀어 읽히기 전까지는
@@ -3240,17 +2725,10 @@ window.벤더피아읽기 = async () => {
 window.벤더피아본것 = () => 벤더피아;
 
 /** 메인 박스판에 서는 거래처 이름들 — 제품관리가 거래처마다 단품을 모을 때 씁니다. */
-window.docs거래처들 = () => BOX_CUTS.vendor().map((v) => v.name);
+window.docs거래처들 = () => 거래처박스().map((v) => v.name);
 
 window.docsCounts = () => ({
-  batches: state.batches.length,
-  vendors: new Set(state.batches.map((b) => b.vendor)).size,
-  boxes: (BOX_CUTS[BOX_CUT] ?? BOX_CUTS.vendor)(),
-  active: state.batches.filter((b) => b.status === 'active').length,
-  warn: state.batches.filter((b) => b.issues.some((i) => i.level === 'warn')).length,
-  loose: state.unassigned.length,
-  rules: state.rules.length,
-  excluded: state.excluded.length,
+  boxes: 거래처박스().filter((v) => state.demo || 첫판거래처.includes(v.name)),
   has: state.files.length > 0,
   // 올린날이 아직 안 올라와 mtime 으로 갈음한 건수
   올린날갈음: state.files.filter((f) => !f.ctime && f.mtime).length,

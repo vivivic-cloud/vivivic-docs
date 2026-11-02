@@ -206,18 +206,6 @@ export async function saveCipl(batchId, patch) {
   await ctx.f.setDoc(ctx.f.doc(col(OVERLAY), overlayKey(batchId)), { batchId, ...patch }, { merge: true });
 }
 
-/* ── 작업대에 오간 지시와 답 ───────────────────────────────
-   작업대(viggle)가 쓰는 그 자리를 그대로 읽습니다. 읽기만 합니다 —
-   여기서는 아무것도 쓰지 않습니다. */
-
-export const WT = 'wt_dev';
-
-export function watchOrders(cb) {
-  return ctx.f.onSnapshot(ctx.f.doc(col(WT), 'box~3Adocs'), (s) =>
-    cb(s.exists() ? (s.data().msgs ?? []) : [])
-  );
-}
-
 /* ── 상차일(차수별) ───────────────────────────────────────
    있던 문서(발주·차수별 입력값)는 건드리지 않고 이 칸에만 적습니다.
    고른 날(pick)과 확정한 날(fixed)을 따로 둡니다 — 고르기와 확정은 두 걸음입니다. */
@@ -261,20 +249,13 @@ export async function saveKinds(map, email) {
 
 /* ── 거래처 안에 손으로 만든 박스 ─────────────────────────
    판정 규칙(docs_rules)과 따로 둡니다. 규칙에 넣으면 파일이 어느 단계인지
-   가리는 셈까지 흔들립니다 — 이건 화면에서 묶어 보는 것일 뿐입니다. */
+   가리는 셈까지 흔들립니다 — 이건 화면에서 묶어 보는 것일 뿐입니다.
+   만들기(＋ 새 박스)는 11-02 에 지웠습니다. 있는 것만 거래처 판에 보입니다. */
 
 export function watchBoxes(cb) {
   return ctx.f.onSnapshot(ctx.f.doc(col(CONFIG), 'boxes'), (s) =>
     cb(s.exists() ? (s.data().list ?? []) : [])
   );
-}
-
-/** 박스 하나를 더합니다. 목록 전체를 다시 씁니다 — 많아야 몇십 개입니다. */
-export async function saveBox(box, email) {
-  const snap = await ctx.f.getDoc(ctx.f.doc(col(CONFIG), 'boxes'));
-  const list = snap.exists() ? (snap.data().list ?? []) : [];
-  list.push({ ...box, createdBy: email ?? null, createdAt: new Date().toISOString() });
-  await ctx.f.setDoc(ctx.f.doc(col(CONFIG), 'boxes'), { list }, { merge: true });
 }
 
 /* ── 사용자 정의 규칙 ─────────────────────────────────── */
@@ -285,17 +266,6 @@ export function watchRules(cb) {
   return 듣기(col(RULES), (s, 캐시) =>
     cb(s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '')), 캐시)
   );
-}
-
-export async function saveRule(rule, email) {
-  const id = rule.id ?? `r${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
-  const { id: _drop, ...body } = rule;
-  await ctx.f.setDoc(ctx.f.doc(col(RULES), id), {
-    ...body,
-    createdBy: email ?? null,
-    createdAt: rule.createdAt ?? new Date().toISOString(),
-  });
-  return id;
 }
 
 export async function saveRules(rules, email) {
@@ -311,8 +281,6 @@ export async function saveRules(rules, email) {
     await batch.commit();
   }
 }
-
-export const deleteRule = (id) => ctx.f.deleteDoc(ctx.f.doc(col(RULES), id));
 
 /* ── 차수별 단품 수량 — 벤더피아가 읽어 갈 칸 ───────────
    사장님 10-16 — 「수입내역보기 … 관련된 단품의 발주 또는 상차 수량이 표기 되어야 합니다」
