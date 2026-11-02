@@ -882,6 +882,37 @@ export function subdirOf(path) {
   return null;
 }
 
+/* 차수 서랍에서 올리거나 옮겨 넣는 파일 이름 (11-01 사장님 「직접 업로드 하면 해당 폴더에 저장되게」).
+   칸은 이름으로 정해지니, 원래 이름은 살리고 모자란 것만 앞에 붙입니다.
+     칸이 안 맞으면 「칸낱말_」, 이름 속 차수가 다르면 「26-29차_」 — 이름 속 차수가 폴더보다 이깁니다.
+   검수·샘플은 폴더가 칸을 정하니 차수만 봅니다.
+   붙여도 다른 칸으로 읽히면(이름에 PI·영수증·B/L 같은 센 낱말) 원래 이름 그대로 rule: true — 길 규칙(직접 지정)을 따로 씁니다. */
+export const 칸낱말 = {
+  order: '발주서', pi: 'PI', piReceipt: '계약금영수증', loading: '상차',
+  cipl: 'CI&PL', balReceipt: '잔금영수증', bl: '선하증권',
+};
+
+/** 이 이름이 그 차수 폴더(검수·샘플이면 그 밑)에 놓였을 때 읽히는 칸·차수 — buildBatches 와 같은 셈. */
+function 놓인칸(name, sub) {
+  const fromName = parseBatch(name);
+  let key = classify(name).key;
+  if (!fromName && key === 'etc' && IMAGE_EXT.has(extOf(normalizeName(name)))) key = 'loading';
+  return { key: sub ? sub : key, batch: fromName?.label ?? null };
+}
+
+export function 올릴이름(raw, stageKey, batch) {
+  const 원 = String(raw ?? '').normalize('NFC').replace(/[\\/]/g, '_').trim();
+  const sub = SUBDIRS.some((x) => x.key === stageKey) ? stageKey : null;
+  const 맞나 = (n) => {
+    const r = 놓인칸(n, sub);
+    return r.key === stageKey && (!r.batch || r.batch === batch);
+  };
+  const 낱말 = 칸낱말[stageKey];
+  const 후보 = [원, 낱말 && `${낱말}_${원}`, `${batch}차_${원}`, 낱말 && `${batch}차_${낱말}_${원}`].filter(Boolean);
+  const 맞은 = 후보.find(맞나);
+  return 맞은 ? { name: 맞은, rule: false } : { name: 원, rule: true };
+}
+
 /**
  * 한 발주에서 나온 서류들을 잇는 번호를 뽑습니다.
  * 차수 표기가 없어도 이 번호가 같으면 같은 발주입니다.

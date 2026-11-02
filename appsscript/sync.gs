@@ -691,6 +691,7 @@ function doPost(e) {
     // 견적서 관리(견적목록·견적읽기)도 제 갈래입니다 — 아래 「견적서 불러오기」.
     out = (req && req['일'] === '보링파일') ? 보링파일내주기_(req)
         : (req && /^견적(목록|읽기)$/.test(String(req['일']))) ? 견적_(req)
+        : (req && /^(서랍확인|올리기)$/.test(String(req['일']))) ? 서랍_(req)
         : 파일내주기_(req);
   } catch (err) {
     out = { ok: false, why: 'bad' };
@@ -1759,6 +1760,128 @@ function 견적읽기_(req, email) {
     return { name: t.name, h: t.h, f: t.f, rows: t.rows.map(function (r) { return { c: r }; }) };
   });
   return { ok: true, quote: q };
+}
+
+/* ── 차수 서랍: 올리기 ─────────
+   사장님 11-01 「차수별 상세에서 각 파일을 구글 드라이브에서 불러오는 방식과 직접 업로드 하면
+   해당 폴더에 저장되게 할 수 있나요?」 → 「둘 다 맡기기」.
+   ⚠ 자물쇠는 견적서 관리와 같습니다 — shareAllow·fbKey 가 비면 꺼짐, 로그인 표의 이메일이 shareAllow 안이어야.
+   ⚠ 범위: `중국/<VENDOR_DIRS>/<차수 폴더>` (와 그 밑 검수·샘플) 에만 넣습니다.
+     옮겨 올 파일은 같은 거래처 폴더 안이면서 차수 폴더 **밖**에 있던 것만.
+   ⚠ 지우기·복사 없음. 같은 이름이 있으면 「이름 (2).확장자」 — 덮어쓰지 않습니다.
+   드라이브 일은 DriveApp 으로 합니다(UrlFetch 안 셈). UrlFetch 는 로그인 확인 1 · 파일 정보 1 · Firestore 쓰기 1
+   (서류면 안 읽기 몇 번 더). 쓴 문서 칸은 sync 와 똑같아 다음 sync 가 다시 쓰지 않습니다.
+   기록은 docs_moves/{uuid} — 일·driveId·옛 이름·새 이름·어디서(from·fromId)·어디로(to·toId)·언제·누가.
+   옮긴 것을 되돌리려면 편집기에서 옮김되돌리기('<driveId>') 를 돌립니다. */
+const 서랍최대_ = 30 * 1024 * 1024;   // 파일 크기 — 11-01 잰 값은 CLAUDE.md
+const MOVES = DATA_ + 'docs_moves';
+const 서랍칸_ = ['검수', '샘플'];
+
+function 서랍_(req) {
+  const props = PropertiesService.getScriptProperties();
+  const allow = String(props.getProperty('shareAllow') || '')
+    .split(/[,\s]+/).filter(String).map(function (x) { return x.toLowerCase(); });
+  if (!allow.length || !props.getProperty('fbKey')) return { ok: false, why: 'off' };
+  if (req['일'] === '서랍확인') return { ok: true };     // 켜졌는지만 — 로그인 확인(UrlFetch)도 안 함
+  // 크기는 로그인 확인 전에 — 큰 몸통이면 UrlFetch 없이 돌려보냅니다.
+  if (req['일'] === '올리기' && String(req.b64 || '').length > Math.ceil(서랍최대_ / 3) * 4) return { ok: false, why: 'big' };
+  const email = 표확인_(req && req.idToken, props);
+  if (!email || allow.indexOf(email.toLowerCase()) < 0) return { ok: false, why: 'who' };
+  if (req['일'] === '올리기') return 올리기_(req, email);
+  return { ok: false, why: 'bad' };
+}
+
+const NFC_ = function (s) { return String(s == null ? '' : s).normalize('NFC').trim(); };
+
+function 자식폴더_(parent, name, 만들기) {
+  const it = parent.getFolders();
+  while (it.hasNext()) {
+    const f = it.next();
+    if (NFC_(f.getName()) === NFC_(name)) return f;
+  }
+  return 만들기 ? parent.createFolder(name) : null;
+}
+
+/** 'vendor/차수폴더' → 그 폴더(범위 안일 때만). sub 가 검수·샘플이면 그 밑(없으면 만듦). */
+function 차수곳_(path, sub) {
+  const 조각 = String(path || '').split('/');
+  if (조각.length !== 2) return null;
+  if (VENDOR_DIRS.map(NFC_).indexOf(NFC_(조각[0])) < 0 || !차수폴더인가_(조각[1])) return null;
+  const vf = 자식폴더_(findRoot_(), 조각[0], false);
+  const bf = vf && 자식폴더_(vf, 조각[1], false);
+  if (!bf) return null;
+  const 곳 = { vendorFolder: vf, vendor: vf.getName(), folder: bf, path: vf.getName() + '/' + bf.getName() };
+  if (sub) {
+    if (서랍칸_.indexOf(NFC_(sub)) < 0) return null;
+    곳.folder = 자식폴더_(bf, NFC_(sub), true);
+    곳.path += '/' + 곳.folder.getName();
+  }
+  return 곳;
+}
+
+/** 빗금은 경로를 쪼개니 바꿉니다. */
+function 파일이름_(n) {
+  return NFC_(n).replace(/[\\/]/g, '_').slice(0, 200);
+}
+
+/** 같은 이름이 있으면 「이름 (2).ext」 — 덮어쓰지 않습니다(같은 경로면 Firestore 문서도 겹칩니다). */
+function 빈이름_(folder, name, 빼고id) {
+  const 있는 = {};
+  const it = folder.getFiles();
+  while (it.hasNext()) {
+    const f = it.next();
+    if (f.getId() !== 빼고id) 있는[NFC_(f.getName())] = true;
+  }
+  if (!있는[NFC_(name)]) return name;
+  const m = /^(.*?)(\.[A-Za-z0-9]{1,6})?$/.exec(name);
+  for (let i = 2; i < 1000; i++) {
+    const n = m[1] + ' (' + i + ')' + (m[2] || '');
+    if (!있는[NFC_(n)]) return n;
+  }
+  return null;
+}
+
+/** 넣은 파일을 docs_files 에 곧장 씁니다(서류면 안도 읽어서) + docs_moves 기록. 한 번에 커밋. */
+function 서랍적기_(fileId, 곳, 기록, 옛경로) {
+  const meta = 드라이브_('files/' + fileId + '?supportsAllDrives=true&fields=id,name,size,md5Checksum,modifiedTime,createdTime,mimeType');
+  const writes = [];
+  let f = null;
+  if (meta) {
+    f = fileOf_(meta, 곳.path + '/' + meta.name, 곳.vendor);
+    const fields = baseFields_(f);
+    const mask = Object.keys(fields);
+    if (isCipl_(f.name) || isOrderPdf_(f.name)) {
+      runStart = new Date();
+      fields.cipl = isOrderPdf_(f.name) ? orderCipl_(f) : ciplValue_(f);
+      mask.push('cipl');
+    }
+    writes.push({ update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields }, updateMask: { fieldPaths: mask } });
+    if (옛경로 && 옛경로 !== f.path) writes.push({ delete: NAME + '/' + COLLECTION + '/' + docId_(옛경로) });
+  }
+  const 글 = {};
+  Object.keys(기록).forEach(function (k) { 글[k] = { stringValue: String(기록[k] == null ? '' : 기록[k]) }; });
+  글.to = { stringValue: 곳.path };
+  글.toId = { stringValue: 곳.folder.getId() };
+  글.at = { stringValue: new Date().toISOString() };
+  writes.push({ update: { name: NAME + '/' + MOVES + '/' + Utilities.getUuid(), fields: 글 } });
+  commit_(writes);
+  return { ok: true, path: f ? f.path : 곳.path + '/' + 기록.name, name: f ? f.name : 기록.name, listed: !!f };
+}
+
+function 올리기_(req, email) {
+  const 곳 = 차수곳_(req.path, req.sub);
+  if (!곳) return { ok: false, why: 'out' };
+  const 원 = 파일이름_(req.name);
+  if (!원) return { ok: false, why: 'bad' };
+  const bytes = Utilities.base64Decode(String(req.b64 || ''));
+  if (bytes.length > 서랍최대_) return { ok: false, why: 'big' };
+  const name = 빈이름_(곳.folder, 원);
+  if (!name) return { ok: false, why: 'bad' };
+  let file;
+  try {
+    file = 곳.folder.createFile(Utilities.newBlob(bytes, String(req.mime || '') || 'application/octet-stream', name));
+  } catch (e) { return { ok: false, why: 'drive' }; }
+  return 서랍적기_(file.getId(), 곳, { 일: '올림', driveId: file.getId(), name: name, oldName: 원, from: '', fromId: '', by: email });
 }
 
 /* ── 서류 간추리기 (js/parse.js 의 readBrief 와 같은 규칙) ── */

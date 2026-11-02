@@ -250,3 +250,77 @@ test('밖지우기_ — 다른 거래처 overlay·rules·단품수량·boxes·qu
   const 박스쓰기 = 끝.find((w) => w.update);
   assert.deepEqual(박스쓰기.update.fields.list.arrayValue.values.map((x) => x.mapValue.fields.vendor.stringValue), ['제헤우드']);
 });
+
+/* 차수 서랍 올리기·옮기기(11-01) — DriveApp·Firestore 는 가짜. */
+function 가짜서랍({ props = { shareAllow: 'a@b.c', fbKey: 'k' } } = {}) {
+  const ctx = vm.createContext({ console: { log() {}, error() {} } });
+  vm.runInContext(readFileSync(new URL('../appsscript/sync.gs', import.meta.url), 'utf8'), ctx);
+  let n = 0;
+  const 쓰기 = [];
+  const 불림 = { 표확인: 0 };
+  const 모두 = {};
+  class 폴더 {
+    constructor(name, parent) { this.id = 'F' + (++n) + 'xxxxxxxxxx'; this.name = name; this.parent = parent; this.kids = []; this.files = []; 모두[this.id] = this; if (parent) parent.kids.push(this); }
+    getId() { return this.id; } getName() { return this.name; }
+    getFolders() { const a = [...this.kids]; return { hasNext: () => a.length > 0, next: () => a.shift() }; }
+    getFiles() { const a = [...this.files]; return { hasNext: () => a.length > 0, next: () => a.shift() }; }
+    getParents() { const a = this.parent ? [this.parent] : []; return { hasNext: () => a.length > 0, next: () => a.shift() }; }
+    createFolder(name) { return new 폴더(name, this); }
+    createFile(blob) { return new 파일(blob.name, this); }
+  }
+  class 파일 {
+    constructor(name, parent) { this.id = 'D' + (++n) + 'xxxxxxxxxx'; this.name = name; this.parent = parent; parent.files.push(this); 모두[this.id] = this; }
+    getId() { return this.id; } getName() { return this.name; } setName(v) { this.name = v; }
+    getMimeType() { return 'application/pdf'; } isTrashed() { return false; } getSize() { return 3; } getLastUpdated() { return new Date(0); }
+    getParents() { const a = [this.parent]; return { hasNext: () => a.length > 0, next: () => a.shift() }; }
+    moveTo(f) { this.parent.files = this.parent.files.filter((x) => x !== this); this.parent = f; f.files.push(this); }
+  }
+  const 중국 = new 폴더('중국');
+  const 제헤 = new 폴더('제헤우드', 중국);
+  const 차 = new 폴더('Zh-26-29', 제헤);
+  const 다른차 = new 폴더('Zh-26-01', 제헤);
+  const 분류전 = new 폴더('분류전', 제헤);
+  new 폴더('베이지아', 중국);
+  new 파일('견적.pdf', 차);
+  ctx.findRoot_ = () => 중국;
+  ctx.PropertiesService = { getScriptProperties: () => ({ getProperty: (k) => (k in props ? props[k] : null) }) };
+  ctx.표확인_ = () => { 불림.표확인++; return 'a@b.c'; };
+  ctx.Utilities = { base64Decode: (s) => Buffer.from(s, 'base64'), newBlob: (b, m, name) => ({ name }), getUuid: () => 'u' + (++n) };
+  ctx.DriveApp = { getFileById: (id) => 모두[id] };
+  ctx.드라이브_ = (p) => { const f = 모두[p.split('/')[1].split('?')[0]]; return { id: f.id, name: f.name, size: '3', md5Checksum: 'm', modifiedTime: '2026-11-01T00:00:00Z', createdTime: '2026-11-01T00:00:00Z', mimeType: 'application/pdf' }; };
+  ctx.commit_ = (w) => 쓰기.push(...w);
+  ctx.orderCipl_ = () => ({ mapValue: { fields: {} } });
+  ctx.ciplValue_ = () => ({ mapValue: { fields: {} } });
+  return { ctx, 쓰기, 불림, 차, 다른차, 분류전, 파일 };
+}
+
+test('서랍 — 자물쇠: shareAllow·fbKey 가 비면 꺼짐, 확인은 로그인 확인 없이', () => {
+  const 꺼짐 = 가짜서랍({ props: { shareAllow: 'a@b.c' } });
+  assert.equal(꺼짐.ctx.서랍_({ 일: '옮길목록' }).why, 'off');
+  const 켜짐 = 가짜서랍();
+  assert.equal(켜짐.ctx.서랍_({ 일: '서랍확인' }).ok, true);
+  assert.equal(켜짐.불림.표확인, 0);
+  assert.equal(켜짐.ctx.서랍_({ 일: '올리기', b64: 'x'.repeat(41 * 1024 * 1024) }).why, 'big');
+  assert.equal(켜짐.불림.표확인, 0);
+});
+
+test('서랍 — 범위: 거래처 차수 폴더만, 검수·샘플 밖 하위는 안 됨', () => {
+  const { ctx } = 가짜서랍();
+  assert.equal(ctx.차수곳_('제헤우드/분류전', ''), null);
+  assert.equal(ctx.차수곳_('베이지아/26-01', ''), null);
+  assert.equal(ctx.차수곳_('제헤우드/Zh-26-29/x', ''), null);
+  assert.equal(ctx.차수곳_('제헤우드/Zh-26-29', '기타'), null);
+  assert.equal(ctx.차수곳_('제헤우드/Zh-26-29', '검수').path, '제헤우드/Zh-26-29/검수');   // 없으면 만듦
+});
+
+test('서랍 — 올리기: 같은 이름은 (2), docs_files 기본 칸 + 기록을 한 번에', () => {
+  const { ctx, 쓰기, 차 } = 가짜서랍();
+  const r = ctx.서랍_({ 일: '올리기', path: '제헤우드/Zh-26-29', sub: '', name: '견적.pdf', b64: 'YWJj', idToken: 't' });
+  assert.equal(r.ok, true);
+  assert.equal(r.path, '제헤우드/Zh-26-29/견적 (2).pdf');
+  assert.equal(차.files.length, 2);
+  assert.equal(쓰기[0].update.name.endsWith('docs_files/제헤우드~Zh-26-29~견적 (2).pdf'), true);
+  assert.equal(쓰기[0].update.fields.md5.stringValue, 'm');
+  assert.ok(쓰기[1].update.name.includes('docs_moves/'));
+  assert.equal(쓰기[1].update.fields['일'].stringValue, '올림');
+});

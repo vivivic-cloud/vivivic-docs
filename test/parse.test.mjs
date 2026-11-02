@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds } from '../js/parse.js';
+import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds, 올릴이름 } from '../js/parse.js';
 
 /** 실제 드라이브 `중국/제헤우드/` 폴더에서 가져온 파일명입니다. */
 const REAL = [
@@ -891,4 +891,28 @@ test('밑줄보기 — 화면 글자만 표준 _ 로, 날것·열쇠·묶음은 
   assert.deepEqual(got[0].밑줄꼴, ['myT\u25813C', 'myT_3C']);
   assert.equal(got[0].code, 'myT\u25813C', '담는 코드는 날것입니다');
   assert.equal(밑줄보기(got[0].code), 'myT_3C', '보이는 것만 _');
+});
+
+test('올릴이름 — 차수 서랍에 올린 파일이 그 칸·그 차수로 읽히게 (11-01)', () => {
+  const 판 = (n, k) => 올릴이름(n, k, '26-29');
+  assert.deepEqual(판('ZH 26-29 PO.pdf', 'order'), { name: 'ZH 26-29 PO.pdf', rule: false });   // 맞으면 그대로
+  assert.deepEqual(판('견적.pdf', 'order'), { name: '발주서_견적.pdf', rule: false });
+  assert.deepEqual(판('invoice.xlsx', 'cipl'), { name: 'CI&PL_invoice.xlsx', rule: false });
+  assert.deepEqual(판('bank.pdf', 'balReceipt'), { name: '잔금영수증_bank.pdf', rule: false });
+  assert.deepEqual(판('scan.pdf', 'bl'), { name: '선하증권_scan.pdf', rule: false });
+  assert.deepEqual(판('a.pdf', 'pi'), { name: 'PI_a.pdf', rule: false });
+  assert.deepEqual(판('IMG_1.jpg', 'loading'), { name: 'IMG_1.jpg', rule: false });          // 차수 폴더 사진은 상차
+  assert.deepEqual(판('IMG_1.jpg', 'inspect'), { name: 'IMG_1.jpg', rule: false });          // 검수 폴더가 이김
+  // 이름 속 차수가 다르면 차수를 앞에 — 이름이 폴더를 이기므로
+  assert.deepEqual(판('26-28차 발주서.pdf', 'order'), { name: '26-29차_26-28차 발주서.pdf', rule: false });
+  assert.deepEqual(판('26-28 사진.jpg', 'sample'), { name: '26-29차_26-28 사진.jpg', rule: false });
+  // 붙여도 다른 칸이면 이름은 그대로, 길 규칙
+  assert.deepEqual(판('PI receipt.pdf', 'order'), { name: 'PI receipt.pdf', rule: true });
+  // 빗금은 경로를 쪼개니 바꿉니다
+  assert.equal(판('a/b PO.pdf', 'order').name, 'a_b PO.pdf');
+  for (const [n, k] of [['견적.pdf', 'order'], ['invoice.xlsx', 'cipl'], ['scan.pdf', 'bl'], ['26-28차 발주서.pdf', 'order']]) {
+    const r = 판(n, k);
+    assert.equal(classify(r.name).key, k);
+    assert.equal(parseBatch(r.name)?.label ?? '26-29', '26-29');
+  }
 });

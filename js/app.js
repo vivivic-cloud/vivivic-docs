@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, extOf, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기 } from './parse.js';
+import { STAGES, ASIDE, buildBatches, extOf, suggestKeyword, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조 } from './match.js';
 import * as FS from './fsaccess.js';
@@ -1904,6 +1904,14 @@ function renderDrawer(id) {
      달력 하나뿐입니다. 달력에서 날을 고르고 '확인' 을 누르면 그때 정해지고,
      아무 때나 다시 열어 다른 날로 바꾸거나 비울 수 있습니다.
      칸이 곧 고른 날을 보여 주므로 따로 풀어 쓰지 않습니다. */
+  // 칸마다 「올리기」 — 그 차수 폴더를 못 찾으면 안 띄웁니다(11-01).
+  const 폴더 = 차수폴더(b);
+  const 알약 = (attr, key, 글, 뜻) => `
+                <button type="button" ${attr}="${key}" title="${뜻}"
+                        class="min-h-[44px] -my-3 px-0.5 shrink-0 flex items-center justify-center">
+                  <span class="text-[11px] font-bold px-2 py-1 rounded-md border bg-white text-faint border-line">${글}</span>
+                </button>`;
+  const 서랍단추 = (key) => (폴더 ? 알약('data-up', key, '올리기', '이 칸에 올리기') : '');
   // 잔액서류·발주서 칸의 「내용보기」 — 둘 다 openCiplView 로 같은 팝업을 엽니다.
   const 내용보기단추 = (id) => `
               <div class="pl-[42px] pr-3 pb-2">
@@ -2262,7 +2270,8 @@ function renderDrawer(id) {
                 <span class="w-5 h-5 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0
                       ${on ? 'bg-ink text-white' : 'bg-chip text-faint'}">${순번 + 1}</span>
                 <span class="text-[13px] font-semibold">${esc(s.label)}</span>
-                <span class="ml-auto text-[11px] text-faint font-semibold">${on ? `${s.docs.length}건` : '없음'}</span>
+                <span class="ml-auto text-[11px] text-faint font-semibold whitespace-nowrap">${on ? `${s.docs.length}건` : '없음'}</span>
+                ${서랍단추(s.key)}
               </div>
               ${사진.length ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(사진, s.key)}</div>` : ''}
               ${문서.length ? `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${((diffs = new Map()), 문서.map((d) => docLink(d)).join(''))}</ul>` : ''}
@@ -2274,7 +2283,8 @@ function renderDrawer(id) {
                 <span class="w-5 h-5 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0
                       ${on ? 'bg-ink text-white' : 'bg-chip text-faint'}">${순번 + 1}</span>
                 <span class="text-[13px] font-semibold">${esc(s.label)}</span>
-                <span class="ml-auto text-[11px] text-faint font-semibold">${on ? `${s.docs.length}건` : '없음'}</span>
+                <span class="ml-auto text-[11px] text-faint font-semibold whitespace-nowrap">${on ? `${s.docs.length}건` : '없음'}</span>
+                ${서랍단추(s.key)}
               </div>
               ${!on ? '' : s.docs.length > 1 && s.docs.every((d) => PHOTO_EXT.test(d.name))
                 ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
@@ -2343,6 +2353,8 @@ function renderDrawer(id) {
   for (const el of $('#drawerBody').querySelectorAll('[data-doc]')) {
     el.onclick = () => openDoc(b.docs.find((d) => d.path === el.dataset.doc));
   }
+  const 칸이름 = (key) => [...b.stages, ...(b.sub ?? [])].find((x) => x.key === key)?.label ?? key;
+  for (const el of $('#drawerBody').querySelectorAll('[data-up]')) el.onclick = () => 서랍올리기(b, 폴더, el.dataset.up, 칸이름(el.dataset.up));
   const ciplView = $('#ciplView');
   if (ciplView) ciplView.onclick = () => openCiplView();
   const orderView = $('#orderView');
@@ -2723,9 +2735,9 @@ const 견적종류 = (mime = '') =>
 const 견적탈 = { off: '꺼짐', who: '권한 없음', list: '목록 실패', bad: '못 찾음', kind: '안 되는 종류', big: '너무 큼', read: '못 읽음', save: '저장 실패', net: '연결 실패' };
 
 /* 웹앱에 묻습니다 — 파일내주기와 같은 길(text/plain, 로그인 표). 글자로 바꾸기는 몇십 초 걸립니다. */
-async function 견적묻기(body) {
+async function 견적묻기(body, ms = 180_000) {
   const 그만 = new AbortController();
-  const 시계 = setTimeout(() => 그만.abort(), 180_000);
+  const 시계 = setTimeout(() => 그만.abort(), ms);
   try {
     const [url, idToken] = await Promise.all([DB.syncUrl(), DB.idToken()]);
     if (!url || !idToken) return { ok: false, why: 'who' };
@@ -2816,6 +2828,81 @@ window.docs견적고르기 = () => {
   $('#qtQ').oninput = () => { clearTimeout(쉼); 쉼 = setTimeout(찾기, 500); };
   찾기();
 };
+
+/* ── 차수 서랍: 올리기 · 드라이브에서 불러오기 (11-01 사장님) ──────────
+   「차수별 상세에서 각 파일을 구글 드라이브에서 불러오는 방식과 직접 업로드 하면 해당 폴더에 저장되게」 → 「둘 다 맡기기」.
+   드라이브에 넣고 옮기는 것은 웹앱(sync.gs 서랍_)이 합니다 — 견적서 관리와 같은 자물쇠(shareAllow·fbKey + 로그인).
+   이름은 parse.js 올릴이름 — 그 칸·그 차수로 읽히게 모자란 낱말만 앞에 붙입니다. 붙여도 안 되면 길 규칙(직접 지정).
+   서버가 docs_files 를 곧장 써서, 듣고 있던 목록에 저절로 뜹니다(sync 안 부름). */
+const 서랍최대 = 30 * 1024 * 1024;    // sync.gs 서랍최대_ 와 같게
+const 서랍탈 = { off: '꺼짐 — 설정 필요', who: '권한 없음', out: '범위 밖', bad: '못 찾음', big: `너무 큼 · 최대 ${서랍최대 / 1048576}MB`,
+  drive: '드라이브 실패', net: '연결 실패' };
+let 서랍켜짐 = false;
+
+/** 그 차수의 드라이브 폴더 'vendor/차수폴더' — 서류 경로에서 가장 많이 나온 것. 못 찾으면 ''. */
+function 차수폴더(b) {
+  const 셈 = new Map();
+  for (const d of b.docs ?? []) {
+    const p = String(d.path ?? '').split('/');
+    if (p.length < 3 || !/^(제헤우드|해피코)$/.test(p[0].normalize('NFC').trim())) continue;
+    if (parseBatch(p[1].replace(/_/g, '-').replace(/(^|[^\d])20(2[4-9])\s*-/g, '$1$2-'))?.label !== b.batch) continue;
+    const k = `${p[0]}/${p[1]}`;
+    셈.set(k, (셈.get(k) ?? 0) + 1);
+  }
+  return [...셈].sort((x, y) => y[1] - x[1])[0]?.[0] ?? '';
+}
+const 서랍하위 = (key) => SUBDIRS.find((x) => x.key === key)?.dir ?? '';
+
+function 서랍못함(머리, 칸, why) {
+  if (why === 'off') 서랍켜짐 = false;
+  견적팝업(머리, 칸, `<div class="dpr-none">${esc(서랍탈[why] ?? '실패')}</div>`);
+}
+
+/* 이름이 칸에 안 맞아 길 규칙이 필요할 때 — 고르기 서랍의 「직접 지정」 과 같은 규칙입니다. */
+async function 서랍규칙(path, key, batch) {
+  try {
+    await DB.saveRules([{ action: 'assign', matchType: 'path', match: path, batch, ...(서랍하위(key) ? {} : { stageKey: key }) }], state.user?.email);
+  } catch (e) {
+    toast(`지정 실패: ${e.message}`);
+  }
+}
+
+const 파일b64 = (f) => new Promise((ok, no) => {
+  const r = new FileReader();
+  r.onload = () => ok(String(r.result).split(',')[1] ?? '');
+  r.onerror = () => no(r.error);
+  r.readAsDataURL(f);
+});
+
+/* ⚠ 파일 고르기는 누른 그 자리에서 바로 엽니다 — 물어보고(await) 열면 폰(사파리)이 안 엽니다. 켜짐은 그동안 묻습니다. */
+function 서랍올리기(b, 폴더, key, 칸) {
+  if (state.demo) return toast('데모 · 저장 안 됨');
+  const 켜짐 = 서랍켜짐 ? Promise.resolve({ ok: true }) : 견적묻기({ 일: '서랍확인' });
+  const 고르개 = Object.assign(document.createElement('input'), { type: 'file', multiple: true, hidden: true });
+  document.body.append(고르개);
+  고르개.onchange = async () => {
+    const 파일들 = [...고르개.files];
+    고르개.remove();
+    if (!파일들.length) return;
+    const k = await 켜짐;
+    if (!k?.ok) return 서랍못함('올리기', 칸, k?.why);
+    서랍켜짐 = true;
+    let 된 = 0;
+    for (const [i, f] of 파일들.entries()) {
+      if (f.size > 서랍최대) { 서랍못함('올리기', f.name, 'big'); continue; }
+      toast(`올리는 중 ${i + 1}/${파일들.length}`);
+      const 이름 = 올릴이름(f.name, key, b.batch);
+      let b64;
+      try { b64 = await 파일b64(f); } catch { 서랍못함('올리기', f.name, 'bad'); continue; }
+      const r = await 견적묻기({ 일: '올리기', path: 폴더, sub: 서랍하위(key), name: 이름.name, mime: f.type, b64 }, 360_000);
+      if (!r?.ok) { 서랍못함('올리기', f.name, r?.why); if (r?.why === 'off' || r?.why === 'who') break; continue; }
+      if (이름.rule) await 서랍규칙(r.path, key, b.batch);
+      된++;
+    }
+    if (된) toast(`올림 ${된}건`);
+  };
+  고르개.click();
+}
 
 /* ── 코드관리 ─────────────────────────────────────────────
    발주서 PDF 에서 읽어 둔 코드를 거래처별로 모읍니다.
