@@ -2323,18 +2323,9 @@ window.docsFilterVendor = (vendor) => {
 /** 박스 판에서 파일 한 장을 그대로 열어 봅니다 — 원래 쓰던 그 보기 창입니다. */
 window.docsOpenFile = (path) => {
   const d = state.unassigned.find((x) => x.path === path)
-    ?? state.batches.flatMap((b) => b.docs).find((x) => x.path === path);   // 견적서 판은 차수에 붙은 것도 엽니다
+    ?? state.batches.flatMap((b) => b.docs).find((x) => x.path === path);   // 차수에 붙은 것도 엽니다
   if (d) openDoc(d);
 };
-
-/* 견적서 — 이름이나 자리에 견적·报价 가 든 파일을, 차수가 붙었든 안 붙었든 한데 모읍니다.
-   판정 규칙은 건드리지 않습니다. 모아 보일 뿐입니다. */
-const 견적말 = /견적|报价|報價|询价|詢價|quotation|quote/i;
-window.docs견적 = () =>
-  [...state.batches.flatMap((b) => b.docs), ...state.unassigned]
-    .filter((d) => 견적말.test(`${d.name ?? ''} ${d.path ?? ''}`))
-    .map((d) => ({ ...slimDoc(d), vendor: d.vendor ?? '', batch: d.batch ?? '' }))
-    .sort((x, y) => x.vendor.localeCompare(y.vendor, 'ko') || String(y.date).localeCompare(String(x.date)));
 
 /* 내용보기 표 한 장 — 서버가 떠 둔 { name, rows: [{c:[…]}], h, f } 를 원본 칸 차례 그대로.
    잔액서류·발주서 내용보기(openCiplView)와 견적서 관리가 함께 씁니다. 모양은 .dpr-t, 감싸개는 .dpr-pop. */
