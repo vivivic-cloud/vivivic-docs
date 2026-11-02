@@ -118,7 +118,6 @@
   :is(#docs-prod, .dpr-pop) .dpr-t tr.vpx td{ color:var(--vg-red); }
   .dpr-pop .vpx-t{ display:inline-block; font-size:11px; font-weight:700; line-height:16px; color:var(--vg-red);
     border:1px solid var(--vg-red); border-radius:4px; padding:0 4px; margin-left:6px; vertical-align:1px; white-space:nowrap; }
-  .dpr-pop .vpx-n{ display:block; margin-top:2px; font-size:11px; color:var(--vg-muted); white-space:normal; }
   /* 단품·상품 팝업 — goods.css `.vp-modal` 꼴 */
   .vpm{ position:fixed; inset:0; z-index:8400; background:rgba(55,53,47,.35); display:flex; align-items:center; justify-content:center; padding:16px; }
   .vpm-card{ width:440px; max-width:100%; max-height:calc(100vh - 32px); display:flex; flex-direction:column;
@@ -310,7 +309,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.90.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.91.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -338,7 +337,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.90.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.91.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -2881,7 +2880,7 @@ function 벤더피아상품연결(문서들) {
 /* 상품명 견주기 — 띄어쓰기·대소문자·괄호·문장부호는 안 봅니다(NFKC 뒤 글자와 숫자만).
    그렇게 다듬은 두 이름이 **같거나 한쪽이 다른 쪽을 품으면** 같은 이름입니다
    (발주서 대조의 색·모델명과 같은 결 — 「리안 2100 거실장 화이트」 ↔ 「리안 2100 거실장 화이트(해피코)」).
-   ⚠ 코드가 먼저 맞아야 이름을 봅니다. 이름만 같다고 맞음이 되지 않습니다. */
+   ⚠ 맞음 판정에는 안 씁니다(코드만, 사장님 11-02) — 단추로 바꿀 이름 칸을 고를 때만 봅니다. */
 const 이름뼈 = (v) => String(v ?? '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 const 이름같음 = (x, y) => {
   const a = 이름뼈(x), b = 이름뼈(y);
@@ -2897,7 +2896,7 @@ const 코드칸말 = [/^code#?$/, /^품번$/, /^코드$/, /^단품코드$/];
  * @param t     서버가 떠 둔 { rows: [{c:[…]}], h, f }
  * @param 사전  벤더피아단품사전(…) 의 Map
  * @returns {{ 칸: {code, names}, 줄: Map<rowIndex, {kind, 칸?, vp?}> } | { 못댐: '코드 칸 없음' }}
- *   kind — '맞음'(칸 = 단추로 바꿀 상품명 칸) · '코드없음' · '이름다름'(vp = 벤더피아 단품) · '없음'(벤더피아에 코드 없음).
+ *   kind — '맞음'(코드만 맞으면, 칸 = 단추로 바꿀 상품명 칸) · '코드없음' · '없음'(벤더피아에 코드 없음).
  *   머리줄·합계줄(f 뒤)·빈 줄·S/TOTAL 줄·코드 칸 글이 제품 꼴이 아닌 줄은 줄에 안 넣습니다(안 칠함).
  */
 function 벤더피아맞대기(t, 사전) {
@@ -2925,8 +2924,8 @@ function 벤더피아맞대기(t, 사전) {
     if (!제품줄인가(코드)) continue;
     const vp = 사전?.get(코드열쇠(코드));
     if (!vp) { 줄.set(i, { kind: '없음' }); continue; }
-    const 칸 = 이름들.find((c) => 이름같음(글(c), vp.이름));
-    줄.set(i, 칸 === undefined ? { kind: '이름다름', vp } : { kind: '맞음', 칸, vp });
+    // 코드만 맞으면 맞음(사장님 11-02) — 단추는 이름이 닮은 칸, 없으면 첫 이름 칸.
+    줄.set(i, { kind: '맞음', 칸: 이름들.find((c) => 이름같음(글(c), vp.이름)) ?? 이름들[0], vp });
   }
   return { 칸: { code, names }, 줄 };
 }
@@ -5796,11 +5795,11 @@ function 원본표(t, 맞댐) {
   const 칸 = (v, tag) => `<${tag}${숫자.test(v) ? ' class="num"' : ''}>${보임(v)}</${tag}>`;
   /* 벤더피아 단품과 맞댄 줄(v0.87.0, js/match.js 벤더피아맞대기) — 맞으면 상품명 칸이 단품 단추, 아니면 줄을 붉게 + 코드 칸에 딱지.
      맞댐이 없으면(견적서·못 읽음) 예전 그대로입니다. */
-  const 딱 = { 코드없음: '코드 없음', 이름다름: '이름 다름', 없음: '벤더피아 없음' };
+  const 딱 = { 코드없음: '코드 없음', 없음: '벤더피아 없음' };
   const 몸칸 = (v, c, m) => {
     if (m?.kind === '맞음' && c === m.칸) return `<td>${단품단추(m.vp)}</td>`;
     if (m && m.kind !== '맞음' && c === 맞댐.칸.code)
-      return `<td>${보임(v)}<span class="vpx-t">${딱[m.kind]}</span>${m.vp ? `<span class="vpx-n">${보임(m.vp.이름)}</span>` : ''}</td>`;
+      return `<td>${보임(v)}<span class="vpx-t">${딱[m.kind]}</span></td>`;
     return 칸(v, 'td');
   };
   const 몸줄 = (r, i) => {

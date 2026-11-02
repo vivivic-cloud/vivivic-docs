@@ -374,7 +374,7 @@ test('이름같음 — 띄어쓰기·대소문자·괄호는 안 보고, 품으�
   assert.ok(!이름같음('', '리안'));
 });
 
-test('벤더피아맞대기 — 맞음·이름다름·없음·코드없음, 머리·합계·빈 줄은 안 칠함', () => {
+test('벤더피아맞대기 — 코드만 맞으면 맞음·없음·코드없음, 머리·합계·빈 줄은 안 칠함', () => {
   const 사전 = 벤더피아단품사전(단품문서);
   const t = {
     h: 1, f: 7,
@@ -393,7 +393,8 @@ test('벤더피아맞대기 — 맞음·이름다름·없음·코드없음, 머�
   assert.deepEqual(r.칸, { code: 1, names: [2, 3] });
   assert.equal(r.줄.get(1).kind, '맞음');
   assert.equal(r.줄.get(1).칸, 2);
-  assert.equal(r.줄.get(2).kind, '이름다름');
+  assert.equal(r.줄.get(2).kind, '맞음');                     // 이름이 달라도 코드가 맞으면 맞음
+  assert.equal(r.줄.get(2).칸, 2);
   assert.equal(r.줄.get(2).vp.이름, '알렉스 2100 거실장 화이트');
   assert.equal(r.줄.get(3).kind, '없음');
   assert.equal(r.줄.get(4).kind, '코드없음');
@@ -406,6 +407,15 @@ test('벤더피아맞대기 — 밑줄 꼴(▁)은 같은 코드, 대소문자�
   const r = 벤더피아맞대기(t, 사전);
   assert.equal(r.줄.get(1).kind, '맞음');
   assert.equal(r.줄.get(2).kind, '없음');
+});
+
+test('벤더피아맞대기 — 제헤우드 영어 이름 ↔ 벤더피아 한글 단품명도 코드만 맞으면 맞음(myT_3C)', () => {
+  const 사전 = 벤더피아단품사전([{ id: '단품_1', 줄: ['myT_3C\t토리 마이토이 3단 책장\t판매중'] }]);
+  const t = { h: 1, rows: [{ c: ['CODE#', 'Product model', 'Qty pcs'] }, { c: ['myT_3C', 'MyToy 3-tier bookcase', '20'] }] };
+  const r = 벤더피아맞대기(t, 사전);
+  assert.equal(r.줄.get(1).kind, '맞음');
+  assert.equal(r.줄.get(1).칸, 1);
+  assert.equal(r.줄.get(1).vp.이름, '토리 마이토이 3단 책장');
 });
 
 test('벤더피아맞대기 — 코드 칸이 없으면 못댐(칠하지 않음)', () => {

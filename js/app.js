@@ -2305,11 +2305,11 @@ function 원본표(t, 맞댐) {
   const 칸 = (v, tag) => `<${tag}${숫자.test(v) ? ' class="num"' : ''}>${보임(v)}</${tag}>`;
   /* 벤더피아 단품과 맞댄 줄(v0.87.0, js/match.js 벤더피아맞대기) — 맞으면 상품명 칸이 단품 단추, 아니면 줄을 붉게 + 코드 칸에 딱지.
      맞댐이 없으면(견적서·못 읽음) 예전 그대로입니다. */
-  const 딱 = { 코드없음: '코드 없음', 이름다름: '이름 다름', 없음: '벤더피아 없음' };
+  const 딱 = { 코드없음: '코드 없음', 없음: '벤더피아 없음' };
   const 몸칸 = (v, c, m) => {
     if (m?.kind === '맞음' && c === m.칸) return `<td>${단품단추(m.vp)}</td>`;
     if (m && m.kind !== '맞음' && c === 맞댐.칸.code)
-      return `<td>${보임(v)}<span class="vpx-t">${딱[m.kind]}</span>${m.vp ? `<span class="vpx-n">${보임(m.vp.이름)}</span>` : ''}</td>`;
+      return `<td>${보임(v)}<span class="vpx-t">${딱[m.kind]}</span></td>`;
     return 칸(v, 'td');
   };
   const 몸줄 = (r, i) => {
