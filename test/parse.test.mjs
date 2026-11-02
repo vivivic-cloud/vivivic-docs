@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds, 올릴이름 } from '../js/parse.js';
+import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds, 올릴이름, 다음차수 } from '../js/parse.js';
 
 /** 실제 드라이브 `중국/제헤우드/` 폴더에서 가져온 파일명입니다. */
 const REAL = [
@@ -914,5 +914,32 @@ test('올릴이름 — 차수 서랍에 올린 파일이 그 칸·그 차수로 
     const r = 판(n, k);
     assert.equal(classify(r.name).key, k);
     assert.equal(parseBatch(r.name)?.label ?? '26-29', '26-29');
+  }
+});
+
+test('다음차수 — 가장 늦은 차수 폴더의 꼴 그대로 번호만 하나 (11-02 발주하기)', () => {
+  // 제헤우드 실물 폴더 이름(11-02) — Zh-/zh- 가 섞여 있고 끝은 Zh-26-30
+  const 제헤 = ['01_발주서', 'Zh-26-13', 'Zh-26-18차', 'zh-26-07', 'zh-26-25', 'zh-26-25 (1)', 'zh-26-27', 'Zh-26-29', 'Zh-26-30', '분류전', '무제 폴더'];
+  assert.deepEqual(다음차수(제헤, 26), { name: 'Zh-26-31', label: '26-31' });
+  assert.deepEqual(다음차수(['Hp-26-01', 'Hp-26-29', '분류전'], 26), { name: 'Hp-26-30', label: '26-30' });
+  assert.equal(다음차수(['zh-26-07', 'Zh-26-06'], 26).name, 'zh-26-08');
+  assert.equal(다음차수(['Zh-26-18차'], 26).name, 'Zh-26-19차');
+  assert.equal(다음차수(['zh-26-25 (1)'], 26).name, 'zh-26-26');
+  assert.equal(다음차수(['zh_2026_08'], 26).name, 'zh_2026_09');
+  assert.equal(다음차수(['Hp-26-9'], 26).name, 'Hp-26-10');
+  // 해가 바뀌면 같은 꼴로 올해 01
+  assert.deepEqual(다음차수(['Zh-26-31'], 27), { name: 'Zh-27-01', label: '27-01' });
+  assert.equal(다음차수(['zh_2026_08'], 27).name, 'zh_2027_01');
+  // 폴더 없이 파일 이름으로만 아는 차수가 더 늦으면 그 다음 — 꼴은 폴더에서
+  assert.deepEqual(다음차수(['HW-26-18차'], 26, ['26-19', '26-17', '25-40']), { name: 'HW-26-20차', label: '26-20' });
+  assert.equal(다음차수(['Zh-26-30'], 27, ['26-31']).name, 'Zh-27-01');
+  // 못 셈
+  assert.equal(다음차수(['분류전', '무제 폴더'], 26), null);
+  assert.equal(다음차수([], 26), null);
+  assert.equal(다음차수(['Zh-26-60'], 26), null);
+  // 만든 이름은 다시 그 차수로 읽힌다
+  for (const n of 제헤) {
+    const r = 다음차수([n], 26);
+    if (r) assert.equal(batchFromPath(`${r.name}/x`).label, r.label, n);
   }
 });

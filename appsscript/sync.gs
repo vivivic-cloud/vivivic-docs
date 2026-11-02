@@ -215,25 +215,34 @@ const DROP_TAG = '1030';   // 다른 컬렉션 지우기는 이 표로 한 번�
  * 새 셈을 만들지 않았습니다. 규칙을 고치면 parse.js 와 같이 고치고 test/sync.test.mjs 가 둘을 맞대 봅니다.
  */
 function 차수폴더인가_(name) {
+  return !!차수표_(name);
+}
+
+/** 폴더 이름 → 차수 「26-30」(parse.js parseBatch 의 label). 차수 폴더가 아니면 null. */
+function 차수표_(name) {
   let n = String(name).normalize('NFC').replace(/^TalkFile_+/i, '').replace(/(\.[a-z0-9]{2,5})\1+$/i, '$1').trim();
   n = n.replace(/_/g, '-').replace(/(^|[^\d])20(2[4-9])\s*-/g, '$1$2-');
-  const ok = function (no) { const v = Number(no); return v >= 1 && v <= 60; };
+  const mk = function (y, no) {
+    const v = Number(no);
+    if (!(v >= 1 && v <= 60)) return null;
+    return ('0' + (Number(y) % 100)).slice(-2) + '-' + ('0' + v).slice(-2);
+  };
   let m = /(\d{2})\s*-\s*(\d{1,2})\s*차/.exec(n);
-  if (m) return ok(m[2]);
+  if (m) return mk(m[1], m[2]);
   m = /(?<![A-Za-z])(?:ZH|ING|JW|BJ)\)?\s*-?\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
-  if (m) return ok(m[2]);
+  if (m) return mk(m[1], m[2]);
   m = /AMT\s*(?:20)?(\d{2})\s*-\s*(\d{1,2})(?!\d)/i.exec(n);
-  if (m) return ok(m[2]);
+  if (m) return mk(m[1], m[2]);
   const docNo = /(\d{2})-\d{3}-AMT/i.exec(n);
   if (docNo) {
     const cha = /(?:^|[^\d])(\d{1,2})\s*차/.exec(n);
-    if (cha) return ok(cha[1]);
+    if (cha) return mk(docNo[1], cha[1]);
     const tail = /-AMT-(?:[A-Z]{2}-)?(\d{1,2})(?!\d)/i.exec(n);
-    if (tail) return ok(tail[1]);
+    if (tail) return mk(docNo[1], tail[1]);
   }
   m = /(?:^|[^\d])(2[4-9])\s*-\s*(\d{1,2})(?!\d)/.exec(n);
-  if (m) return ok(m[2]);
-  return false;
+  if (m) return mk(m[1], m[2]);
+  return null;
 }
 
 /**
@@ -692,6 +701,7 @@ function doPost(e) {
     out = (req && req['일'] === '보링파일') ? 보링파일내주기_(req)
         : (req && /^견적(목록|읽기)$/.test(String(req['일']))) ? 견적_(req)
         : (req && /^(서랍확인|올리기)$/.test(String(req['일']))) ? 서랍_(req)
+        : (req && /^차수(목록|만들기)$/.test(String(req['일']))) ? 발주하기_(req)
         : 파일내주기_(req);
   } catch (err) {
     out = { ok: false, why: 'bad' };
@@ -1879,6 +1889,62 @@ function 올리기_(req, email) {
     file = 곳.folder.createFile(Utilities.newBlob(bytes, String(req.mime || '') || 'application/octet-stream', name));
   } catch (e) { return { ok: false, why: 'drive' }; }
   return 서랍적기_(file.getId(), 곳, { 일: '올림', driveId: file.getId(), name: name, oldName: 원, from: '', fromId: '', by: email });
+}
+
+/* ── 발주하기: 다음 차수 폴더 만들기 ─────────────────────
+   사장님 11-02 「이제 파일 직접 올리기가 가능해 졌으니 차수박스도 직접 생성이 가능해야 겠지
+   다음발주 예상에 맞는 발주박스를 생성하는 발주하기+ 버튼을 만들어줘」.
+   차수목록 — 그 거래처 폴더 안 차수 폴더 이름들(빈 폴더 포함). 앱이 다음 이름을 셉니다(parse.js 다음차수).
+   차수만들기 — `중국/<VENDOR_DIRS>/<이름>` 폴더 하나 + docs_overlay/{거래처::26-31} 에 folder 칸.
+     빈 차수는 docs_files 에 아무것도 없어 박스가 안 서니, 앱이 overlay 의 folder 로 빈 박스를 세웁니다.
+     overlay 는 앱이 늘 듣던 것이라 읽기가 안 늘어납니다. 파일이 들어오면 같은 id 의 차수가 그 자리를 갖습니다.
+   ⚠ 자물쇠는 서랍_ 과 같습니다(shareAllow·fbKey + 로그인 표). 늦추지 마세요.
+   ⚠ 같은 차수 폴더(이름 꼴이 달라도 차수가 같으면)가 있으면 안 만듭니다. 지우기·옮기기 없음.
+   UrlFetch: 로그인 확인 1 (+ 만들기면 Firestore 쓰기 1). 드라이브는 DriveApp. */
+function 발주하기_(req) {
+  const props = PropertiesService.getScriptProperties();
+  const allow = String(props.getProperty('shareAllow') || '')
+    .split(/[,\s]+/).filter(String).map(function (x) { return x.toLowerCase(); });
+  if (!allow.length || !props.getProperty('fbKey')) return { ok: false, why: 'off' };
+  const email = 표확인_(req && req.idToken, props);
+  if (!email || allow.indexOf(email.toLowerCase()) < 0) return { ok: false, why: 'who' };
+  if (VENDOR_DIRS.map(NFC_).indexOf(NFC_(req.vendor)) < 0) return { ok: false, why: 'out' };
+  const vf = 자식폴더_(findRoot_(), NFC_(req.vendor), false);
+  if (!vf) return { ok: false, why: 'out' };
+  const 있는 = [];
+  const it = vf.getFolders();
+  while (it.hasNext()) {
+    const c = it.next();
+    if (!SKIP_DIR.test(c.getName()) && 차수폴더인가_(c.getName())) 있는.push(c.getName());
+  }
+  if (req['일'] === '차수목록') return { ok: true, names: 있는 };
+
+  const name = 파일이름_(req.name);
+  const 차수 = 차수표_(name);
+  if (!차수 || SKIP_DIR.test(name)) return { ok: false, why: 'bad' };
+  const 겹친 = 있는.filter(function (n) { return 차수표_(n) === 차수; })[0];
+  if (겹친) return { ok: false, why: 'dup', name: 겹친 };
+  let folder;
+  try { folder = vf.createFolder(name); } catch (e) { return { ok: false, why: 'drive' }; }
+  const vendor = vf.getName();
+  const batchId = vendor + '::' + 차수;
+  const at = new Date().toISOString();
+  const 칸 = {
+    batchId: { stringValue: batchId },
+    folder: { stringValue: vendor + '/' + folder.getName() },
+    folderId: { stringValue: folder.getId() },
+    madeBy: { stringValue: email },
+    madeAt: { stringValue: at },
+  };
+  commit_([
+    // 마스크로 이 칸들만 — 같은 차수에 사람이 넣어 둔 값은 그대로
+    { update: { name: NAME + '/' + DATA_ + 'docs_overlay/' + docId_(batchId), fields: 칸 }, updateMask: { fieldPaths: Object.keys(칸) } },
+    { update: { name: NAME + '/' + MOVES + '/' + Utilities.getUuid(), fields: {
+      '일': { stringValue: '차수만듦' }, name: { stringValue: folder.getName() }, to: { stringValue: vendor + '/' + folder.getName() },
+      toId: { stringValue: folder.getId() }, at: { stringValue: at }, by: { stringValue: email },
+    } } },
+  ]);
+  return { ok: true, batchId: batchId, batch: 차수, folder: vendor + '/' + folder.getName() };
 }
 
 /* ── 서류 간추리기 (js/parse.js 의 readBrief 와 같은 규칙) ── */

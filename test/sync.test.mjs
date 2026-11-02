@@ -324,3 +324,35 @@ test('서랍 — 올리기: 같은 이름은 (2), docs_files 기본 칸 + 기록
   assert.ok(쓰기[1].update.name.includes('docs_moves/'));
   assert.equal(쓰기[1].update.fields['일'].stringValue, '올림');
 });
+
+test('차수표_ — parse.js batchFromPath 의 label 과 같다', () => {
+  for (const n of ['Zh-26-13', 'zh-26-07', 'Zh-26-18차', 'zh-26-25 (1)', 'Hp-26-29', 'zh_2026_08', '분류전', '26-085', 'Zh-26-61'])
+    assert.equal(gs.차수표_(n), batchFromPath(n + '/x')?.label ?? null, n);
+});
+
+test('발주하기 — 자물쇠, 목록(빈 폴더 포함), 같은 차수는 안 만듦, 만들면 폴더 + overlay folder 칸', () => {
+  const 꺼짐 = 가짜서랍({ props: { fbKey: 'k' } });
+  assert.equal(꺼짐.ctx.발주하기_({ 일: '차수목록', vendor: '제헤우드' }).why, 'off');
+  assert.equal(꺼짐.불림.표확인, 0);
+  const { ctx, 쓰기, 차 } = 가짜서랍();
+  assert.equal(ctx.발주하기_({ 일: '차수목록', vendor: '베이지아' }).why, 'out');
+  assert.deepEqual([...ctx.발주하기_({ 일: '차수목록', vendor: '제헤우드' }).names], ['Zh-26-29', 'Zh-26-01']);
+  assert.equal(ctx.발주하기_({ 일: '차수만들기', vendor: '제헤우드', name: '분류전2' }).why, 'bad');
+  const 겹 = ctx.발주하기_({ 일: '차수만들기', vendor: '제헤우드', name: 'zh-26-29차' });
+  assert.equal(겹.why, 'dup');
+  assert.equal(겹.name, 'Zh-26-29');
+  assert.equal(쓰기.length, 0);
+  const r = ctx.발주하기_({ 일: '차수만들기', vendor: '제헤우드', name: 'Zh-26-30', idToken: 't' });
+  assert.equal(r.ok, true);
+  assert.equal(r.batchId, '제헤우드::26-30');
+  assert.equal(r.folder, '제헤우드/Zh-26-30');
+  assert.ok(차.parent.kids.some((k) => k.name === 'Zh-26-30'));
+  assert.ok(쓰기[0].update.name.endsWith('docs_overlay/제헤우드::26-30'));
+  assert.deepEqual([...쓰기[0].updateMask.fieldPaths].sort(), ['batchId', 'folder', 'folderId', 'madeAt', 'madeBy']);
+  assert.equal(쓰기[0].update.fields.folder.stringValue, '제헤우드/Zh-26-30');
+  assert.equal(쓰기[1].update.fields['일'].stringValue, '차수만듦');
+  // 만든 뒤에는 목록에 있고 다시 못 만듦
+  assert.equal(ctx.발주하기_({ 일: '차수만들기', vendor: '제헤우드', name: 'Zh-26-30' }).why, 'dup');
+  // 서랍 「올리기」 가 그 폴더를 곧장 찾는다
+  assert.equal(ctx.차수곳_('제헤우드/Zh-26-30', '').path, '제헤우드/Zh-26-30');
+});

@@ -310,7 +310,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.89.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.90.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -338,7 +338,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.89.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.90.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1994,6 +1994,38 @@ function batchFromPath(path) {
   return null;
 }
 
+/* 다음 발주 차수 폴더 이름 (11-02 사장님 「다음발주 예상에 맞는 발주박스를 생성하는 발주하기+ 버튼」).
+   그 거래처 차수 폴더 가운데 가장 늦은 차수의 이름 꼴(접두어·대소문자·자릿수)을 그대로 두고 번호만 하나 올립니다.
+     Zh-26-30 → Zh-26-31 · zh-26-07 → zh-26-08 · Hp-26-29 → Hp-26-30
+   번호는 폴더와 차수들(파일 이름으로만 아는 차수 「26-31」) 가운데 가장 늦은 것 + 1 — 폴더 없는 차수와 안 겹치게.
+   해가 바뀌면(올해 > 가장 늦은 차수의 해) 같은 꼴로 올해 01 차입니다 — Zh-26-31 → (27년) Zh-27-01.
+   차수 폴더가 없거나 60차를 넘으면 null(사람이 적습니다). 올해는 두 자리(26). */
+function 다음차수(이름들, 올해, 차수들 = []) {
+  const 늦나 = (a, b) => !b || a.year > b.year || (a.year === b.year && a.no > b.no);
+  let 끝 = null;
+  for (const raw of 이름들 ?? []) {
+    const name = String(raw ?? '').normalize('NFC').trim();
+    const got = batchFromPath(`${name}/_`);
+    if (got && 늦나(got, 끝)) 끝 = { ...got, name };
+  }
+  if (!끝) return null;
+  let 맨끝 = 끝;
+  for (const l of 차수들 ?? []) {
+    const m = /^(\d{2})-(\d{2})$/.exec(String(l ?? ''));
+    const got = m && { year: Number(m[1]), no: Number(m[2]) };
+    if (got && 늦나(got, 맨끝)) 맨끝 = got;
+  }
+  const 새해 = Number(올해) % 100 > 맨끝.year;
+  const year = 새해 ? Number(올해) % 100 : 맨끝.year;
+  const no = 새해 ? 1 : 맨끝.no + 1;
+  if (no > 60) return null;
+  const m = new RegExp(`(^|\\D)((?:20)?)${String(끝.year).padStart(2, '0')}(\\s*[-_]\\s*)(0*${끝.no})(?!\\d)`).exec(끝.name);
+  if (!m) return null;
+  const 앞 = 끝.name.slice(0, m.index) + m[1] + m[2] + String(year).padStart(2, '0') + m[3];
+  const 이름 = 앞 + String(no).padStart(m[4].length, '0') + 끝.name.slice(m.index + m[0].length).replace(/\s*\(\d+\)$/, '');
+  return { name: 이름, label: `${String(year).padStart(2, '0')}-${String(no).padStart(2, '0')}` };
+}
+
 /**
  * 차수 폴더 바로 밑 하위폴더(검수·샘플)에 든 파일이면 그 갈래를 돌려줍니다.
  * "제헤우드/zh-26-07/검수/a.jpg" → SUBDIRS 의 검수. 그 밑에 폴더가 더 있어도 검수입니다.
@@ -2395,7 +2427,7 @@ function findDuplicates(docs) {
     }));
 }
 
-return { ASIDE, CJK_GLOSS, KINDS, STAGES, STAGE_BY_KEY, SUBDIRS, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, kindOf, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, subdirOf, suggestKeyword, summarize, 글귀_, 밑줄보기, 올릴이름, 제품줄인가, 칸낱말, 코드열쇠 };
+return { ASIDE, CJK_GLOSS, KINDS, STAGES, STAGE_BY_KEY, SUBDIRS, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, kindOf, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, subdirOf, suggestKeyword, summarize, 글귀_, 다음차수, 밑줄보기, 올릴이름, 제품줄인가, 칸낱말, 코드열쇠 };
 })();
 const PROGRESS = (() => {
 /**
@@ -3455,7 +3487,7 @@ function watchQuotes(cb) {
 
 return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, VP_상품, authMessage, fileKey, idToken, init, overlayKey, replaceFiles, saveCipl, saveKinds, saveLoading, saveOverlay, saveRules, signIn, signOut, syncUrl, watchAuth, watchBoxes, watchFiles, watchKinds, watchLoading, watchOverlay, watchQuotes, watchRules, 벤더피아단품목록, 벤더피아상품, 벤더피아상품목록, 벤더피아줄벗기기, 수량열쇠, 수량올리기, 수량칸 };
 })();
-const { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS } = PARSE;
+const { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath } = PARSE;
 const { progressWord } = PROGRESS;
 const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 벤더피아사전, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기 } = MATCH;
 
@@ -3583,7 +3615,7 @@ async function enterApp(user) {
 
   state.unsub.push(
     DB.watchFiles((files, 캐시) => { state.files = files; state.캐시.files = 캐시; applyParse(); }),
-    DB.watchOverlay((ov) => { state.overlay = ov; render(); }),
+    DB.watchOverlay((ov) => { state.overlay = ov; state.batches = 빈차수더하기(state.파일차수 ?? []); render(); window.docsHomeRefresh?.(); }),
     DB.watchRules((rules, 캐시) => { state.rules = rules; state.캐시.rules = 캐시; applyParse(); }),
     DB.watchBoxes((boxes) => { state.boxes = boxes; window.docsBoxesChanged?.(); }),
     DB.watchKinds((map, 캐시) => { state.kinds = map; state.캐시.kinds = 캐시; window.docsBoxesChanged?.(); saveKindsIfNew(); }),
@@ -3644,7 +3676,8 @@ function cloud(text) {
 
 function applyParse() {
   const { batches, unassigned, excluded } = buildBatches(state.files, state.rules);
-  state.batches = batches;
+  state.파일차수 = batches;
+  state.batches = 빈차수더하기(batches);
   state.unassigned = unassigned;
   state.excluded = excluded;
   const has = state.files.length > 0;
@@ -3655,6 +3688,21 @@ function applyParse() {
   saveKindsIfNew();
   // 차수별 수량을 창고에 얹습니다 — 벤더피아가 읽어 갑니다. 바뀐 것이 없으면 아무 일도 안 합니다.
   window.docs수량건네기?.().catch(() => {});
+}
+
+/* 발주하기로 만든 빈 차수(11-02) — 파일이 아직 없어 buildBatches 에는 안 나옵니다.
+   서버가 overlay 에 적은 folder 칸으로 빈 박스를 세웁니다. 파일이 들어오면 같은 id 의 차수가 그 자리를 갖습니다. */
+function 빈차수더하기(batches) {
+  const 있는 = new Set(batches.map((b) => b.id));
+  const 빈 = Object.entries(state.overlay ?? {})
+    .filter(([id, ov]) => ov?.folder && /^.+::\d{2}-\d{2}$/.test(id) && !있는.has(id))
+    .map(([id]) => {
+      const [vendor, batch] = id.split('::');
+      const [year, no] = batch.split('-').map(Number);
+      return summarize({ id, vendor, batch, year, no, docs: [] });
+    });
+  if (!빈.length) return batches;
+  return [...batches, ...빈].sort((a, b) => b.year - a.year || b.no - a.no || a.vendor.localeCompare(b.vendor));
 }
 
 /* 갈래를 적어 둡니다 — 새로 들어온 파일 것만. 이미 적힌 것은 그대로 둡니다
@@ -3897,7 +3945,10 @@ function stageDots(b) {
 function renderGrid() {
   const list = visible();
   $('#emptyState').hidden = list.length > 0;
-  $('#grid').innerHTML = list
+  // 발주하기 — 차수 폴더를 만드는 거래처(제헤우드·해피코)로 걸렀을 때만, 맨 앞에.
+  const 발주곳 = 발주거래처.includes(state.filter.vendor) ? state.filter.vendor : '';
+  $('#grid').innerHTML = (발주곳 ? `<button type="button" class="dhh-newbox" id="btnNewBatch">
+       <b>＋</b><span>발주하기</span></button>` : '') + list
     .map((b) => {
       const warn = b.issues.filter((i) => i.level === 'warn').length;
       const info = b.issues.filter((i) => i.level === 'info').length;
@@ -3925,6 +3976,7 @@ function renderGrid() {
     .join('');
 
   for (const el of document.querySelectorAll('[data-open]')) el.onclick = () => openDrawer(el.dataset.open);
+  if (발주곳) $('#btnNewBatch').onclick = () => 발주하기(발주곳);
 }
 
 /* ── 드라이브 미리보기 ───────────────────────────────── */
@@ -5966,7 +6018,8 @@ function 차수폴더(b) {
     const k = `${p[0]}/${p[1]}`;
     셈.set(k, (셈.get(k) ?? 0) + 1);
   }
-  return [...셈].sort((x, y) => y[1] - x[1])[0]?.[0] ?? '';
+  // 서류가 아직 없는 차수는 발주하기가 overlay 에 적어 둔 폴더(11-02)
+  return [...셈].sort((x, y) => y[1] - x[1])[0]?.[0] ?? state.overlay[b.id]?.folder ?? '';
 }
 const 서랍하위 = (key) => SUBDIRS.find((x) => x.key === key)?.dir ?? '';
 
@@ -6019,6 +6072,72 @@ function 서랍올리기(b, 폴더, key, 칸) {
     if (된) toast(`올림 ${된}건`);
   };
   고르개.click();
+}
+
+/* ── 발주하기 (11-02 사장님) ──────────────────────────────
+   「이제 파일 직접 올리기가 가능해 졌으니 차수박스도 직접 생성이 가능해야 겠지
+     다음발주 예상에 맞는 발주박스를 생성하는 발주하기+ 버튼을 만들어줘」.
+   다음 이름은 parse.js 다음차수 — 그 거래처 차수 폴더 중 가장 늦은 것의 꼴로 번호 +1(해가 바뀌면 올해 01).
+   폴더 이름은 서버가 드라이브에서 읽어 줍니다(빈 폴더 포함). 그 전에는 서류 경로로 먼저 셉니다.
+   바로 만들지 않습니다 — 이름을 보고(고쳐서) 「만들기」. 자물쇠는 올리기와 같습니다(sync.gs 발주하기_). */
+const 발주거래처 = ['제헤우드', '해피코'];   // sync.gs VENDOR_DIRS 와 같게
+
+function 발주하기(vendor) {
+  const 머리 = '발주하기';
+  const 아는폴더 = new Set();
+  for (const f of state.files) {
+    const p = String(f.path ?? '').split('/');
+    if (p.length > 2 && p[0].normalize('NFC').trim() === vendor && batchFromPath(`${p[1]}/_`)) 아는폴더.add(p[1]);
+  }
+  for (const ov of Object.values(state.overlay ?? {}))
+    if (String(ov?.folder ?? '').startsWith(`${vendor}/`)) 아는폴더.add(ov.folder.slice(vendor.length + 1));
+  const 올해 = new Date().getFullYear() % 100;
+  const 차수들 = state.batches.filter((b) => b.vendor === vendor).map((b) => b.batch);
+  const 처음 = 다음차수([...아는폴더], 올해, 차수들)?.name ?? '';
+  견적팝업(머리, vendor, `
+          <input id="nbName" type="text" class="field w-full mb-3" value="${esc(처음)}" autocomplete="off" spellcheck="false" />
+          <div id="nbWhy" class="dpr-none mb-3" hidden></div>
+          <button type="button" id="nbGo" class="btn btn-primary w-full min-h-[44px]">만들기</button>`);
+  const 이름칸 = $('#nbName');
+  let 고침 = false;
+  이름칸.oninput = () => { 고침 = true; 탈(''); };
+  const 탈 = (글) => { $('#nbWhy').textContent = 글; $('#nbWhy').hidden = !글; };
+  const 끔 = (why) => {
+    if (why === 'off') 서랍켜짐 = false;
+    $('#diffBody .dpr-pop').innerHTML = `<div class="dpr-none">${esc(서랍탈[why] ?? '실패')}</div>`;
+  };
+  // 드라이브의 차수 폴더 이름(빈 폴더 포함)으로 다시 셉니다. 꺼져 있으면 여기서 알립니다.
+  if (!state.demo) 견적묻기({ 일: '차수목록', vendor }).then((r) => {
+    if (!이름칸.isConnected) return;
+    if (!r?.ok) { if (r?.why === 'off' || r?.why === 'who') 끔(r.why); return; }
+    서랍켜짐 = true;
+    const 다음 = 다음차수([...r.names, ...아는폴더], 올해, 차수들)?.name;
+    if (다음 && !고침) 이름칸.value = 다음;
+  });
+  $('#nbGo').onclick = async () => {
+    const name = 이름칸.value.normalize('NFC').trim();
+    const 차수 = batchFromPath(`${name}/_`)?.label;
+    if (!차수) return 탈('차수 꼴 아님');
+    if (state.batches.some((b) => b.vendor === vendor && b.batch === 차수)) return 탈(`${차수}차 이미 있음`);
+    if (state.demo) return toast('데모 · 저장 안 됨');
+    $('#nbGo').disabled = true;
+    탈('');
+    const r = await 견적묻기({ 일: '차수만들기', vendor, name });
+    if (!이름칸.isConnected) return;
+    $('#nbGo').disabled = false;
+    if (!r?.ok) {
+      if (r?.why === 'off' || r?.why === 'who') return 끔(r.why);
+      return 탈(r?.why === 'dup' ? `이미 있음 · ${r.name}` : r?.why === 'bad' ? '차수 꼴 아님' : (서랍탈[r?.why] ?? '실패'));
+    }
+    // 듣고 있던 overlay 로도 오지만, 먼저 세워 둡니다.
+    state.overlay[r.batchId] = { ...(state.overlay[r.batchId] ?? {}), batchId: r.batchId, folder: r.folder };
+    state.batches = 빈차수더하기(state.파일차수 ?? []);
+    render();
+    window.docsHomeRefresh?.();
+    $('#diffView').hidden = true;
+    document.documentElement.removeAttribute('data-docsdiff');
+    toast(`만듦 · ${r.folder.split('/').pop()}`);
+  };
 }
 
 /* 화면에서 한 번 더 거릅니다.

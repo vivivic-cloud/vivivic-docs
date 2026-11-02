@@ -867,6 +867,38 @@ export function batchFromPath(path) {
   return null;
 }
 
+/* 다음 발주 차수 폴더 이름 (11-02 사장님 「다음발주 예상에 맞는 발주박스를 생성하는 발주하기+ 버튼」).
+   그 거래처 차수 폴더 가운데 가장 늦은 차수의 이름 꼴(접두어·대소문자·자릿수)을 그대로 두고 번호만 하나 올립니다.
+     Zh-26-30 → Zh-26-31 · zh-26-07 → zh-26-08 · Hp-26-29 → Hp-26-30
+   번호는 폴더와 차수들(파일 이름으로만 아는 차수 「26-31」) 가운데 가장 늦은 것 + 1 — 폴더 없는 차수와 안 겹치게.
+   해가 바뀌면(올해 > 가장 늦은 차수의 해) 같은 꼴로 올해 01 차입니다 — Zh-26-31 → (27년) Zh-27-01.
+   차수 폴더가 없거나 60차를 넘으면 null(사람이 적습니다). 올해는 두 자리(26). */
+export function 다음차수(이름들, 올해, 차수들 = []) {
+  const 늦나 = (a, b) => !b || a.year > b.year || (a.year === b.year && a.no > b.no);
+  let 끝 = null;
+  for (const raw of 이름들 ?? []) {
+    const name = String(raw ?? '').normalize('NFC').trim();
+    const got = batchFromPath(`${name}/_`);
+    if (got && 늦나(got, 끝)) 끝 = { ...got, name };
+  }
+  if (!끝) return null;
+  let 맨끝 = 끝;
+  for (const l of 차수들 ?? []) {
+    const m = /^(\d{2})-(\d{2})$/.exec(String(l ?? ''));
+    const got = m && { year: Number(m[1]), no: Number(m[2]) };
+    if (got && 늦나(got, 맨끝)) 맨끝 = got;
+  }
+  const 새해 = Number(올해) % 100 > 맨끝.year;
+  const year = 새해 ? Number(올해) % 100 : 맨끝.year;
+  const no = 새해 ? 1 : 맨끝.no + 1;
+  if (no > 60) return null;
+  const m = new RegExp(`(^|\\D)((?:20)?)${String(끝.year).padStart(2, '0')}(\\s*[-_]\\s*)(0*${끝.no})(?!\\d)`).exec(끝.name);
+  if (!m) return null;
+  const 앞 = 끝.name.slice(0, m.index) + m[1] + m[2] + String(year).padStart(2, '0') + m[3];
+  const 이름 = 앞 + String(no).padStart(m[4].length, '0') + 끝.name.slice(m.index + m[0].length).replace(/\s*\(\d+\)$/, '');
+  return { name: 이름, label: `${String(year).padStart(2, '0')}-${String(no).padStart(2, '0')}` };
+}
+
 /**
  * 차수 폴더 바로 밑 하위폴더(검수·샘플)에 든 파일이면 그 갈래를 돌려줍니다.
  * "제헤우드/zh-26-07/검수/a.jpg" → SUBDIRS 의 검수. 그 밑에 폴더가 더 있어도 검수입니다.
