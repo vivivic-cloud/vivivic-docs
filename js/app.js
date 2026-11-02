@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 가격칸 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -1695,11 +1695,13 @@ function renderDrawer(id) {
       btn.classList.add('on');
       단품창(btn.dataset.vpk);
     };
-    // 단품 연결 — 후보 코드는 누르면 곧장 잇고, 「직접」·「연결」 딱지는 고치는 창을 엽니다.
+    // 단품 연결 — 「추천 n ▾」 은 드롭다운(고르면 곧장 잇고, 맨 밑 「직접 입력」), 「직접」·「연결」 딱지는 고치는 창을 엽니다.
     const 다시 = () => { if (!$('#diffView').hidden && $('#diffBody [data-ciplview]')) openCiplView(고른, 단계); };
     for (const btn of $('#diffBody').querySelectorAll('[data-vplink]')) btn.onclick = () => {
-      if (btn.dataset.vpto) 단품잇기(btn.dataset.vplink, btn.dataset.vpto).then(다시);
-      else 연결창(btn.dataset.vplink, btn.dataset.vpraw, JSON.parse(btn.dataset.vpcand || '[]'), 다시, btn.dataset.vpname);
+      const 후보 = JSON.parse(btn.dataset.vpcand || '[]');
+      const 창 = () => 연결창(btn.dataset.vplink, btn.dataset.vpraw, 후보, 다시, btn.dataset.vpname);
+      if (btn.hasAttribute('data-vpdrop')) 추천목록(btn, 후보, (코드) => 단품잇기(btn.dataset.vplink, 코드).then(다시), 창);
+      else 창();
     };
     $('#diffClose').onclick = () => {
       $('#diffView').hidden = true;
@@ -2467,18 +2469,26 @@ function 원본표(t, 맞댐, 가림) {
      맞댐이 없으면(견적서·못 읽음) 예전 그대로입니다. */
   const 딱 = { 코드없음: '코드 없음', 없음: '벤더피아 없음' };
   /* 단품 연결(v0.104.0) — 「벤더피아 없음」 줄에 이름이 같은 단품코드(후보)와 「직접」, 이어 둔 줄은 코드 옆 「연결」.
+     후보는 「추천 n ▾」 드롭다운(v0.105.0, 추천목록) — 한 줄 = 단품코드 + 벤더피아 단품명(+ 양품), 맨 밑 「직접 입력」.
      서류 코드는 그대로 보입니다(날것). 데모·읽기 전에도 그립니다 — 쓰기는 단품잇기 가 막습니다. */
-  const 잇는칸 = (v, m) => {
-    const raw = ` data-vplink="${esc(m.열쇠)}" data-vpraw="${esc(v)}" data-vpname="${esc(m.이름 ?? '')}"`;
-    if (m.kind === '맞음')
-      return `<td>${보임(v)}<button type="button" class="vpl"${raw} data-vpcand="[]" title="이어 둔 단품 · ${esc(m.vp.코드)}">연결</button></td>`;
-    const 후 = m.후보 ?? [];
-    return `<td>${보임(v)}<span class="vpx-t">${딱.없음}</span>${후.length ? '<span class="vpc-l">이름 일치</span>' : ''}${후.map((x) =>
-      `<button type="button" class="vpc"${raw} data-vpto="${esc(x.코드)}" title="${esc(x.이름)}">${보임(x.코드)}</button>`).join('')}<button type="button" class="vpc vpc-e"${raw} data-vpcand="${esc(JSON.stringify(후.map((x) => x.코드)))}">직접</button></td>`;
+  const 잇는칸 = (v, m, r) => {
+    const 열 = ` data-vplink="${esc(m.열쇠)}" data-vpraw="${esc(v)}"`;
+    if (m.kind === '맞음') {
+      // 이어 둔 줄도 고칠 때 같은 추천이 뜨게 — 이름 칸으로 다시 찾습니다(맞댐은 이은 줄엔 후보를 안 냄).
+      const 이름글 = 맞댐.칸.names.map((c) => String(r[c] ?? '').trim()).filter(Boolean);
+      const 후 = 이름후보(이름글, 단품표?.사전).map((x) => x.코드);
+      return `<td>${보임(v)}<button type="button" class="vpl"${열} data-vpname="${esc(찾을이름들(이름글)[0] ?? '')}" data-vpcand="${esc(JSON.stringify(후))}" title="이어 둔 단품 · ${esc(m.vp.코드)}">연결</button></td>`;
+    }
+    const raw = `${열} data-vpname="${esc(m.이름 ?? '')}"`;
+    const 후 = (m.후보 ?? []).map((x) => x.코드);
+    const 후보글 = ` data-vpcand="${esc(JSON.stringify(후))}"`;
+    return `<td>${보임(v)}<span class="vpx-t">${딱.없음}</span>${후.length
+      ? `<button type="button" class="vpc vpc-d"${raw}${후보글} data-vpdrop aria-expanded="false">추천 ${후.length} ▾</button>`
+      : `<button type="button" class="vpc vpc-e"${raw}${후보글}>직접</button>`}</td>`;
   };
-  const 몸칸 = (v, c, m, i) => {
+  const 몸칸 = (v, c, m, i, r) => {
     if (m?.kind === '맞음' && c === m.칸) return `<td>${단품단추(m.vp)}</td>`;
-    if (m && (m.kind === '없음' || m.이음) && c === 맞댐.칸.code) return 잇는칸(v, m);
+    if (m && (m.kind === '없음' || m.이음) && c === 맞댐.칸.code) return 잇는칸(v, m, r);
     // 가격 칸(v0.99.0, js/match.js 가격칸) — 값은 아예 안 그리고 흐린 자리만. 복사해도 안 나옵니다.
     if (가림?.가릴(v, c, i)) return '<td class="num vv-blur" title="권한 있는 아이디만">000,000</td>';
     if (m && m.kind !== '맞음' && c === 맞댐.칸.code)
@@ -2488,7 +2498,7 @@ function 원본표(t, 맞댐, 가림) {
   const 몸줄 = (r, i) => {
     const m = 맞댐?.줄?.get(i);
     const cls = i >= f ? 'dpr-f' : m && m.kind !== '맞음' ? 'vpx' : '';
-    return `<tr${cls ? ` class="${cls}"` : ''}>${r.map((v, c) => 몸칸(v, c, m, i)).join('')}</tr>`;
+    return `<tr${cls ? ` class="${cls}"` : ''}>${r.map((v, c) => 몸칸(v, c, m, i, r)).join('')}</tr>`;
   };
   return `
         <div class="dpr-scroll vv-x"><table class="dpr-t">
@@ -2561,8 +2571,8 @@ function 연결창(열쇠, 원래, 후보, 다시, 정식) {
   const 이은 = 단품연결?.링크?.get(열쇠) ?? '';
   const 판 = vp창(원래 || 열쇠, `
       <dl><dt>서류 코드</dt><dd>${보임(원래 || 열쇠)}</dd>${정식 ? `<dt>상품명</dt><dd>${보임(정식)}</dd>` : ''}</dl>
-      ${후보.length ? `<div class="vpl-cands"><span class="vpc-l">이름 일치</span>${후보.map((c) => `<button type="button" class="vpc" data-pick="${esc(c)}">${보임(c)}</button>`).join('')}</div>` : ''}
       <label class="vpl-row"><span>단품코드</span><input class="vpl-in" autocomplete="off" spellcheck="false" value="${esc(이은 || 후보[0] || '')}"></label>
+      ${후보.length ? `<div class="vpl-cands"><button type="button" class="vpc vpc-d" aria-expanded="false">추천 ${후보.length} ▾</button></div>` : ''}
       <p class="vpl-msg"></p>`, '', '');
   const 발 = 판.querySelector('.vpm-foot');
   발.innerHTML = `<div class="vpl-btns">${이은 ? '<button type="button" class="vpl-off">풀기</button>' : ''}<button type="button" class="vpl-ok">잇기</button></div>`;
@@ -2574,13 +2584,68 @@ function 연결창(열쇠, 원래, 후보, 다시, 정식) {
     잇.disabled = !vp;
   };
   칸.oninput = 보기;
-  for (const b of 판.querySelectorAll('[data-pick]')) b.onclick = () => { 칸.value = b.dataset.pick; 보기(); 칸.focus(); };
+  const 추천 = 판.querySelector('.vpc-d');
+  if (추천) 추천.onclick = () => 추천목록(추천, 후보, (c) => { 칸.value = c; 보기(); }, null, 칸.value.trim());
   잇.onclick = async () => { 잇.disabled = true; if (await 단품잇기(열쇠, 칸.value)) { 판.remove(); 다시?.(); } else 보기(); };
   칸.onkeydown = (e) => { if (e.key === 'Enter' && !잇.disabled) 잇.onclick(); };
   const 풀 = 판.querySelector('.vpl-off');
   if (풀) 풀.onclick = async () => { 풀.disabled = true; if (await 단품잇기(열쇠, '')) { 판.remove(); 다시?.(); } else 풀.disabled = false; };
   if (!단품표?.ok) { 글.textContent = '벤더피아 목록 없음'; 잇.disabled = true; } else 보기();
   칸.focus();
+}
+
+/* 추천 드롭다운(v0.105.0) — 사장님 11-02 「추천코드가 드롭다운 목록으로 나타나게 해주고 해당 코드의 벤더단품명도 보여주세요」
+   「추천 n ▾」 를 누르면 바로 밑에 목록(한 줄 = 단품코드 + 벤더피아 단품명 + 양품). 표가 가로로 흘러 잘리지 않게 body 에 붙여 화면 좌표로 띄웁니다.
+   닫힘 = 다시 누름 · 바깥 누름 · Esc · 밖 흘림(스크롤) · 창 크기 바뀜. :hover 없음. 직접 이 있으면 맨 밑 「직접 입력」. 지금 값(이은 것)은 ✓. */
+let 추천닫기 = null;
+function 추천목록(단추, 코드들, 고르기, 직접, 지금 = '') {
+  const 같은단추 = 추천닫기?.단추 === 단추;
+  추천닫기?.();
+  if (같은단추) return;
+  const 사전 = 단품표?.사전;
+  const 지금열쇠 = 지금 ? 코드열쇠(지금) : '';
+  const 판 = document.createElement('div');
+  판.className = 'vpd dpr-pop';
+  판.setAttribute('role', 'listbox');
+  판.innerHTML = 코드들.map((c) => {
+    const vp = 사전?.get(코드열쇠(c));
+    const 이은 = 지금열쇠 && 코드열쇠(c) === 지금열쇠;
+    return `<button type="button" role="option" class="vpd-i" data-pick="${esc(vp?.코드 ?? c)}"${이은 ? ' aria-selected="true"' : ''}>
+        <span class="vpd-c">${이은 ? '✓ ' : ''}${보임(vp?.코드 ?? c)}</span>
+        <span class="vpd-n">${vp?.이름 ? 보임(vp.이름) : '<span class="vpx-t">목록에 없음</span>'}${양품딱지(vp?.양품)}</span>
+      </button>`;
+  }).join('') + (직접 ? '<button type="button" class="vpd-i vpd-e" data-direct>직접 입력</button>' : '');
+  document.body.appendChild(판);
+  // 자리 — 단추 밑(모자라면 위), 화면 양옆 16px 안.
+  const r = 단추.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = window.innerHeight;
+  const w = Math.min(340, vw - 32);
+  판.style.width = `${w}px`;
+  판.style.left = `${Math.max(16, Math.min(r.left, vw - 16 - w))}px`;
+  const 밑 = vh - r.bottom - 16, 위 = r.top - 16;
+  if (밑 >= Math.min(판.scrollHeight, 240) || 밑 >= 위) { 판.style.top = `${r.bottom + 4}px`; 판.style.maxHeight = `${Math.max(120, 밑)}px`; }
+  else { 판.style.bottom = `${vh - r.top + 4}px`; 판.style.maxHeight = `${위}px`; }
+  단추.setAttribute('aria-expanded', 'true');
+  const 바깥 = (e) => { if (!판.contains(e.target) && e.target !== 단추 && !단추.contains(e.target)) 닫기(); };
+  const 키 = (e) => { if (e.key === 'Escape') { e.stopPropagation(); 닫기(); 단추.focus(); } };
+  const 흘림 = (e) => { if (!판.contains(e.target)) 닫기(); };
+  function 닫기() {
+    판.remove();
+    단추.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', 바깥, true);
+    document.removeEventListener('keydown', 키, true);
+    document.removeEventListener('scroll', 흘림, true);
+    window.removeEventListener('resize', 닫기);
+    추천닫기 = null;
+  }
+  닫기.단추 = 단추;
+  추천닫기 = 닫기;
+  document.addEventListener('pointerdown', 바깥, true);
+  document.addEventListener('keydown', 키, true);
+  document.addEventListener('scroll', 흘림, true);
+  window.addEventListener('resize', 닫기);
+  for (const b of 판.querySelectorAll('[data-pick]')) b.onclick = () => { 닫기(); 고르기(b.dataset.pick); };
+  const 직 = 판.querySelector('[data-direct]');
+  if (직) 직.onclick = () => { 닫기(); 직접(); };
 }
 
 /* 가격 보기 허락(v0.99.0) — 사장님 11-02 「…가격정보를 블러처리하여 나타나게 해주고 해당정보를 볼 수 있는 권한의 아이디만 볼 수 있다고 안내 해주세요.」

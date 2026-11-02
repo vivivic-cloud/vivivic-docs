@@ -125,8 +125,22 @@
   .dpr-pop .vpc:hover, .dpr-pop .vpl:hover{ text-decoration:underline; }
   .dpr-pop .dpr-t tr.vpx td .vpc{ color:#337ea9; }
   .dpr-pop .dpr-t tr.vpx td .vpc-e{ color:var(--vg-muted); }
-  .vpm .vpl-cands{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 0; margin-top:12px; }
-  .vpm .vpl-cands .vpc-l{ margin-left:0; }
+  .vpm .vpl-cands{ display:flex; justify-content:flex-end; margin-top:8px; }
+  .dpr-pop .vpc-d[aria-expanded="true"]{ background:#337ea9; color:#fff; }
+  .dpr-pop .dpr-t tr.vpx td .vpc-d[aria-expanded="true"]{ color:#fff; }
+  .vpm .vpl-cands .vpc-d{ margin:0; padding:4px 10px; font-size:12px; line-height:18px; }
+  /* 추천 드롭다운(v0.105.0) — body 에 붙여 화면 좌표로(표 가로 흘림에 안 잘림). 꼴은 .vpm-card 를 작게 */
+  .vpd{ position:fixed; z-index:8450; overflow-y:auto; padding:4px; background:#fff; border:1px solid var(--vg-edge);
+    border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.18); }
+  .vpd .vpd-i{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; min-height:44px; padding:6px 10px;
+    border:0; border-radius:8px; background:none; font:inherit; text-align:left; cursor:pointer; }
+  .vpd .vpd-i + .vpd-i{ border-top:1px solid #ededeb; border-radius:0; }
+  .vpd .vpd-i:active, .vpd .vpd-i[aria-selected="true"]{ background:#f1f1ef; }
+  .vpd .vpd-c{ font-size:13px; font-weight:800; color:#337ea9; overflow-wrap:anywhere; }
+  .vpd .vpd-n{ font-size:13px; color:var(--vg-body); overflow-wrap:anywhere; }
+  .vpd .vpd-n .vp-qty{ display:inline-block; }
+  .vpd .vpd-n .vpx-t{ margin-left:0; }
+  .vpd .vpd-e{ align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--vg-muted); }
   .vpm .vpl-row{ display:grid; grid-template-columns:110px 1fr; align-items:center; gap:12px; margin-top:12px; font-size:13px; color:var(--vg-muted); }
   .vpm .vpl-in{ min-height:44px; padding:0 12px; border:1px solid var(--vg-edge); border-radius:10px; font:inherit; font-size:15px; color:var(--vg-ink); min-width:0; }
   .vpm .vpl-msg{ min-height:20px; margin:8px 0 0; font-size:13px; font-weight:700; color:var(--vg-ink); overflow-wrap:anywhere; }
@@ -338,7 +352,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.104.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.105.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -379,7 +393,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.104.1</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.105.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
