@@ -1545,6 +1545,7 @@ function renderDrawer(id) {
         </div>
         <div class="dpr-pop" data-ciplview>
           ${단품표 && !단품표.ok && 표들.length ? `<div class="dpr-sn">벤더피아 ${esc(단품표.why)}</div>` : ''}
+          ${단품표?.ok && 단품표.양품없음 && 표들.length ? '<div class="dpr-sn">벤더피아 양품 없음</div>' : ''}
           ${이름들.length > 1 ? `<div class="dpr-tabs">${이름들.map((n) =>
             `<button type="button" class="chip ${n === 고른 ? 'chip-on' : 'chip-off'}" data-ciplsheet="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
           ${표들.length ? 표들.map(({ d, t }) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${표(t)}`).join('')
@@ -2339,7 +2340,8 @@ function 단품표읽기() {
   단품표읽는중 ??= DB.벤더피아단품목록().then((r) => {
     const 사전 = r.ok ? 벤더피아단품사전(r.문서들) : null;
     단품표 = !r.ok ? { ok: false, why: `못 읽음 · ${r.why}` }
-      : 사전.size < 100 ? { ok: false, why: `목록 ${사전.size}개` } : { ok: true, 사전 };
+      : 사전.size < 100 ? { ok: false, why: `목록 ${사전.size}개` }
+      : { ok: true, 사전, 양품없음: ![...사전.values()].some((v) => v.양품 !== undefined) };   // 넷째 칸이 하나도 없으면 딱지(v0.96.0)
     단품표읽는중 = null;
     return 단품표;
   });
@@ -2867,7 +2869,7 @@ window.벤더피아읽기 = async () => {
   if (벤더피아) return 벤더피아;                  // 창이 열려 있는 동안 한 번
   const t = await 단품표읽기();
   벤더피아 = t.ok
-    ? { ok: true, 사전: new Map([...t.사전].map(([k, v]) => [k, v.이름 || v.코드])), 양품: new Map([...t.사전].map(([k, v]) => [k, v.양품])), 단품수: t.사전.size }
+    ? { ok: true, 사전: new Map([...t.사전].map(([k, v]) => [k, v.이름 || v.코드])), 양품: new Map([...t.사전].map(([k, v]) => [k, v.양품])), 단품수: t.사전.size, 양품없음: t.양품없음 }
     : { ok: false, why: t.why };
   return 벤더피아;
 };
