@@ -367,6 +367,14 @@ test('벤더피아단품사전 — 단품_N 차례, 코드열쇠로, 같은 열�
   assert.equal(m.get('E-al21wt').상태, '판매중');
 });
 
+test('벤더피아단품사전 — 넷째 칸 양품수는 숫자일 때만 (벤더피아연동 0.34.82)', () => {
+  const m = 벤더피아단품사전([{ id: '단품_1', 줄: ['A1\t가\t판매중\t12', 'A2\t나\t판매중\t', 'A3\t다\t판매중', 'A4\t라\t중지\t0'] }]);
+  assert.equal(m.get('A1').양품, 12);
+  assert.ok(!('양품' in m.get('A2')));
+  assert.ok(!('양품' in m.get('A3')));
+  assert.equal(m.get('A4').양품, 0);
+});
+
 test('이름같음 — 띄어쓰기·대소문자·괄호는 안 보고, 품으면 같음', () => {
   assert.ok(이름같음('리안 2100  거실장 화이트', '리안 2100 거실장 화이트(해피코)'));
   assert.ok(이름같음('PLUS Desk 1200(white)', 'plus desk 1200 white'));

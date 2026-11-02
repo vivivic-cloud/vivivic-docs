@@ -2349,7 +2349,10 @@ let 상품표 = null;          // Promise<Map | null>
 const 상품표읽기 = () => (상품표 ??= DB.벤더피아상품목록().then((r) => (r.ok ? 벤더피아상품연결(r.문서들) : null)));
 
 const 점넷 = '<span class="vp-점"><i class="g"></i><i class="r"></i><i class="o"></i><i class="b"></i></span>';
-const 단품단추 = (vp) => `<button type="button" class="vpb vp-서류" data-vpk="${esc(코드열쇠(vp.코드))}">${보임(vp.이름 || vp.코드)}${점넷}</button>`;
+/* 양품수(v0.93.0) — goods.js labelButton 그대로: 재고조회에 있는 단품만 「양품 N」(.vp-qty) + 초록 점(vp-instock). 없으면 안 붙임. */
+const 양품딱지 = (n) => (n === undefined ? '' : `<small class="vp-qty">양품 ${n.toLocaleString()}</small>`);
+window.양품딱지 = 양품딱지;
+const 단품단추 = (vp) => `<button type="button" class="vpb vp-서류${vp.양품 === undefined ? '' : ' vp-instock'}" data-vpk="${esc(코드열쇠(vp.코드))}">${보임(vp.이름 || vp.코드)}${양품딱지(vp.양품)}${점넷}</button>`;
 
 const VP = 'https://vendorpia.com';
 function vp창(제목, 몸, 가기글, 가기주소) {
@@ -2734,6 +2737,7 @@ window.docs단품 = (vendor) => {
       // 벤더피아에서 찾은 단품명. 못 찾으면 비워 둡니다 — 지어내지 않습니다.
       // 저쪽 사전도 같은 열쇠로 지어져 있습니다(js/match.js 벤더피아사전).
       vp: 사전?.get(열쇠) ?? '',
+      vpq: 벤더피아?.ok ? 벤더피아.양품.get(열쇠) : undefined,   // 양품수 — 재고조회에 없으면 undefined
       차수들: x.차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch))),
     }))
     .sort((a, z) => a.code.localeCompare(z.code));
@@ -2863,7 +2867,7 @@ window.벤더피아읽기 = async () => {
   if (벤더피아) return 벤더피아;                  // 창이 열려 있는 동안 한 번
   const t = await 단품표읽기();
   벤더피아 = t.ok
-    ? { ok: true, 사전: new Map([...t.사전].map(([k, v]) => [k, v.이름 || v.코드])), 단품수: t.사전.size }
+    ? { ok: true, 사전: new Map([...t.사전].map(([k, v]) => [k, v.이름 || v.코드])), 양품: new Map([...t.사전].map(([k, v]) => [k, v.양품])), 단품수: t.사전.size }
     : { ok: false, why: t.why };
   return 벤더피아;
 };

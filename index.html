@@ -111,6 +111,10 @@
   .dpr-pop .vp-점{ display:flex; gap:3px; min-height:6px; margin-top:2px; line-height:0; }
   .dpr-pop .vp-점 i{ display:none; width:6px; height:6px; border-radius:50%; }
   .dpr-pop .vp-서류 .vp-점 i.b{ display:block; background:var(--점-서류); }
+  /* 양품수(v0.93.0) — goods.css `.vp-qty` + `.vp-goods-list .vp-qty` 그대로. 초록 점 = 재고조회에 있음(vp-instock) */
+  :is(.dpr-pop, #docs-items) .vp-qty{ margin-left:6px; padding:1px 6px; border-radius:999px; background:#eef7e0; color:#3d6b12;
+    font-size:11px; font-weight:700; white-space:nowrap; }
+  .dpr-pop .vp-instock .vp-점 i.g{ display:block; background:var(--점-재고); }
   /* 벤더피아와 안 맞는 줄 — 붉은 글 + 코드 칸에 붉은 테 딱지(납품내역 「중지」 딱지 꼴). 합계·머리·빈 줄은 안 칠함 */
   :is(#docs-prod, .dpr-pop) .dpr-t tr.vpx td{ color:var(--vg-red); }
   .dpr-pop .vpx-t{ display:inline-block; font-size:11px; font-weight:700; line-height:16px; color:var(--vg-red);
@@ -307,7 +311,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.92.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.93.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -335,7 +339,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.92.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.93.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -793,7 +797,7 @@
       ? '' : `<span class="dit-v"><b>${이름}</b> ${dhh보임(String(v))}</span>`);
     box.innerHTML = codes.map((c, i) => `
       <button type="button" class="dit-code" aria-expanded="false" onclick="ditToggle(this)">
-        ${c.vp ? `<span class="dit-vp">${dhh보임(c.vp)}</span>` : ''}
+        ${c.vp ? `<span class="dit-vp">${dhh보임(c.vp)}${window.양품딱지?.(c.vpq) ?? ''}</span>` : ''}
         <span class="dit-c">${dhh보임(c.code)}</span>
         <span class="dit-n">${dhh보임(c.name)}</span>
         <span class="dit-ar">▾</span>
