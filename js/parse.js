@@ -1308,62 +1308,6 @@ export function findDuplicates(docs) {
 export const 임시칸 = ['PO번호', '구매발주명', '내자/외자 구분', '입고창고', '발주일', '입고일', '단품코드', '단품명', '발주수량', '입고수량', '단가', '금액', '입고여부'];
 const 임시자리 = Object.fromEntries(임시칸.map((k, i) => [k, i]));
 
-/**
- * 발주명 → 차수. 꼴이 섞여 있어(26-004-AMT-ZH-01 · ZH26-17 (1/2)수정 · 260723 제헤우드 26-11차 · HPC26-24 …)
- * 날짜·일련번호를 먼저 걷고 차례로 봅니다.
- *   ① 일련번호 꼴 `26-118-ABC-06` · `26-AB-03` · `26-054-ABC-26-01` → 해 + 끝 번호 (kind 차수)
- *   ② 해·차수 꼴 `26-17` · `ZH26-17` · `해피코 25-20` (뒤에 「월」 이면 아님) → (kind 차수)
- *   ③ 해 없는 `가나 27차` · `다라침대 1차-철물` → 앞 낱말 + 차 (kind 이름)
- *   ④ 아무것도 없으면 발주일의 달 `26년 10월` (kind 달)
- * 25년 차수(해피코 25-19 등)도 2026년에 낸 발주라 그대로 둡니다. 「25-4」 같은 오타 짐작은 고치지 않습니다.
- */
-export function 임시차수(이름, 발주일 = '') {
-  let s = String(이름 ?? '').normalize('NFC')
-    .replace(/\(\s*\d{2}\s*-\s*\d{3}\s*\)/g, ' ')                 // (26-150) — 일련번호
-    .replace(/(?<!\d)(?:20)?\d{2}\.\d{1,2}\.\d{1,2}(?!\d)/g, ' ')  // 2026.02.03 · 26.03.17
-    .replace(/(?<!\d)\d{4}-\d{2}-\d{1,2}(?!\d)/g, ' ')            // 2610-06-08 (본사 번호)
-    .replace(/(?<!\d)\d{6,8}(?!\d)/g, ' ')                        // 20260928 · 260415 · 2620303
-    .replace(/\s+/g, ' ').trim();
-  const 차수 = (y, n, 계) => {
-    const no = Number(n);
-    if (!(no >= 1 && no <= 99)) return null;
-    const key = `${y}-${String(no).padStart(2, '0')}`;
-    return { kind: '차수', key, 제목: `${key}차`, year: Number(y), no, 계열: 임시계열(계) };
-  };
-  const 일련 = s.match(/^(2[4-7])-(?:\d{3}-)?((?:[A-Za-z][\w&()]*-)+)(?:(2[4-7])-)?(\d{1,2})(?!\d)/);
-  if (일련) { const r = 차수(일련[3] ?? 일련[1], 일련[4], 일련[2]); if (r) return r; }
-  const 해 = s.match(/(?<!\d)(2[4-7])\s*-\s*(\d{1,2})(?![\d월])/);
-  if (해) { const r = 차수(해[1], 해[2], s.slice(0, 해.index).match(/([A-Za-z가-힣][\w가-힣&()-]*?)[\s_-]*$/)?.[1]); if (r) return r; }
-  const 이름차 = s.match(/^(.*?)\s*(\d{1,3})\s*차/);
-  if (이름차 && Number(이름차[2]) > 0) {
-    const 앞 = 이름차[1].replace(/[\s_\-+&]+$/, '').trim();
-    const no = Number(이름차[2]);
-    const 제목 = `${앞 ? `${앞} ` : ''}${no}차`;
-    return { kind: '이름', key: 제목.replace(/\s+/g, ''), 제목, year: 0, no, 계열: '' };
-  }
-  const d = String(발주일 ?? '').match(/^(?:20)?(\d{2})[-.](\d{1,2})/);
-  if (d) {
-    const 달 = String(Number(d[2])).padStart(2, '0');
-    return { kind: '달', key: `${d[1]}년${달}월`, 제목: `${d[1]}년 ${Number(d[2])}월`, year: Number(d[1]), no: Number(d[2]), 계열: '' };
-  }
-  return { kind: '달', key: '날없음', 제목: '날 없음', year: 0, no: 0, 계열: '' };
-}
-
-/* 차수 앞 이름(계열) — 한 구매사명 안에 여러 공장·제품의 차수가 섞여 있습니다(제헤우드 26-06 · 다른 공장 26-06 …).
-   계열이 다르면 번호가 같아도 다른 차수입니다. 같은 것을 다르게 쓴 이름만 하나로 — ZH·AMT-ZH = 제헤우드, HPC = 해피코.
-   줄여 쓴 이름(앞 글자가 같고 글자가 차례로 다 들어 있는 것, 「ABC」 ↔ 「AXBYCZ」)은 임시발주묶기가 구매사명 안에서 합칩니다. */
-const 계열같음 = [[/^(ZH|AMT-ZH|제헤우드)$/, '제헤우드'], [/^(HPC|해피코)$/, '해피코']];
-export function 임시계열(v) {
-  const s = String(v ?? '').toUpperCase().replace(/^ING-/, '').replace(/-[A-Z]$/, '').replace(/[-_\s]+$/, '').trim();
-  return 계열같음.find(([re]) => re.test(s))?.[1] ?? s;
-}
-const 줄임인가 = (짧, 긴) => {
-  if (짧.length < 2 || 짧.length >= 긴.length || 짧[0] !== 긴[0]) return false;
-  let i = 0;
-  for (const ch of 긴) if (ch === 짧[i]) i++;
-  return i === 짧.length;
-};
-
 const 임시수 = (v) => {
   const n = Number(String(v ?? '').replace(/[,\s원₩]/g, ''));
   return Number.isFinite(n) ? n : 0;
@@ -1371,9 +1315,9 @@ const 임시수 = (v) => {
 const 임시셈 = (n) => (Math.round(n * 100) / 100).toLocaleString('en-US');
 
 /**
- * 구매사명 하나의 줄들 → 차수 묶음. 같은 차수의 PO 여럿((1/2)·(2/2)·수정)은 한 차수, 안에 PO 별로.
- * 차례: 해 있는 차수(26 → 25, 큰 번호 먼저) · 이름 차수(늦은 발주일 먼저) · 달(늦은 달 먼저).
- * 표(내용보기)는 원본처럼 PO번호·발주명·발주일을 PO 첫 줄에만, 끝에 합계줄 — { name, rows:[{c}], h:1, f }.
+ * 구매사명 하나의 줄들 → 차수 묶음. **PO번호 하나 = 차수 하나**(사장님 11-02 「A열의 po번호별 묶음이 한 차수 입니다」).
+ * 제목은 그 PO 의 발주명 그대로, 차례는 발주일 늦은 것 먼저(같으면 PO번호 큰 것 먼저).
+ * 표(내용보기)는 그 PO 의 줄만 — 원본처럼 PO번호·발주명·발주일을 첫 줄에만, 끝에 합계줄 — { name, rows:[{c}], h:1, f }.
  */
 export function 임시발주묶기(vendor, rows) {
   const pos = new Map();
@@ -1385,39 +1329,22 @@ export function 임시발주묶기(vendor, rows) {
       발주일: String(c[임시자리.발주일] ?? '').trim(), 입고일: String(c[임시자리.입고일] ?? '').trim(), 줄: [] });
     pos.get(po).줄.push(c);
   }
-  const 차수꼴 = [...pos.values()].map((p) => [p, 임시차수(p.이름, p.발주일)]);
-  const 계열모두 = [...new Set(차수꼴.map(([, k]) => k.계열).filter(Boolean))];
-  const 긴이름 = (g) => 계열모두.filter((x) => 줄임인가(g, x)).sort((a, b) => b.length - a.length)[0] ?? g;
-  const 묶음 = new Map();
-  for (const [p, k] of 차수꼴) {
-    if (k.계열) k.계열 = 긴이름(k.계열);
-    const 열쇠 = k.kind === '차수' && k.계열 ? `${k.계열} ${k.key}` : k.key;
-    if (!묶음.has(열쇠)) 묶음.set(열쇠, { ...k, key: 열쇠, pos: [] });
-    묶음.get(열쇠).pos.push(p);
-  }
-  // 계열이 둘 이상일 때만 차수 앞에 계열 이름을 붙입니다 — 하나뿐이면 「26-17차」 그대로.
-  const 계열들 = new Set([...묶음.values()].filter((g) => g.kind === '차수').map((g) => g.계열));
-  if (계열들.size > 1) for (const g of 묶음.values()) if (g.kind === '차수' && g.계열) g.제목 = `${g.계열} ${g.제목}`;
-  const 늦은날 = (g) => g.pos.map((p) => p.발주일).sort().pop() ?? '';
-  const 차례 = { 차수: 0, 이름: 1, 달: 2 };
-  return [...묶음.values()]
-    .map((g) => {
-      g.pos.sort((a, b) => a.발주일.localeCompare(b.발주일) || Number(a.po) - Number(b.po));
-      return { ...g, 끝날: 늦은날(g) };
-    })
-    .sort((a, b) => 차례[a.kind] - 차례[b.kind] || (a.kind === '이름' ? b.끝날.localeCompare(a.끝날) : b.year - a.year || b.no - a.no || a.계열.localeCompare(b.계열)))
-    .map((g) => ({
-      id: `임시:${vendor}::${g.key}`,
-      vendor,
-      batch: g.key,
-      제목: g.제목,
-      kind: g.kind,
-      끝날: g.끝날,
-      pos: g.pos.map(({ 줄, ...p }) => ({ ...p, 줄수: 줄.length,
-        금액: 줄.reduce((n, c) => n + 임시수(c[임시자리.금액]), 0),
-        입고: 줄.every((c) => /^y/i.test(String(c[임시자리.입고여부] ?? '').trim())) })),
-      표: 임시표(g.pos),
-    }));
+  const PO수 = (p) => Number(p.po) || 0;
+  return [...pos.values()]
+    .sort((a, b) => b.발주일.localeCompare(a.발주일) || PO수(b) - PO수(a) || b.po.localeCompare(a.po))
+    .map((p) => {
+      const { 줄, ...q } = p;
+      return {
+        id: `임시:${vendor}::${p.po}`,
+        vendor,
+        batch: p.po,
+        제목: p.이름 || `PO ${p.po}`,
+        po: { ...q, 줄수: 줄.length,
+          금액: 줄.reduce((n, c) => n + 임시수(c[임시자리.금액]), 0),
+          입고: 줄.every((c) => /^y/i.test(String(c[임시자리.입고여부] ?? '').trim())) },
+        표: 임시표([p]),
+      };
+    });
 }
 
 const 표칸 = ['PO번호', '구매발주명', '발주일', '입고일', '단품코드', '단품명', '발주수량', '입고수량', '단가', '금액', '입고여부'];

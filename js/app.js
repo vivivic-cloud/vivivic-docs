@@ -416,7 +416,7 @@ function visible() {
     if (status === 'issue' && !b.issues.length) return false;
     if (status && status !== 'issue' && b.status !== status) return false;
     if (needle) {
-      const hay = `${b.vendor} ${b.batch} ${b.docs.map((d) => d.display).join(' ')}`.toLowerCase();
+      const hay = `${b.vendor} ${b.batch} ${b.제목 ?? ''} ${b.docs.map((d) => d.display).join(' ')}`.toLowerCase();
       if (!hay.includes(needle)) return false;
     }
     return true;
@@ -584,7 +584,7 @@ function renderGrid() {
       <button class="card p-3.5 text-left hover:border-ink/25 hover:shadow transition-all" data-open="${esc(b.id)}">
         <div class="flex items-start justify-between gap-3 mb-2">
           <div>
-            <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
+            <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}${b.임시 ? ` · PO ${esc(b.batch)}` : ''}</div>
             <div class="text-[16px] font-bold leading-tight">${esc(차수이름(b))}</div>
           </div>
           <div class="text-right shrink-0">
@@ -595,7 +595,7 @@ function renderGrid() {
         <div class="flex items-center gap-2 flex-wrap text-[11px] font-semibold">
           ${진행알약(b)}
           ${b.lastDate ? `<span class="text-faint">최근 ${esc(b.lastDate)}</span>` : ''}
-          <span class="text-faint">${b.임시 ? 'PO' : '서류'} ${b.docs.length}건</span>
+          <span class="text-faint">${b.임시 ? `${b.docs[0]?.임시?.줄수 ?? 0}줄` : `서류 ${b.docs.length}건`}</span>
           ${warn ? `<span class="text-warn">이상 ${warn}</span>` : ''}
           ${info ? `<span class="text-faint">중복 ${info}</span>` : ''}
         </div>
@@ -2065,7 +2065,7 @@ function renderDrawer(id) {
   $('#drawerBody').innerHTML = `
     <div class="sticky top-0 bg-white border-b border-line px-6 h-[65px] flex items-center gap-3 z-10">
       <div class="min-w-0">
-        <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}</div>
+        <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}${b.임시 ? ` · PO ${esc(b.batch)}` : ''}</div>
         <div class="text-[17px] font-bold leading-tight" data-btitle>${esc(차수이름(b))}</div>
         <div class="flex items-center gap-[3px] mt-1">${stageDots(b)}</div>
       </div>
@@ -3086,7 +3086,7 @@ window.docsCounts = () => ({
    이 자료는 실제 수입서류 없으니 해당 발주내용을 내용보기에 넣어 정리해줘 단품코드 벤더피아와 일치시 현재 논리에 따라 표기해주고」
    자료는 Firestore docs_임시발주(서버 sync.gs 임시발주_) — 공개 저장소·Pages 에는 안 둡니다.
    읽기: 임시통합을 열 때 `_목록` 한 번, 구매사명을 열 때 그 문서 한 번(창이 열린 동안). 데모는 DEMO.임시.
-   차수는 parse.js 임시발주묶기. 차수 하나 = 거래처 차수와 같은 summarize 꼴(발주서 칸에 PO 마다 한 줄, 표는 cipl.sheets) —
+   차수는 parse.js 임시발주묶기 — PO번호 하나 = 차수 하나(사장님 11-02). 차수 하나 = 거래처 차수와 같은 summarize 꼴(발주서 칸에 그 PO 한 줄, 표는 cipl.sheets) —
    차수 목록·서랍·내용보기·벤더피아 맞대기를 그대로 씁니다. 드라이브 일(올리기·발주하기)은 폴더가 없어 안 뜹니다. */
 let 임시목록 = null;                // Promise<{ ok, 사명들, why }>
 const 임시문서 = new Map();          // 구매사명 id → Promise<{ ok, 값, why }>
@@ -3096,8 +3096,7 @@ window.docs임시목록 = () => (임시목록 ??= (async () => {
   const r = state.demo ? { ok: !!데모임시(), 값: 데모임시()?.목록 } : await DB.임시읽기('_목록');
   if (!r.ok) { 임시목록 = null; return { ok: false, why: r.why ?? '없음' }; }
   const 사명들 = (r.값.사명들 ?? []).map((m) => {
-    const 차수들 = 임시발주묶기(m.name, (m.po ?? []).map((x) => { const [po, 이름, 날] = x.c ?? x; return [po, 이름, '', '', 날]; }));
-    return { id: m.id, name: m.name, 구분: m.구분 ?? [], 줄: m.줄 ?? 0, po: (m.po ?? []).length, 차수: 차수들.length };
+    return { id: m.id, name: m.name, 구분: m.구분 ?? [], 줄: m.줄 ?? 0, 차수: (m.po ?? []).length };   // PO 하나 = 차수 하나
   });
   return { ok: true, 사명들, at: r.값.at ?? '' };
 })());
@@ -3112,10 +3111,11 @@ window.docs임시열기 = async (m) => {
   const r = await 임시문서.get(m.id);
   if (!r.ok || !r.값) { 임시문서.delete(m.id); return { ok: false, why: r.why ?? '없음' }; }
   const 차수들 = 임시발주묶기(m.name, r.값.rows ?? []).map((g) => {
-    const docs = g.pos.map((p) => ({
-      path: `임시/${m.id}/${p.po}`, name: `PO ${p.po}`, display: `PO ${p.po} · ${p.이름}`,
+    const p = g.po;
+    const docs = [{
+      path: `임시/${m.id}/${p.po}`, name: `PO ${p.po}`, display: `PO ${p.po}`,
       vendor: m.name, stageKey: 'order', date: p.발주일, 임시: p, cipl: { sheets: [g.표] },
-    }));
+    }];
     return { ...summarize({ id: g.id, vendor: m.name, batch: g.batch, year: 0, no: 0, docs }), 제목: g.제목, 임시: true };
   });
   state.임시차수 = [...state.임시차수.filter((b) => b.vendor !== m.name), ...차수들];
