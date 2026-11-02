@@ -102,8 +102,8 @@
   .dpr-pop{ --vg-bg:#fff; --vg-ink:#111110; --vg-body:#1A1A19; --vg-muted:#9C9C98; --vg-edge:#E2E2DF; --vg-red:#FF3B30;
     color:var(--vg-body); font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",system-ui,sans-serif; }
   /* 내용보기 ↔ 벤더피아 단품 (v0.87.0). 단추 꼴·점 색은 벤더피아연동 goods.css 그대로
-     (`.vp-goods-list button` · 표 첫 칸 14px·700 · #337ea9 · 올리면 밑줄 · 누른 것 .on · 점 넷 --점-*). */
-  .dpr-pop{ --점-재고:#06AED5; --점-조혼:#DD1C1A; --점-카탈로그:#F0C808; --점-서류:#086788; }
+     (`.vp-goods-list button` · 표 첫 칸 14px·700 · #337ea9 · 올리면 밑줄 · 누른 것 .on).
+     연결 점은 안 그립니다(v0.94.0, 사장님 「이곳에 나타나는 단품버튼에는 연결상황을 보여주는 점표시는 필요 없습니다」). */
   .dpr-pop .vpb, .dpr-pop .vp-chips button{ display:inline-block; margin:0; padding:0; border:0; background:none; color:#337ea9;
     font:inherit; font-size:14px; font-weight:700; text-align:left; cursor:pointer; text-decoration:none; }
   .dpr-pop .vp-chips{ display:flex; flex-wrap:wrap; gap:6px 12px; }
@@ -111,13 +111,9 @@
   .dpr-pop .vpb:hover, .dpr-pop .vp-chips button:hover{ text-decoration:underline; }
   .dpr-pop .vpb.on{ text-decoration:underline; }
   .dpr-pop .vp-code{ margin-left:6px; font-size:11px; font-weight:500; color:var(--vg-muted); }
-  .dpr-pop .vp-점{ display:flex; gap:3px; min-height:6px; margin-top:2px; line-height:0; }
-  .dpr-pop .vp-점 i{ display:none; width:6px; height:6px; border-radius:50%; }
-  .dpr-pop .vp-서류 .vp-점 i.b{ display:block; background:var(--점-서류); }
-  /* 양품수(v0.93.0) — goods.css `.vp-qty` + `.vp-goods-list .vp-qty` 그대로. 초록 점 = 재고조회에 있음(vp-instock) */
+  /* 양품수(v0.93.0) — goods.css `.vp-qty` + `.vp-goods-list .vp-qty` 그대로 */
   :is(.dpr-pop, #docs-items) .vp-qty{ margin-left:6px; padding:1px 6px; border-radius:999px; background:#eef7e0; color:#3d6b12;
     font-size:11px; font-weight:700; white-space:nowrap; }
-  .dpr-pop .vp-instock .vp-점 i.g{ display:block; background:var(--점-재고); }
   /* 벤더피아와 안 맞는 줄 — 붉은 글 + 코드 칸에 붉은 테 딱지(납품내역 「중지」 딱지 꼴). 합계·머리·빈 줄은 안 칠함 */
   :is(#docs-prod, .dpr-pop) .dpr-t tr.vpx td{ color:var(--vg-red); }
   .dpr-pop .vpx-t{ display:inline-block; font-size:11px; font-weight:700; line-height:16px; color:var(--vg-red);
@@ -313,7 +309,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.93.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.94.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -341,7 +337,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.93.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.94.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -5825,11 +5821,11 @@ function 단품표읽기() {
 let 상품표 = null;          // Promise<Map | null>
 const 상품표읽기 = () => (상품표 ??= DB.벤더피아상품목록().then((r) => (r.ok ? 벤더피아상품연결(r.문서들) : null)));
 
-const 점넷 = '<span class="vp-점"><i class="g"></i><i class="r"></i><i class="o"></i><i class="b"></i></span>';
-/* 양품수(v0.93.0) — goods.js labelButton 그대로: 재고조회에 있는 단품만 「양품 N」(.vp-qty) + 초록 점(vp-instock). 없으면 안 붙임. */
+/* 양품수(v0.93.0) — goods.js labelButton 그대로: 재고조회에 있는 단품만 「양품 N」(.vp-qty). 없으면 안 붙임.
+   연결 점(네 점)은 안 그립니다 — 사장님 11-02 「이곳에 나타나는 단품버튼에는 연결상황을 보여주는 점표시는 필요 없습니다」(v0.94.0). */
 const 양품딱지 = (n) => (n === undefined ? '' : `<small class="vp-qty">양품 ${n.toLocaleString()}</small>`);
 window.양품딱지 = 양품딱지;
-const 단품단추 = (vp) => `<button type="button" class="vpb vp-서류${vp.양품 === undefined ? '' : ' vp-instock'}" data-vpk="${esc(코드열쇠(vp.코드))}">${보임(vp.이름 || vp.코드)}${양품딱지(vp.양품)}${점넷}</button>`;
+const 단품단추 = (vp) => `<button type="button" class="vpb" data-vpk="${esc(코드열쇠(vp.코드))}">${보임(vp.이름 || vp.코드)}${양품딱지(vp.양품)}</button>`;
 
 const VP = 'https://vendorpia.com';
 function vp창(제목, 몸, 가기글, 가기주소) {
@@ -5867,7 +5863,7 @@ function 단품창(열쇠) {
       묶음.get(n).push(x);
     }
     if (!묶음.size) { 칩칸.textContent = '없음'; return; }
-    칩칸.innerHTML = [...묶음].map(([n, 것], i) => `<button type="button" data-vpp="${i}">${보임(n)}<small class="vp-code">${보임([...new Set(것.map((x) => x.코드))].join(', '))}</small>${점넷}</button>`).join('');
+    칩칸.innerHTML = [...묶음].map(([n, 것], i) => `<button type="button" data-vpp="${i}">${보임(n)}<small class="vp-code">${보임([...new Set(것.map((x) => x.코드))].join(', '))}</small></button>`).join('');
     const 이름 = (c) => 단품표?.사전?.get(코드열쇠(c))?.이름;
     [...묶음].forEach(([n, 것], i) => {
       칩칸.querySelector(`[data-vpp="${i}"]`).onclick = () => vp창(n,

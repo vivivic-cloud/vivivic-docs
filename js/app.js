@@ -2348,11 +2348,11 @@ function 단품표읽기() {
 let 상품표 = null;          // Promise<Map | null>
 const 상품표읽기 = () => (상품표 ??= DB.벤더피아상품목록().then((r) => (r.ok ? 벤더피아상품연결(r.문서들) : null)));
 
-const 점넷 = '<span class="vp-점"><i class="g"></i><i class="r"></i><i class="o"></i><i class="b"></i></span>';
-/* 양품수(v0.93.0) — goods.js labelButton 그대로: 재고조회에 있는 단품만 「양품 N」(.vp-qty) + 초록 점(vp-instock). 없으면 안 붙임. */
+/* 양품수(v0.93.0) — goods.js labelButton 그대로: 재고조회에 있는 단품만 「양품 N」(.vp-qty). 없으면 안 붙임.
+   연결 점(네 점)은 안 그립니다 — 사장님 11-02 「이곳에 나타나는 단품버튼에는 연결상황을 보여주는 점표시는 필요 없습니다」(v0.94.0). */
 const 양품딱지 = (n) => (n === undefined ? '' : `<small class="vp-qty">양품 ${n.toLocaleString()}</small>`);
 window.양품딱지 = 양품딱지;
-const 단품단추 = (vp) => `<button type="button" class="vpb vp-서류${vp.양품 === undefined ? '' : ' vp-instock'}" data-vpk="${esc(코드열쇠(vp.코드))}">${보임(vp.이름 || vp.코드)}${양품딱지(vp.양품)}${점넷}</button>`;
+const 단품단추 = (vp) => `<button type="button" class="vpb" data-vpk="${esc(코드열쇠(vp.코드))}">${보임(vp.이름 || vp.코드)}${양품딱지(vp.양품)}</button>`;
 
 const VP = 'https://vendorpia.com';
 function vp창(제목, 몸, 가기글, 가기주소) {
@@ -2390,7 +2390,7 @@ function 단품창(열쇠) {
       묶음.get(n).push(x);
     }
     if (!묶음.size) { 칩칸.textContent = '없음'; return; }
-    칩칸.innerHTML = [...묶음].map(([n, 것], i) => `<button type="button" data-vpp="${i}">${보임(n)}<small class="vp-code">${보임([...new Set(것.map((x) => x.코드))].join(', '))}</small>${점넷}</button>`).join('');
+    칩칸.innerHTML = [...묶음].map(([n, 것], i) => `<button type="button" data-vpp="${i}">${보임(n)}<small class="vp-code">${보임([...new Set(것.map((x) => x.코드))].join(', '))}</small></button>`).join('');
     const 이름 = (c) => 단품표?.사전?.get(코드열쇠(c))?.이름;
     [...묶음].forEach(([n, 것], i) => {
       칩칸.querySelector(`[data-vpp="${i}"]`).onclick = () => vp창(n,
