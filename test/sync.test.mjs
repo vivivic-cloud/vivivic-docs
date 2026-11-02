@@ -324,3 +324,21 @@ test('서랍 — 올리기: 같은 이름은 (2), docs_files 기본 칸 + 기록
   assert.ok(쓰기[1].update.name.includes('docs_moves/'));
   assert.equal(쓰기[1].update.fields['일'].stringValue, '올림');
 });
+
+test('서랍 — 옮기기: 차수 폴더 밖에서만, 옛 문서는 지우고 기록에 어디서', () => {
+  const { ctx, 쓰기, 차, 다른차, 분류전, 파일 } = 가짜서랍();
+  const 밖 = new 파일('26-14 CI&PL.pdf', 분류전);
+  const 안 = new 파일('a.pdf', 다른차);
+  assert.equal(ctx.서랍_({ 일: '옮기기', path: '제헤우드/Zh-26-29', driveId: 안.id }).why, 'out');
+  const 목록 = ctx.서랍_({ 일: '옮길목록', path: '제헤우드/Zh-26-29' });
+  assert.deepEqual([...목록.files.map((f) => f.name)], ['26-14 CI&PL.pdf']);
+  const r = ctx.서랍_({ 일: '옮기기', path: '제헤우드/Zh-26-29', driveId: 밖.id, name: '26-29차_26-14 CI&PL.pdf' });
+  assert.equal(r.ok, true);
+  assert.equal(밖.parent, 차);
+  assert.equal(밖.name, '26-29차_26-14 CI&PL.pdf');
+  assert.ok(쓰기.some((w) => w.delete?.endsWith('docs_files/제헤우드~분류전~26-14 CI&PL.pdf')));
+  const 기록 = 쓰기.find((w) => w.update?.name.includes('docs_moves/')).update.fields;
+  assert.equal(기록.from.stringValue, '제헤우드/분류전/26-14 CI&PL.pdf');
+  assert.equal(기록.oldName.stringValue, '26-14 CI&PL.pdf');
+  assert.equal(기록.fromId.stringValue, 분류전.id);
+});

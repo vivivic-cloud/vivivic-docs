@@ -691,7 +691,7 @@ function doPost(e) {
     // 견적서 관리(견적목록·견적읽기)도 제 갈래입니다 — 아래 「견적서 불러오기」.
     out = (req && req['일'] === '보링파일') ? 보링파일내주기_(req)
         : (req && /^견적(목록|읽기)$/.test(String(req['일']))) ? 견적_(req)
-        : (req && /^(서랍확인|올리기)$/.test(String(req['일']))) ? 서랍_(req)
+        : (req && /^(서랍확인|올리기|옮길목록|옮기기)$/.test(String(req['일']))) ? 서랍_(req)
         : 파일내주기_(req);
   } catch (err) {
     out = { ok: false, why: 'bad' };
@@ -1762,7 +1762,7 @@ function 견적읽기_(req, email) {
   return { ok: true, quote: q };
 }
 
-/* ── 차수 서랍: 올리기 ─────────
+/* ── 차수 서랍: 올리기 · 드라이브에서 불러오기(옮기기) ─────────
    사장님 11-01 「차수별 상세에서 각 파일을 구글 드라이브에서 불러오는 방식과 직접 업로드 하면
    해당 폴더에 저장되게 할 수 있나요?」 → 「둘 다 맡기기」.
    ⚠ 자물쇠는 견적서 관리와 같습니다 — shareAllow·fbKey 가 비면 꺼짐, 로그인 표의 이메일이 shareAllow 안이어야.
@@ -1788,6 +1788,8 @@ function 서랍_(req) {
   const email = 표확인_(req && req.idToken, props);
   if (!email || allow.indexOf(email.toLowerCase()) < 0) return { ok: false, why: 'who' };
   if (req['일'] === '올리기') return 올리기_(req, email);
+  if (req['일'] === '옮길목록') return 옮길목록_(req);
+  if (req['일'] === '옮기기') return 옮기기_(req, email);
   return { ok: false, why: 'bad' };
 }
 
@@ -1882,6 +1884,89 @@ function 올리기_(req, email) {
     file = 곳.folder.createFile(Utilities.newBlob(bytes, String(req.mime || '') || 'application/octet-stream', name));
   } catch (e) { return { ok: false, why: 'drive' }; }
   return 서랍적기_(file.getId(), 곳, { 일: '올림', driveId: file.getId(), name: name, oldName: 원, from: '', fromId: '', by: email });
+}
+
+/** 파일 → 거래처 폴더 안 차수 폴더 밖이면 { path(거래처부터), parentId }. 아니면 null. 위로 6층까지. */
+function 차수밖자리_(file, vendorFolder) {
+  const vid = vendorFolder.getId();
+  const ps = file.getParents();
+  if (!ps.hasNext()) return null;
+  let p = ps.next();
+  const parentId = p.getId();
+  const 조각 = [file.getName()];
+  for (let d = 0; d < 6; d++) {
+    if (p.getId() === vid) return { path: [vendorFolder.getName()].concat(조각).join('/'), parentId: parentId };
+    if (차수폴더인가_(p.getName())) return null;
+    조각.unshift(p.getName());
+    const 위 = p.getParents();
+    if (!위.hasNext()) return null;
+    p = 위.next();
+  }
+  return null;
+}
+
+/** 그 거래처 폴더 안, 차수 폴더 밖의 파일들. 이름 찾기는 앱이 받은 목록에서 합니다. */
+function 옮길목록_(req) {
+  const 곳 = 차수곳_(req.path, '');
+  if (!곳) return { ok: false, why: 'out' };
+  const out = [];
+  let 층 = [{ folder: 곳.vendorFolder, path: 곳.vendor }];
+  for (let d = 0; d < 5 && 층.length && out.length < 2000; d++) {
+    const 다음 = [];
+    층.forEach(function (x) {
+      const fs = x.folder.getFolders();
+      while (fs.hasNext()) {
+        const c = fs.next();
+        if (SKIP_DIR.test(c.getName()) || 차수폴더인가_(c.getName())) continue;
+        다음.push({ folder: c, path: x.path + '/' + c.getName() });
+      }
+      const it = x.folder.getFiles();
+      while (it.hasNext()) {
+        const f = it.next();
+        const n = f.getName();
+        const mime = f.getMimeType();
+        if (n.charAt(0) === '.' || n.indexOf('~$') === 0 || n.indexOf(TEMP_PREFIX) === 0 || mime === SHORTCUT_MIME) continue;
+        out.push({ id: f.getId(), name: n, dir: x.path, modified: f.getLastUpdated().toISOString().slice(0, 10), size: f.getSize() });
+      }
+    });
+    층 = 다음;
+  }
+  out.sort(function (a, b) { return b.modified.localeCompare(a.modified); });
+  return { ok: true, files: out.slice(0, 1000) };
+}
+
+function 옮기기_(req, email) {
+  const 곳 = 차수곳_(req.path, req.sub);
+  if (!곳) return { ok: false, why: 'out' };
+  const id = String(req.driveId || '');
+  if (!/^[A-Za-z0-9_-]{10,}$/.test(id)) return { ok: false, why: 'bad' };
+  let file;
+  try { file = DriveApp.getFileById(id); } catch (e) { return { ok: false, why: 'bad' }; }
+  if (file.isTrashed() || file.getMimeType() === SHORTCUT_MIME) return { ok: false, why: 'bad' };
+  const 자리 = 차수밖자리_(file, 곳.vendorFolder);
+  if (!자리) return { ok: false, why: 'out' };
+  const 옛이름 = file.getName();
+  const 바랄 = 파일이름_(req.name || 옛이름);
+  const name = 빈이름_(곳.folder, 바랄, id);
+  if (!name) return { ok: false, why: 'bad' };
+  try {
+    file.moveTo(곳.folder);
+    if (name !== 옛이름) file.setName(name);
+  } catch (e) { return { ok: false, why: 'drive' }; }
+  return 서랍적기_(id, 곳, { 일: '옮김', driveId: id, name: name, oldName: 옛이름, from: 자리.path, fromId: 자리.parentId, by: email }, 자리.path);
+}
+
+/** 편집기에서 손으로 — 옮긴 파일을 원래 폴더·원래 이름으로. Firestore 는 다음 sync 가 맞춥니다. */
+function 옮김되돌리기(driveId) {
+  const 다 = 목록_('docs_moves').filter(function (d) {
+    return 글칸_(d.fields, 'driveId') === driveId && 글칸_(d.fields, '일') === '옮김';
+  }).sort(function (a, b) { return String(글칸_(b.fields, 'at')).localeCompare(String(글칸_(a.fields, 'at'))); });
+  if (!다.length) throw new Error('기록 없음: ' + driveId);
+  const r = 다[0].fields;
+  const file = DriveApp.getFileById(driveId);
+  file.moveTo(DriveApp.getFolderById(글칸_(r, 'fromId')));
+  file.setName(글칸_(r, 'oldName'));
+  console.log('되돌림: ' + 글칸_(r, 'oldName') + ' → ' + 글칸_(r, 'from'));
 }
 
 /* ── 서류 간추리기 (js/parse.js 의 readBrief 와 같은 규칙) ── */
