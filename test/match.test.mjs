@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 가격칸 } from '../js/match.js';
 import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
@@ -447,4 +447,46 @@ test('벤더피아맞대기 — 임시통합 발주 표(단품코드·단품명 
   const m = 벤더피아맞대기(b.표, 사전);
   assert.equal(m.칸.code, 4);
   assert.deepEqual([...m.줄].map(([i, x]) => [i, x.kind]), [[1, '맞음'], [2, '없음'], [3, '코드없음']]);
+});
+
+test('가격칸 — 머리줄 이름으로 가격 칸, 수량·CBM 은 그대로, 합계줄 돈도 가림', () => {
+  // 제헤우드 발주서 꼴
+  const po = { h: 1, f: 3, rows: [
+    { c: ['no.', 'code#', 'ITEM NAME', 'ORDER QTY', 'PRICE (FOB Qingdao)', 'AMOUNT', 'CBM', 'remark'] },
+    { c: ['1', 'myT_3C', '토리 3단', '30', '¥113.00', '¥3,390.00', '0.12', ''] },
+    { c: ['2', 'myT_4C', '토리 4단', '20', '¥146.00', '¥2,920.00', '0.15', ''] },
+    { c: ['', 'TOTAL', '', '50', '', '¥6,310.00', '0.27', ''] },
+  ] };
+  const p = 가격칸(po);
+  assert.deepEqual([...p.칸], [4, 5]);
+  assert.equal(p.가릴('PRICE (FOB Qingdao)', 4, 0), false);   // 머리는 보임
+  assert.equal(p.가릴('¥113.00', 4, 1), true);
+  assert.equal(p.가릴('30', 3, 1), false);
+  assert.equal(p.가릴('0.12', 6, 1), false);
+  assert.equal(p.가릴('50', 3, 3), false);                     // 합계 수량
+  assert.equal(p.가릴('0.27', 6, 3), false);                   // 합계 CBM
+  assert.equal(p.가릴('¥6,310.00', 5, 3), true);
+  assert.equal(p.가릴('', 5, 3), false);
+  // 제헤우드 CI — 금액 칸이 「Total」, 「Total CBM」 은 아님
+  const ci = 가격칸({ h: 1, rows: [{ c: ['CODE#', 'Product model', 'Qty pcs', 'Qty Carton', 'FOB', 'Total', 'Total CBM', 'N.W. (KGS)'] }] });
+  assert.deepEqual([...ci.칸], [4, 5]);
+  // 베이지아 CI — 둘째 머리줄 CNY, 수량 밑 (PCS)
+  const by = 가격칸({ h: 2, rows: [{ c: ['Description of Goods', 'Quantity', 'Unit Price', ''] }, { c: ['', '(PCS)', 'CNY', 'CNY'] }] });
+  assert.deepEqual([...by.칸], [2, 3]);
+  // 임시통합 — 단가·금액, 합계줄
+  const tmp = 가격칸({ h: 1, f: 2, rows: [
+    { c: ['PO번호', '단품코드', '발주수량', '입고수량', '단가', '금액'] },
+    { c: ['P1', 'A_1', '10', '10', '5,000', '50,000'] },
+    { c: ['합계', '', '10', '10', '', '50,000'] },
+  ] });
+  assert.deepEqual([...tmp.칸], [4, 5]);
+  assert.equal(tmp.가릴('10', 2, 2), false);
+  // 옆으로 합친 머리 밑 칸, 통화 표가 붙은 값은 칸 이름이 없어도
+  const 합친 = 가격칸({ h: 1, f: 2, rows: [{ c: ['code#', 'AMOUNT', '', 'remark'] }, { c: ['A', '¥', '100', 'USD 30'] }, { c: ['Deposit', '', '', '1,200'] }] });
+  assert.deepEqual([...합친.칸], [1, 2]);
+  assert.equal(합친.가릴('USD 30', 3, 1), true);
+  assert.equal(합친.가릴('1,200', 3, 2), true);               // 합계줄 숫자는 모르는 칸이어도
+  // 해피코 머리: 헤보트 CBM · cbm합 · Carton Volume 은 가격 아님
+  const hp = 가격칸({ h: 1, rows: [{ c: ['code#', 'ITEM NAME (ENG)', 'ORDER QTY', '헤보트 CBM', 'cbm합', 'Carton Volume (CBM)', 'PRICE (FOB Qingdao)', 'AMOUNT', '환율적용 운임세금 1.15', '매입가'] }] });
+  assert.deepEqual([...hp.칸], [6, 7, 8, 9]);
 });

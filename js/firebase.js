@@ -358,6 +358,21 @@ async function 납품목록읽기(이름) {
 export const 벤더피아단품목록 = () => 납품목록읽기('납품내역_단품목록');
 export const 벤더피아상품목록 = () => 납품목록읽기('납품내역_상품목록');
 
+/* ── 가격 보기 허락 (v0.99.0) ─────────────────────────
+   내용보기 표의 가격 칸은 허락된 아이디만 맑게 봅니다. `docs_config/가격보기` 한 건 — `{ emails: [], uids: [] }`.
+   사장님 uid(아래 app.js 가격주인)는 이 문서가 없어도 늘 봅니다. 내용보기를 처음 열 때 한 번만 읽습니다.
+   ⚠ 화면에서만 가립니다 — 가격 값은 docs_files 에 그대로 있고, 이 문서도 로그인만 되면 누구나 고칠 수 있습니다(화베 규칙). */
+export async function 가격보기읽기() {
+  try {
+    const s = await ctx.f.getDoc(ctx.f.doc(col(CONFIG), '가격보기'));
+    const v = s.exists() ? s.data() : {};
+    const 목록 = (x) => (Array.isArray(x) ? x : []).map((e) => String(e ?? '').trim().toLowerCase()).filter(Boolean);
+    return { ok: true, emails: 목록(v.emails), uids: (Array.isArray(v.uids) ? v.uids : []).map(String) };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 읽음' };
+  }
+}
+
 /* ── 견적서 (제품관리 → 견적서 관리) ─────────────────────
    서버(sync.gs 견적읽기_)가 드라이브 견적 파일을 글자로 바꿔 driveId 마다 한 문서로 적습니다.
    여기서는 읽기만 합니다. */

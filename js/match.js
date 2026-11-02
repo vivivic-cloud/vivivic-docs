@@ -465,3 +465,40 @@ export function 벤더피아맞대기(t, 사전) {
   }
   return { 칸: { code, names }, 줄 };
 }
+
+/* ── 가격 칸 가리기 (v0.99.0) ───────────────────────────
+   사장님 11-02 「내용보기에 나타나는 정보중 FOB / AMOUNT/TOTAL등 가격정보를 블러처리하여 나타나게 해주고
+   해당정보를 볼 수 있는 권한의 아이디만 볼 수 있다고 안내 해주세요.」
+   원본 양식이라 칸 이름이 서류마다 다릅니다 — 머리줄(h 줄 전부 이어 붙인 글)로 가격 칸을 알아봅니다.
+   11-02 드라이브 동기 폴더 제헤우드·해피코 엑셀 139·PDF 276 에서 센 가격 머리:
+     PRICE (FOB Qingdao) · PRICE (FOBQingdao) · FOB · AMOUNT · Amount · Total(제헤우드 CI 금액) · Unit Price · 매입가 · 환율적용 운임세금
+   임시통합은 단가 · 금액. 베이지아 CI 는 둘째 머리줄이 「CNY」.
+   가리는 것: ① 가격 칸의 값 ② 어느 칸이든 통화 표(¥ $ CNY USD …)가 붙은 값 ③ 합계줄(f 뒤)의 숫자 — 수량·CBM·무게 칸은 뺌.
+   가리지 않는 것: 머리줄 · 수량·CBM·무게·크기 · 빈 칸. 칸 이름 자체는 보입니다. */
+const 가격말 = /price|fob|amount|단가|금액|가격|매입가|원가|환율|운임|单价|金额|总价|价格|货值|usd|cny|rmb|currency|value|cost/i;
+const 합계칸말 = /^(sub)?total$|^합계$|^총계$|^합$|^合计$|^总计$/;
+const 비가격말 = /cbm|qty|quantity|수량|数量|pcs|ctn|carton|kg|weight|^nw|^gw|毛重|净重|立方|volume|size|규격|사이즈|부피|입수/;
+const 돈표 = /[¥￥$€£]|&yen;|(?:^|[^a-z])(?:cny|usd|rmb)(?:$|[^a-z])/i;
+
+/** 표 한 장 → { 칸: 가격 칸 Set, 가릴(v, c, i) } — i 는 rows 안 줄 번호(머리 포함). */
+export function 가격칸(t) {
+  const rows = (t?.rows ?? []).map((r) => (Array.isArray(r) ? r : r?.c ?? []));
+  const h = t?.h ?? 1, f = Math.min(t?.f ?? rows.length, rows.length);
+  const 너비 = Math.max(0, ...rows.map((r) => r.length));
+  const 머리 = Array.from({ length: 너비 }, (_, c) =>
+    rows.slice(0, h).map((r) => String(r[c] ?? '').trim()).filter(Boolean).join(' '));
+  const 칸 = new Set(), 비가격 = new Set();
+  머리.forEach((m, c) => {
+    if (!m) { if (칸.has(c - 1)) 칸.add(c); return; }       // 옆으로 합친 머리(colspan) 밑 칸은 왼쪽 가격 칸을 따름
+    const k = 칸글(m);
+    if (가격말.test(m) || 합계칸말.test(k)) 칸.add(c);
+    else if (비가격말.test(k)) 비가격.add(c);
+  });
+  const 가릴 = (v, c, i) => {
+    const s = String(v ?? '').trim();
+    if (i < h || !s) return false;
+    if (칸.has(c) || 돈표.test(s)) return true;
+    return i >= f && !비가격.has(c) && 대조숫자(s) !== null;
+  };
+  return { 칸, 가릴 };
+}

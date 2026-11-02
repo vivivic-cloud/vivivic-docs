@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 가격칸 } from './match.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -113,6 +113,7 @@ async function enterApp(user) {
   $('#login').hidden = true;
   $('#app').hidden = false;
   $('#userEmail').textContent = user.email ?? '';
+  가격허락 = null; 가격읽는중 = null;         // 아이디가 바뀌면 가격 허락도 다시 봅니다
   $('#btnSignOut').hidden = false;
   $('#btnSync').hidden = !FS.supported;
   cloud('연결됨');
@@ -1540,7 +1541,11 @@ function renderDrawer(id) {
     if (!단품표 && !state.demo) 단품표읽기().then(() => {
       if (!$('#diffView').hidden && $('#diffBody [data-ciplview]')) openCiplView(고른, 단계);
     });
-    const 표 = (t) => 원본표(t, 단품표?.ok ? 벤더피아맞대기(t, 단품표.사전) : null);
+    // 가격 가리기(v0.99.0) — 허락을 모르는 동안도 가립니다. 읽히면 이 팝업이 떠 있을 때 다시 그립니다.
+    if (가격허락 === null) 가격허락읽기().then(() => {
+      if (!$('#diffView').hidden && $('#diffBody [data-ciplview]')) openCiplView(고른, 단계);
+    });
+    const 표 = (t) => 원본표(t, 단품표?.ok ? 벤더피아맞대기(t, 단품표.사전) : null, 가격허락 === true ? null : 가격칸(t));
     $('#diffBody').innerHTML = `
       <div class="p-5">
         <div class="flex items-center justify-between gap-3 mb-4">
@@ -1553,6 +1558,7 @@ function renderDrawer(id) {
         <div class="dpr-pop" data-ciplview>
           ${단품표 && !단품표.ok && 표들.length ? `<div class="dpr-sn">벤더피아 ${esc(단품표.why)}</div>` : ''}
           ${단품표?.ok && 단품표.양품없음 && 표들.length ? '<div class="dpr-sn">벤더피아 양품 없음</div>' : ''}
+          ${가격허락 === false && 표들.some(({ t }) => 가격칸(t).칸.size) ? '<div class="dpr-sn"><span class="dpr-lock">가격 정보 · 권한 있는 아이디만</span></div>' : ''}
           ${이름들.length > 1 ? `<div class="dpr-tabs">${이름들.map((n) =>
             `<button type="button" class="chip ${n === 고른 ? 'chip-on' : 'chip-off'}" data-ciplsheet="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
           ${표들.length ? 표들.map(({ d, t }) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${표(t)}`).join('')
@@ -2332,7 +2338,7 @@ window.docs견적 = () =>
 
 /* 내용보기 표 한 장 — 서버가 떠 둔 { name, rows: [{c:[…]}], h, f } 를 원본 칸 차례 그대로.
    잔액서류·발주서 내용보기(openCiplView)와 견적서 관리가 함께 씁니다. 모양은 .dpr-t, 감싸개는 .dpr-pop. */
-function 원본표(t, 맞댐) {
+function 원본표(t, 맞댐, 가림) {
   const 숫자 = /^[-\d,.$¥%]+$/;
   const rows = t.rows.map((r) => r.c ?? []);
   const h = t.h ?? 1, f = t.f ?? rows.length;
@@ -2340,8 +2346,10 @@ function 원본표(t, 맞댐) {
   /* 벤더피아 단품과 맞댄 줄(v0.87.0, js/match.js 벤더피아맞대기) — 맞으면 상품명 칸이 단품 단추, 아니면 줄을 붉게 + 코드 칸에 딱지.
      맞댐이 없으면(견적서·못 읽음) 예전 그대로입니다. */
   const 딱 = { 코드없음: '코드 없음', 없음: '벤더피아 없음' };
-  const 몸칸 = (v, c, m) => {
+  const 몸칸 = (v, c, m, i) => {
     if (m?.kind === '맞음' && c === m.칸) return `<td>${단품단추(m.vp)}</td>`;
+    // 가격 칸(v0.99.0, js/match.js 가격칸) — 값은 아예 안 그리고 흐린 자리만. 복사해도 안 나옵니다.
+    if (가림?.가릴(v, c, i)) return '<td class="num vv-blur" title="권한 있는 아이디만">000,000</td>';
     if (m && m.kind !== '맞음' && c === 맞댐.칸.code)
       return `<td>${보임(v)}<span class="vpx-t">${딱[m.kind]}</span></td>`;
     return 칸(v, 'td');
@@ -2349,7 +2357,7 @@ function 원본표(t, 맞댐) {
   const 몸줄 = (r, i) => {
     const m = 맞댐?.줄?.get(i);
     const cls = i >= f ? 'dpr-f' : m && m.kind !== '맞음' ? 'vpx' : '';
-    return `<tr${cls ? ` class="${cls}"` : ''}>${r.map((v, c) => 몸칸(v, c, m)).join('')}</tr>`;
+    return `<tr${cls ? ` class="${cls}"` : ''}>${r.map((v, c) => 몸칸(v, c, m, i)).join('')}</tr>`;
   };
   return `
         <div class="dpr-scroll vv-x"><table class="dpr-t">
@@ -2381,6 +2389,26 @@ function 단품표읽기() {
   return 단품표읽는중;
 }
 let 상품표 = null;          // Promise<Map | null>
+
+/* 가격 보기 허락(v0.99.0) — 사장님 11-02 「…가격정보를 블러처리하여 나타나게 해주고 해당정보를 볼 수 있는 권한의 아이디만 볼 수 있다고 안내 해주세요.」
+   허락 = 사장님 uid(아래) + `docs_config/가격보기` 의 emails·uids. 그 문서는 내용보기를 처음 열 때 한 번 읽습니다(읽기 +1).
+   사장님 uid 근거: vivivic-apps 벤더피아상품정리/CLAUDE.md 「잠금 — 사장님 계정만」(vp_* 화베 규칙이 들여보내는 uid).
+   데모는 늘 가리고, `?demo=1&price=1` 이면 맑게(로컬 확인용 — 데모 값은 가짜). */
+const 가격주인 = 'cpBhoh6cT5bAMdmlidsUYl4A0Uz2';
+let 가격허락 = null;        // null 모름 · true 맑게 · false 가림
+let 가격읽는중 = null;
+function 가격허락읽기() {
+  if (가격허락 !== null) return Promise.resolve(가격허락);
+  if (state.demo) return Promise.resolve((가격허락 = new URLSearchParams(location.search).has('price')));
+  const u = state.user;
+  if (u?.uid === 가격주인) return Promise.resolve((가격허락 = true));
+  가격읽는중 ??= DB.가격보기읽기().then((r) => {
+    가격허락 = !!(r.ok && u && (r.uids.includes(u.uid) || r.emails.includes(String(u.email ?? '').toLowerCase())));
+    가격읽는중 = null;
+    return 가격허락;
+  });
+  return 가격읽는중;
+}
 const 상품표읽기 = () => (상품표 ??= DB.벤더피아상품목록().then((r) => (r.ok ? 벤더피아상품연결(r.문서들) : null)));
 
 /* 양품수(v0.93.0) — goods.js labelButton 그대로: 재고조회에 있는 단품만 「양품 N」(.vp-qty). 없으면 안 붙임.
