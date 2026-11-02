@@ -1643,7 +1643,9 @@ function renderDrawer(id) {
   const 시트들 = (d) => (d.cipl?.sheets ?? (d.cipl?.sheet ? [d.cipl.sheet] : [])).filter((t) => t?.rows?.length);
   function openCiplView(고른, 단계 = 'cipl') {
     const 칸 = b.stages.find((s) => s.key === 단계);
-    const 서류들 = (칸?.docs ?? []).filter((d) => 시트들(d).length);
+    // 발주서는 확정이 있으면 그 한 장만(사장님 11-02 「발주서가 확정되면 확정된 발주서만 내용보기에서」). 확정 없으면 모두.
+    const 칸서류 = 단계 === 'order' && !b.임시 && 확정발주서 ? [확정발주서] : (칸?.docs ?? []);
+    const 서류들 = 칸서류.filter((d) => 시트들(d).length);
     const 이름들 = [...new Set(서류들.flatMap((d) => 시트들(d).map((t) => t.name)))];
     if (!이름들.includes(고른)) 고른 = 이름들[0];
     const 본것 = new Set();
