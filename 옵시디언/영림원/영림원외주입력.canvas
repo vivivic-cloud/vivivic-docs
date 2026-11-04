@@ -1,0 +1,357 @@
+{
+ "nodes": [
+  {
+   "id": "s1",
+   "type": "file",
+   "file": "단계/01 거래처.md",
+   "x": 0,
+   "y": 0,
+   "width": 280,
+   "height": 120,
+   "color": "4"
+  },
+  {
+   "id": "s2",
+   "type": "file",
+   "file": "단계/02 워크센터.md",
+   "x": 330,
+   "y": 0,
+   "width": 280,
+   "height": 120,
+   "color": "4"
+  },
+  {
+   "id": "s3",
+   "type": "file",
+   "file": "단계/03 분류.md",
+   "x": 0,
+   "y": 170,
+   "width": 280,
+   "height": 120,
+   "color": "4"
+  },
+  {
+   "id": "s4",
+   "type": "file",
+   "file": "단계/04 품목.md",
+   "x": 330,
+   "y": 170,
+   "width": 280,
+   "height": 120,
+   "color": "4"
+  },
+  {
+   "id": "s5",
+   "type": "file",
+   "file": "단계/05 자재.md",
+   "x": 330,
+   "y": 320,
+   "width": 280,
+   "height": 120,
+   "color": "4"
+  },
+  {
+   "id": "s6",
+   "type": "file",
+   "file": "단계/06 공정·공정흐름.md",
+   "x": 0,
+   "y": 470,
+   "width": 280,
+   "height": 120,
+   "color": "4"
+  },
+  {
+   "id": "s7",
+   "type": "file",
+   "file": "단계/07 BOM.md",
+   "x": 660,
+   "y": 240,
+   "width": 280,
+   "height": 120,
+   "color": "5"
+  },
+  {
+   "id": "s8",
+   "type": "file",
+   "file": "단계/08 품목별 공정흐름.md",
+   "x": 660,
+   "y": 470,
+   "width": 280,
+   "height": 120,
+   "color": "5"
+  },
+  {
+   "id": "s9",
+   "type": "file",
+   "file": "단계/09 제품별공정별소요자재.md",
+   "x": 990,
+   "y": 350,
+   "width": 280,
+   "height": 120,
+   "color": "5"
+  },
+  {
+   "id": "s10",
+   "type": "file",
+   "file": "단계/10 제품별공정별워크센터.md",
+   "x": 1320,
+   "y": 350,
+   "width": 280,
+   "height": 120,
+   "color": "5"
+  },
+  {
+   "id": "s11",
+   "type": "file",
+   "file": "단계/11 외주계약.md",
+   "x": 1650,
+   "y": 350,
+   "width": 280,
+   "height": 120,
+   "color": "5"
+  },
+  {
+   "id": "note1",
+   "type": "text",
+   "text": "**앞 단계가 뒤 단계의 재료.** 앞 단계에 대기·오류가 남아 있으면 뒤 단계는 건너뜀.",
+   "x": -20,
+   "y": 640,
+   "width": 340,
+   "height": 90,
+   "color": "6"
+  },
+  {
+   "id": "l1",
+   "type": "file",
+   "file": "논리/상품검색 공용 부품.md",
+   "x": 660,
+   "y": -160,
+   "width": 280,
+   "height": 100,
+   "color": "3"
+  },
+  {
+   "id": "l2",
+   "type": "file",
+   "file": "논리/원장 부속코드 to 공정흐름.md",
+   "x": 660,
+   "y": 670,
+   "width": 280,
+   "height": 100,
+   "color": "3"
+  },
+  {
+   "id": "l3",
+   "type": "file",
+   "file": "논리/BOM 소요량 계산.md",
+   "x": 980,
+   "y": 170,
+   "width": 280,
+   "height": 100,
+   "color": "3"
+  },
+  {
+   "id": "l4",
+   "type": "file",
+   "file": "논리/엣지필름 소요량.md",
+   "x": 980,
+   "y": 20,
+   "width": 280,
+   "height": 100,
+   "color": "3"
+  },
+  {
+   "id": "r1",
+   "type": "file",
+   "file": "논리/업체 규칙 WC_RULE.md",
+   "x": 1320,
+   "y": 170,
+   "width": 280,
+   "height": 100,
+   "color": "2"
+  },
+  {
+   "id": "o1",
+   "type": "file",
+   "file": "운영/미결 사항.md",
+   "x": 1320,
+   "y": 560,
+   "width": 280,
+   "height": 100,
+   "color": "1"
+  },
+  {
+   "id": "o2",
+   "type": "file",
+   "file": "00 홈.md",
+   "x": -340,
+   "y": 170,
+   "width": 280,
+   "height": 100,
+   "color": "6"
+  }
+ ],
+ "edges": [
+  {
+   "id": "e0",
+   "fromNode": "s1",
+   "fromSide": "right",
+   "toNode": "s2",
+   "toSide": "left"
+  },
+  {
+   "id": "e1",
+   "fromNode": "s3",
+   "fromSide": "right",
+   "toNode": "s4",
+   "toSide": "left"
+  },
+  {
+   "id": "e2",
+   "fromNode": "s3",
+   "fromSide": "right",
+   "toNode": "s5",
+   "toSide": "left"
+  },
+  {
+   "id": "e3",
+   "fromNode": "s4",
+   "fromSide": "right",
+   "toNode": "s7",
+   "toSide": "left"
+  },
+  {
+   "id": "e4",
+   "fromNode": "s5",
+   "fromSide": "right",
+   "toNode": "s7",
+   "toSide": "left"
+  },
+  {
+   "id": "e5",
+   "fromNode": "s6",
+   "fromSide": "right",
+   "toNode": "s7",
+   "toSide": "left"
+  },
+  {
+   "id": "e6",
+   "fromNode": "s4",
+   "fromSide": "right",
+   "toNode": "s8",
+   "toSide": "left"
+  },
+  {
+   "id": "e7",
+   "fromNode": "s6",
+   "fromSide": "right",
+   "toNode": "s8",
+   "toSide": "left"
+  },
+  {
+   "id": "e8",
+   "fromNode": "s7",
+   "fromSide": "right",
+   "toNode": "s9",
+   "toSide": "left"
+  },
+  {
+   "id": "e9",
+   "fromNode": "s8",
+   "fromSide": "right",
+   "toNode": "s9",
+   "toSide": "left"
+  },
+  {
+   "id": "e10",
+   "fromNode": "s2",
+   "fromSide": "right",
+   "toNode": "s10",
+   "toSide": "left"
+  },
+  {
+   "id": "e11",
+   "fromNode": "s7",
+   "fromSide": "right",
+   "toNode": "s10",
+   "toSide": "left"
+  },
+  {
+   "id": "e12",
+   "fromNode": "s8",
+   "fromSide": "right",
+   "toNode": "s10",
+   "toSide": "left"
+  },
+  {
+   "id": "e13",
+   "fromNode": "s9",
+   "fromSide": "right",
+   "toNode": "s10",
+   "toSide": "left"
+  },
+  {
+   "id": "e14",
+   "fromNode": "s8",
+   "fromSide": "right",
+   "toNode": "s11",
+   "toSide": "left"
+  },
+  {
+   "id": "e15",
+   "fromNode": "s10",
+   "fromSide": "right",
+   "toNode": "s11",
+   "toSide": "left"
+  },
+  {
+   "id": "e16",
+   "fromNode": "l1",
+   "fromSide": "bottom",
+   "toNode": "s4",
+   "toSide": "top"
+  },
+  {
+   "id": "e17",
+   "fromNode": "l1",
+   "fromSide": "bottom",
+   "toNode": "s7",
+   "toSide": "top"
+  },
+  {
+   "id": "e18",
+   "fromNode": "l2",
+   "fromSide": "top",
+   "toNode": "s8",
+   "toSide": "bottom"
+  },
+  {
+   "id": "e19",
+   "fromNode": "l3",
+   "fromSide": "left",
+   "toNode": "s7",
+   "toSide": "right"
+  },
+  {
+   "id": "e20",
+   "fromNode": "l4",
+   "fromSide": "left",
+   "toNode": "s7",
+   "toSide": "right"
+  },
+  {
+   "id": "e21",
+   "fromNode": "r1",
+   "fromSide": "bottom",
+   "toNode": "s10",
+   "toSide": "top"
+  },
+  {
+   "id": "e22",
+   "fromNode": "o1",
+   "fromSide": "top",
+   "toNode": "s10",
+   "toSide": "bottom"
+  }
+ ]
+}
