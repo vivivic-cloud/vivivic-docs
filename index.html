@@ -108,6 +108,19 @@
   .dpr-pop .bo-title{ font-size:15px; font-weight:800; color:var(--vg-ink); margin:0 0 8px; }
   .dpr-pop .bo-meta{ display:flex; align-items:center; gap:8px; margin:0 0 12px; }
   .dpr-pop .bo-file{ margin:0; flex:1; min-width:0; overflow-wrap:anywhere; }
+  /* 양식 격자 — 칸마다의 글꼴·색·선은 js/sheet.js 가 만든 .sf-N 이 듭니다. 여기는 표 뼈대만. */
+  .dpr-pop .sf-box{ background:#fff; }
+  .sf{ table-layout:fixed; border-collapse:collapse; background:#fff; color:#000; font-size:11pt; font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif; line-height:1.2; }
+  .sf td{ position:relative; padding:0 2px; overflow:visible; overflow-wrap:anywhere; }
+  .sf td.sf-e{ background-image:linear-gradient(rgba(35,131,226,.09),rgba(35,131,226,.09)); }
+  .sf-in{ min-height:1.2em; outline:none; cursor:text; }
+  .sf-in:focus{ box-shadow:inset 0 0 0 2px #2383e2; }
+  .sf td > span + .sf-in{ display:inline-block; min-width:40%; vertical-align:bottom; }
+  .sf-j{ display:flex; }
+  .sf-j-center{ justify-content:center; } .sf-j-right{ justify-content:flex-end; }
+  .sf-j > span{ flex:none; }
+  .sf-g{ position:absolute; max-width:none; z-index:1; pointer-events:none; }
+  .sf td.vv-blur{ filter:blur(5px); user-select:none; -webkit-user-select:none; }
   .dpr-pop .bo-step{ display:inline-flex; align-items:center; gap:4px; }
   .dpr-pop .bo-step button{ width:36px; height:36px; border:1px solid var(--vg-edge); border-radius:6px; background:#fff; color:var(--vg-ink); font-weight:700; }
   .dpr-pop .bo-step input{ width:60px; height:36px; text-align:center; font-size:14px; color:var(--vg-ink); border:1px solid var(--vg-edge); border-radius:6px; background:#fff; }
@@ -372,7 +385,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.108.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.109.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -413,7 +426,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.108.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.109.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">

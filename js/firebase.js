@@ -407,11 +407,40 @@ async function JSON읽기(칸, id) {
     return { ok: false, why: e?.code || e?.message || '못 읽음' };
   }
 }
-export const 발주양식읽기 = (vendor) => JSON읽기(양식칸, overlayKey(vendor));
+/* 양식 모양(칸 서식·그림)은 양식마다 몇십 KB~몇백 KB 입니다. 문서 1MB 를 넘으면 `{거래처}~모양0…` 으로 나눕니다. 읽기는 조각 수만큼 더. */
+const 조각글자 = 290_000;     // 글자당 3바이트로 쳐도 문서 한 장에 들어갑니다
+const 바이트 = (s) => new TextEncoder().encode(s).length;
+export async function 발주양식읽기(vendor) {
+  const r = await JSON읽기(양식칸, overlayKey(vendor));
+  if (!r.ok || !r.doc) return r;
+  try {
+    let 글 = r.doc.모양글 ?? '';
+    const n = r.doc.모양조각 ?? 0;
+    if (n) {
+      const 조각들 = await Promise.all(Array.from({ length: n }, (_, i) => ctx.f.getDoc(ctx.f.doc(col(양식칸), `${overlayKey(vendor)}~모양${i}`))));
+      글 = 조각들.map((x) => x.data()?.글 ?? '').join('');
+    }
+    r.모양 = 글 ? JSON.parse(글) : null;
+  } catch (e) {
+    r.모양 = null;
+    r.모양왜 = e?.code || e?.message || '못 읽음';
+  }
+  return r;
+}
 export const 발주함읽기 = (batchId) => JSON읽기(발주함칸, overlayKey(batchId));
 export async function 발주양식쓰기(vendor, 값) {
   const 글 = 값.틀 ? { 글: JSON.stringify(값.틀) } : {};
-  const { 틀: _, ...덧 } = 값;
+  const { 틀: _, 모양, ...덧 } = 값;
+  if (값.틀) {        // 틀을 새로 쓰면 모양도 같이 갑니다 — 옛 모양이 새 틀에 붙으면 안 됩니다
+    const 모양글 = 모양 ? JSON.stringify(모양) : '';
+    if (바이트(모양글) + 바이트(글.글) < 900_000) Object.assign(글, { 모양글, 모양조각: 0 });
+    else {
+      const 조각들 = [];
+      for (let i = 0; i < 모양글.length; i += 조각글자) 조각들.push(모양글.slice(i, i + 조각글자));
+      await Promise.all(조각들.map((x, i) => ctx.f.setDoc(ctx.f.doc(col(양식칸), `${overlayKey(vendor)}~모양${i}`), { 글: x, vendor, at: new Date().toISOString() })));
+      Object.assign(글, { 모양글: '', 모양조각: 조각들.length });
+    }
+  }
   await ctx.f.setDoc(ctx.f.doc(col(양식칸), overlayKey(vendor)), { ...글, ...덧, vendor, at: new Date().toISOString() }, { merge: true });
 }
 export async function 발주함쓰기(batchId, 값, 덧) {

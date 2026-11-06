@@ -10,6 +10,7 @@ Artifact는 알아서 감싸고, Pages용은 wrap()이 감쌉니다.
 """
 import json
 import re
+import shutil
 import subprocess
 import sys
 import pathlib
@@ -32,7 +33,7 @@ def strip_imports(src):
 
 
 # 로컬 모듈 이름 — mods 를 적는 순서가 곧 이 상수들이 서는 순서입니다.
-LOCAL_NS = {'./parse.js': 'PARSE', './progress.js': 'PROGRESS', './match.js': 'MATCH', './order.js': 'ORDER'}
+LOCAL_NS = {'./parse.js': 'PARSE', './progress.js': 'PROGRESS', './match.js': 'MATCH', './order.js': 'ORDER', './sheet.js': 'SHEET'}
 
 
 def local_binds(src):
@@ -84,7 +85,7 @@ demo = json.loads((ROOT / 'data' / 'demo.json').read_text(encoding='utf-8'))
 
 # 순서가 중요합니다: hoisted 를 채운 뒤에 이어붙입니다.
 mods = (module('js/parse.js', 'PARSE') + module('js/progress.js', 'PROGRESS')
-        + module('js/match.js', 'MATCH') + module('js/order.js', 'ORDER')
+        + module('js/match.js', 'MATCH') + module('js/order.js', 'ORDER') + module('js/sheet.js', 'SHEET')
         + module('js/fsaccess.js', 'FS') + module('js/firebase.js', 'DB'))
 
 app = (ROOT / 'js' / 'app.js').read_text(encoding='utf-8')
@@ -144,5 +145,9 @@ else:
         encoding='utf-8',
     )
     (docs / '.nojekyll').write_text('', encoding='utf-8')
+    # ExcelJS 는 양식을 올릴 때만 부릅니다(860KB). 본 파일에 안 묶고 곁에 둡니다 — 주소는 원본과 같은 ./js/vendor/.
+    곁 = docs / 'js' / 'vendor'
+    곁.mkdir(parents=True, exist_ok=True)
+    shutil.copy(ROOT / 'js' / 'vendor' / 'exceljs.min.js', 곁 / 'exceljs.min.js')
 
 print(f'{out} · {out.stat().st_size // 1024} KB')

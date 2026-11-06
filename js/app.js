@@ -2,6 +2,7 @@ import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KIN
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸 } from './match.js';
 import { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 줄값, 발주합계, 가격칸키 } from './order.js';
+import { 엑셀표본, 시트표본, 모양읽기, 꼬리값 } from './sheet.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -3030,7 +3031,7 @@ function 새차수잇기() {
    발주함·입력값 = docs_발주함/{차수 id}. 읽기는 열 때 문서 둘(양식은 창이 열린 동안 한 번), 쓰기는 고친 뒤 1.5초에 한 번.
    완성 파일 내보내기·전송은 아직 없습니다 — order.js 발주서값 이 값을 자리(r·c)와 함께 돌려주니 거기에 붙이면 됩니다. */
 let 발주 = null;            // { id, vendor, batch, 제목, 제품들, 판, 양식, 탭, 찾기, 왜, 파일말 … }
-const 양식들 = new Map();   // 거래처 → { 틀, file, path } — 창이 열린 동안 한 번
+const 양식들 = new Map();   // 거래처 → { 틀, 모양, file, path } — 창이 열린 동안 한 번
 const 데모함 = new Map();
 const 발주되나 = (v) => 발주거래처.includes(v) || state.demo;
 const 거래처차수들 = (vendor) => state.batches.filter((b) => b.vendor === vendor)
@@ -3059,7 +3060,7 @@ async function 발주서열기(b) {
     if (함.ok && 함.값) 나.판 = { 줄: [], 머리: {}, 아래: {}, ...함.값 };
     if (!함.ok) 나.왜 = `발주함 못 읽음 · ${함.why}`;
     if (양식?.ok && 양식.값) {
-      나.양식 = { 틀: 양식.값, file: 양식.doc.file ?? '', path: 양식.doc.path ?? '' };
+      나.양식 = { 틀: 양식.값, 모양: 양식.모양 ?? null, file: 양식.doc.file ?? '', path: 양식.doc.path ?? '' };
       양식들.set(나.vendor, 나.양식);
     } else if (양식 && !양식.ok) 나.왜 = `양식 못 읽음 · ${양식.why}`;
   }
@@ -3143,6 +3144,98 @@ function 발주표() {
     </table></div>`;
 }
 
+/* 양식 격자 — 올린 엑셀과 같은 칸·같은 서식(js/sheet.js 모양). 입력은 머리칸·품목 줄·아래 글뿐, 나머지는 글자입니다.
+   입력 칸을 <input> 으로 안 쓰는 까닭: 줄바꿈·가운데 맞춤·세로 맞춤이 칸 서식 그대로 나오게 하려고요. 글자 칸과 모양이 같습니다. */
+const 돈글꼴 = /[¥￥$€£]\s*\d|\b(CNY|USD|RMB)\s*\d/i;   // 숫자가 붙어야 돈입니다 — 「CNY Dollars」 같은 글은 안 가립니다
+const 입력칸 = (글, 속성, 서식글, 흐림말 = '') => `<div class="sf-in${/white-space:pre-wrap/.test(서식글) ? ' sf-w' : ''}" contenteditable="plaintext-only" spellcheck="false" role="textbox" ${속성}${흐림말}>${esc(글)}</div>`;
+
+function 격자칸글(칸, 서식글, 값) {
+  if (칸.런 && 값 === 칸.t) return 칸.런.map(([글, s]) => `<span style="${esc(발주.양식.모양.서식[s] ?? '')}">${보임(글)}</span>`).join('');
+  return 보임(값 ?? '');
+}
+/* 줄을 안 바꾸는 칸의 긴 글 — 엑셀처럼 옆 빈 칸으로 넘칩니다. 가운데·오른쪽 맞춤은 양쪽·왼쪽으로. */
+const 넘침글 = (속, 서식글) => {
+  if (/white-space:pre-wrap/.test(서식글)) return 속;
+  const 쪽 = /text-align:(center|right)/.exec(서식글)?.[1];
+  return 쪽 ? `<div class="sf-j sf-j-${쪽}"><span>${속}</span></div>` : 속;
+};
+const 칸그림 = (그림들, 모양) => (그림들 ?? []).map((g) => (모양.그림[g.id]
+  ? `<img class="sf-g" alt="" src="${esc(모양.그림[g.id])}" style="left:${g.x}px;top:${g.y}px;width:${g.w}px;height:${g.h}px" />` : '')).join('');
+
+function 양식격자() {
+  const { 틀, 모양 } = 발주.양식;
+  const 판 = 발주.판;
+  const 줄들 = 판.줄;
+  const 서식 = 모양.서식;
+  const 가격 = 가격칸키(틀);
+  const 칸표 = new Map(틀.칸.map((k) => [k.c, k]));
+  const 흐림 = (s) => `<td class="sf-${s} vv-blur" title="권한 있는 아이디만">000,000</td>`;
+  const 틀줄 = (i) => {
+    const n = 모양.틀줄.length;
+    if (n < 2) return 모양.틀줄[0];
+    return i === 줄들.length - 1 ? 모양.틀줄[n - 1] : 모양.틀줄[Math.min(i, n - 2)];
+  };
+  const 넓이 = (칸) => `${칸.cs ? ` colspan="${칸.cs}"` : ''}${칸.rs ? ` rowspan="${칸.rs}"` : ''}`;
+  const 품목칸 = (칸, x, i) => {
+    const k = 칸표.get(칸.c);
+    const 서식글 = 서식[칸.s] ?? '';
+    const 빈 = `<td class="sf-${칸.s}"${넓이(칸)}></td>`;
+    if (!k) return 빈;
+    if (k.역할 === 'image') {
+      const g = 모양.품목그림?.[x.열쇠];
+      if (!g) return 빈;
+      // 줄 높이가 양식 그 줄과 다를 수 있습니다 — 칸 안으로 줄여 옆 줄을 덮지 않게
+      const 높 = 틀줄(i).h, 배 = Math.min(1, (높 - 4) / g.h);
+      return `<td class="sf-${칸.s}"${넓이(칸)}>${칸그림([{ ...g, y: Math.min(g.y, Math.max(0, 높 - g.h * 배 - 2)), w: Math.round(g.w * 배), h: Math.round(g.h * 배) }], 모양)}</td>`;
+    }
+    const v = 줄값(k, x, i, 틀);
+    if (가격허락 !== true && 가격.has(k.키)) return v.값 ? 흐림(칸.s) : 빈;
+    if (v.계산) return `<td class="sf-${칸.s}"${넓이(칸)} data-calc="${i}:${esc(k.키)}">${보임(v.값)}</td>`;
+    const 수량 = k.역할 === 'qty' ? ' inputmode="numeric"' : '';
+    return `<td class="sf-${칸.s} sf-e"${넓이(칸)}>${입력칸(밑줄보기(v.값), `data-bocell="${i}:${esc(k.키)}"${수량} aria-label="${esc(k.라벨)}"`, 서식글)}</td>`;
+  };
+  const 꼬리 = 꼬리값(모양, 틀, 줄들);
+  const 아래값 = (줄, 칸) => {
+    const 묶음 = 판.아래[`줄${줄.r}`];
+    const 글칸들 = 줄.칸.filter((x) => x.a);
+    return 판.아래[`줄${줄.r}:${칸.c}`] ?? (글칸들.length === 1 && 묶음 != null ? 묶음 : 칸.t);
+  };
+  const 고정칸 = (줄, 칸) => {
+    const 서식글 = 서식[칸.s] ?? '';
+    const 자리 = `${줄.r},${칸.c}`;
+    const 그림 = 칸그림(칸.g, 모양);
+    const 틀td = (속, 덧 = '') => `<td class="sf-${칸.s}${덧}"${넓이(칸)}>${속}${그림}</td>`;
+    if (칸.k) {
+      const k = 틀.머리칸.find((x) => x.키 === 칸.k);
+      return 틀td(`${칸.앞 ? `<span>${esc(칸.앞)}</span>` : ''}${입력칸(판.머리[칸.k] ?? '', `data-bohead="${esc(칸.k)}" aria-label="${esc(k?.라벨 ?? '')}"`, 서식글, 칸.런 ? ` style="${esc(서식[칸.런[0][1]] ?? '')}"` : '')}`, ' sf-e');
+    }
+    if (자리 in 꼬리) {
+      const 품 = 칸표.get(칸.c);
+      if (가격허락 !== true && ((품 && 가격.has(품.키)) || 돈글꼴.test(칸.t ?? ''))) return 꼬리[자리] || 칸.t ? 흐림(칸.s) : 틀td('');
+      return `<td class="sf-${칸.s}"${넓이(칸)} data-tail="${자리}">${보임(꼬리[자리])}${그림}</td>`;
+    }
+    if (칸.a) {
+      const 값 = 아래값(줄, 칸);
+      if (가격허락 !== true && 돈글꼴.test(값)) return 흐림(칸.s);
+      return 틀td(입력칸(값, `data-botail="줄${줄.r}:${칸.c}" aria-label="아래 글"`, 서식글));
+    }
+    if (가격허락 !== true && 돈글꼴.test(칸.t ?? '')) return 흐림(칸.s);
+    return 틀td(칸.t ? 넘침글(격자칸글(칸, 서식글, 칸.t), 서식글) : '');
+  };
+  const 고정줄 = (줄) => `<tr style="height:${줄.h}px">${줄.칸.map((칸) => 고정칸(줄, 칸)).join('')}</tr>`;
+  const 품목줄 = (x, i) => { const t = 틀줄(i); return `<tr style="height:${t.h}px">${t.칸.map((칸) => 품목칸(칸, x, i)).join('')}</tr>`; };
+  const 빈줄 = () => { const t = 모양.틀줄[0]; return t ? `<tr style="height:${t.h}px">${t.칸.map((칸) => `<td class="sf-${칸.s}"${넓이(칸)}></td>`).join('')}</tr>` : ''; };
+  const 앞 = 모양.줄.slice(0, 모양.끼움), 뒤 = 모양.줄.slice(모양.끼움);
+  const 폭 = 모양.칸.reduce((a, k) => a + k.w, 0);
+  return `<style>${서식.map((css, i) => `.sf .sf-${i}{${css}}`).join('')}</style>
+    <div class="vv-x sf-box"><table class="sf" style="zoom:${모양.배율};width:${폭}px">
+      <colgroup>${모양.칸.map((k) => `<col style="width:${k.w}px" />`).join('')}</colgroup>
+      <tbody>${앞.map(고정줄).join('')}${줄들.length ? 줄들.map(품목줄).join('') : 빈줄()}${뒤.map(고정줄).join('')}</tbody>
+    </table></div>`;
+}
+
+const 판없음글 = () => (발주.판.줄.length ? '' : '<div class="dpr-sn">담은 제품 없음</div>');
+
 function 발주서탭() {
   const 왜 = 발주.양식왜 ? `<div class="dpr-sn">${esc(발주.양식왜)}</div>` : '';
   const 표있나 = !!최근발주표(거래처차수들(발주.vendor));
@@ -3153,6 +3246,12 @@ function 발주서탭() {
     ${표있나 ? '<button type="button" id="boRecent" class="btn btn-ghost w-full min-h-[44px] mt-2">최근 발주서 칸으로</button>' : ''}`;
   const { 틀 } = 양식;
   for (const k of 틀.머리칸) 발주.판.머리[k.키] ??= 머리기본값(k, { 차수: 발주.batch, 오늘: 오늘글() });
+  if (양식.모양) return `${왜}
+    <div class="bo-meta"><span class="dpr-sn bo-file">${esc([양식.file, 양식.path ? '' : 발주.파일말].filter(Boolean).join(' · '))}</span>
+      ${양식.모양.서식있음 ? '' : '<span class="dpr-sn bo-file">서식 없음 · xlsx 로 저장해 올리기</span>'}
+      <button type="button" id="boUp" class="chip chip-off">양식 바꾸기</button></div>
+    ${판없음글()}
+    ${양식격자()}`;
   const 판 = 발주.판;
   const 머리 = (k) => {
     const v = 판.머리[k.키] ?? '';
@@ -3163,15 +3262,15 @@ function 발주서탭() {
            : `<input class="field mt-1" data-bohead="${esc(k.키)}" value="${esc(v)}" placeholder="${esc(k.값 ?? '')}" />`}
     </label>`;
   };
-  const 돈글 = /[¥￥$€£]|\b(CNY|USD|RMB)\b/i;
   const 아래줄 = (x) => {
     const 값 = 판.아래[x.키] ?? x.글;
-    return 가격허락 !== true && 돈글.test(값) ? `<div class="bo-fix vv-blur">000,000</div>`
+    return 가격허락 !== true && 돈글꼴.test(값) ? `<div class="bo-fix vv-blur">000,000</div>`
       : `<input class="bo-in bo-line" data-botail="${esc(x.키)}" value="${esc(값)}" aria-label="아래 글" />`;
   };
   return `${왜}
     <div class="bo-meta"><span class="dpr-sn bo-file">${esc([양식.file, 양식.path ? '' : 발주.파일말].filter(Boolean).join(' · '))}</span>
       <button type="button" id="boUp" class="chip chip-off">양식 바꾸기</button></div>
+    <div class="dpr-sn">양식 모양 없음 · 엑셀 원본 올리기</div>
     ${틀.제목 ? `<div class="bo-title">${esc(틀.제목)}</div>` : ''}
     ${틀.고정.map((x) => `<div class="bo-fix">${esc(x.글)}</div>`).join('')}
     ${틀.머리칸.length ? `<div class="grid grid-cols-2 gap-3 my-4">${틀.머리칸.map(머리).join('')}</div>` : ''}
@@ -3209,8 +3308,18 @@ function 발주그리기() {
   $('#diffBody').style.maxWidth = '1120px';   // 표 칸이 많습니다. 닫으면 되돌립니다
   $('#diffView').hidden = false;
   document.documentElement.setAttribute('data-docsdiff', '1');
+  격자맞춤();
   발주잇기();
   if (발주.찾기) 발주걸러보기();
+}
+
+/* 양식 격자는 엑셀에서 보던 배율로, 그래도 넓으면 판 폭에 맞춰 줄입니다(절반까지). 그 아래는 .vv-x 로 표 안에서 넘깁니다. */
+function 격자맞춤() {
+  const 표 = $('#diffBody .sf');
+  if (!표) return;
+  const 배율 = 발주.양식.모양.배율, 폭 = parseFloat(표.style.width);
+  const 판폭 = 표.closest('.sf-box').clientWidth;
+  표.style.zoom = Math.max(0.5, Math.min(배율, 판폭 / 폭));
 }
 
 function 발주걸러보기() {
@@ -3231,6 +3340,10 @@ function 발주다시셈() {
   }
   const 합 = 발주합계(틀, 줄들);
   for (const el of 몸.querySelectorAll('[data-total]')) el.textContent = 합.칸[el.dataset.total] ?? '';
+  if (발주.양식.모양) {
+    const 꼬리 = 꼬리값(발주.양식.모양, 틀, 줄들);
+    for (const el of 몸.querySelectorAll('[data-tail]')) el.textContent = 밑줄보기(꼬리[el.dataset.tail] ?? '');
+  }
 }
 
 function 발주저장글(글) {
@@ -3294,14 +3407,17 @@ function 발주잇기() {
   const 수량글 = (v) => Math.max(0, Math.floor(Number(String(v).replace(/[^\d.]/g, '')) || 0));
   for (const el of 몸.querySelectorAll('[data-boqty]')) el.oninput = () => { 줄들[Number(el.dataset.boqty)].qty = 수량글(el.value); 발주바뀜(); };
   for (const btn of 몸.querySelectorAll('[data-bodel]')) btn.onclick = () => { 줄들.splice(Number(btn.dataset.bodel), 1); 발주바뀜(); 발주그리기(); };
-  for (const el of 몸.querySelectorAll('[data-bohead]')) el.oninput = () => { 발주.판.머리[el.dataset.bohead] = el.value; 발주바뀜(); };
-  for (const el of 몸.querySelectorAll('[data-botail]')) el.oninput = () => { 발주.판.아래[el.dataset.botail] = el.value; 발주바뀜(); };
+  const 입력글 = (el) => el.value ?? el.textContent;
+  for (const el of 몸.querySelectorAll('[data-bohead]')) el.oninput = () => { 발주.판.머리[el.dataset.bohead] = 입력글(el); 발주바뀜(); };
+  for (const el of 몸.querySelectorAll('[data-botail]')) el.oninput = () => { 발주.판.아래[el.dataset.botail] = 입력글(el); 발주바뀜(); };
+  // 줄을 안 바꾸는 칸은 Enter 로 글이 두 줄이 되지 않게 — 칸을 벗어납니다
+  for (const el of 몸.querySelectorAll('.sf-in:not(.sf-w)')) el.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } };
   for (const el of 몸.querySelectorAll('[data-bocell]')) el.oninput = () => {
     const 자리 = el.dataset.bocell.indexOf(':');
     const i = Number(el.dataset.bocell.slice(0, 자리)), 키 = el.dataset.bocell.slice(자리 + 1);
     const 주수량 = 발주.양식.틀.칸.find((k) => k.역할 === 'qty');
-    if (키 === 주수량?.키) 줄들[i].qty = 수량글(el.value);
-    else 줄들[i].고침[키] = el.value;
+    if (키 === 주수량?.키) 줄들[i].qty = 수량글(입력글(el));
+    else 줄들[i].고침[키] = 입력글(el);
     발주다시셈();
     발주바뀜();
   };
@@ -3332,19 +3448,22 @@ function 양식고르기() {
     if (!f || 발주 !== 나) return;
     나.양식왜 = '';
     if (f.size > 서랍최대) { 나.양식왜 = 서랍탈.big; return 다시그림(); }
-    let 틀 = null;
+    let 틀 = null, 모양 = null;
     if (/\.pdf$/i.test(f.name)) {
       const t = 최근발주표(거래처차수들(나.vendor));
       if (!t) { 나.양식왜 = 'PDF 분석 안 됨 · 엑셀로'; return 다시그림(); }
       틀 = 표로양식(t);
     } else {
       try {
-        const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellStyles: true });
-        틀 = 양식분석(워크북읽기(wb, XLSX));
+        const 알맹이 = await f.arrayBuffer();
+        const wb = XLSX.read(알맹이, { type: 'array', cellStyles: true });
+        const 시트들 = 워크북읽기(wb, XLSX);
+        틀 = 양식분석(시트들);
+        if (틀) 모양 = await 양식모양(알맹이, wb, 시트들.find((x) => x.name === 틀.시트), 틀, f.name);
       } catch (e) { console.warn('양식 못 읽음', e); }
     }
     if (!틀) { 나.양식왜 = '품목표 못 찾음'; return 다시그림(); }
-    await 양식적용(틀, f.name);
+    await 양식적용(틀, f.name, 모양);
     if (state.demo) return;
     let b64;
     try { b64 = await 파일b64(f); } catch { return; }
@@ -3358,16 +3477,62 @@ function 양식고르기() {
   고르개.click();
 }
 
-async function 양식적용(틀, file) {
+/* ExcelJS(860KB)는 양식을 올릴 때만 부릅니다. 못 부르거나 못 열면(.xls 도) SheetJS 만으로 — 칸·합침·크기는 맞고 서식이 없습니다. */
+let 엑셀라이브러리 = null;
+function 엑셀불러오기() {
+  엑셀라이브러리 ??= new Promise((된, 안됨) => {
+    if (window.ExcelJS) return 된(window.ExcelJS);
+    const s = Object.assign(document.createElement('script'), { src: './js/vendor/exceljs.min.js', onload: () => 된(window.ExcelJS), onerror: () => { 엑셀라이브러리 = null; 안됨(new Error('ExcelJS')); } });
+    document.head.append(s);
+  });
+  return 엑셀라이브러리;
+}
+
+/* 양식 그림 — 보이는 크기의 두 배로 줄입니다. 문서 한도 때문입니다. 못 그리는 꼴(emf 등)은 뺍니다. */
+async function 그림줄이기(재료, 모양) {
+  const 크기 = new Map();
+  const 재기 = (g) => { const p = 크기.get(g.id) ?? { w: 0, h: 0 }; 크기.set(g.id, { w: Math.max(p.w, g.w), h: Math.max(p.h, g.h) }); };
+  for (const 줄 of 모양.줄) for (const 칸 of 줄.칸) (칸.g ?? []).forEach(재기);
+  Object.values(모양.품목그림 ?? {}).forEach(재기);
+  await Promise.all(재료.map(async (x) => {
+    try {
+      const 비트 = await createImageBitmap(new Blob([x.바이트], { type: `image/${x.꼴 === 'jpg' ? 'jpeg' : x.꼴}` }));
+      const 판 = 크기.get(x.id) ?? { w: 비트.width, h: 비트.height };
+      const 배 = Math.min(1, 판.w * 2 / 비트.width, 판.h * 2 / 비트.height);
+      const c = Object.assign(document.createElement('canvas'), { width: Math.ceil(비트.width * 배), height: Math.ceil(비트.height * 배) });
+      c.getContext('2d').drawImage(비트, 0, 0, c.width, c.height);
+      const 웹 = c.toDataURL('image/webp', 0.82);
+      모양.그림[x.id] = 웹.startsWith('data:image/webp') ? 웹 : c.toDataURL('image/png');
+    } catch (e) { console.warn('양식 그림 못 줄임', x.꼴, e?.message); }
+  }));
+}
+
+async function 양식모양(알맹이, wb, 시트글, 틀, 이름) {
+  let 표본 = null;
+  if (/\.xls[xm]$/i.test(이름)) {
+    try {
+      const E = await 엑셀불러오기();
+      const b = new E.Workbook();
+      await b.xlsx.load(알맹이);
+      표본 = 엑셀표본(b, 틀.시트, wb.Styles?.Fonts?.[0]);
+    } catch (e) { console.warn('서식 못 읽음', e?.message); }
+  }
+  표본 ??= 시트표본(wb.Sheets[틀.시트], 시트글, XLSX);
+  const { 모양, 그림재료 } = 모양읽기(표본, 틀, 시트글);
+  await 그림줄이기(그림재료, 모양);
+  return 모양;
+}
+
+async function 양식적용(틀, file, 모양 = null) {
   const 나 = 발주;
-  나.양식 = { 틀, file, path: '' };
+  나.양식 = { 틀, 모양, file, path: '' };
   양식들.set(나.vendor, 나.양식);
   나.탭 = '발주서';
   나.파일말 = '';
   다시그림();
   if (state.demo) return;
   try {
-    await DB.발주양식쓰기(나.vendor, { 틀, file, path: '', by: state.user?.email ?? '' });
+    await DB.발주양식쓰기(나.vendor, { 틀, 모양, file, path: '', by: state.user?.email ?? '' });
     기록('양식 올리기', 나.vendor, { file, 칸: 틀.칸.length, 줄: 틀.끝 - 틀.시작 });
   } catch (e) {
     나.양식왜 = `양식 저장 못 함 · ${e?.code || e?.message || ''}`;
