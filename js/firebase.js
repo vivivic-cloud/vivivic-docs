@@ -392,6 +392,32 @@ export async function 단품연결쓰기(열쇠, vp, email) {
   await ctx.f.setDoc(ctx.f.doc(col(CONFIG), '단품연결'), { 링크: { [열쇠]: 값 } }, { merge: true });
 }
 
+/* ── 발주서 만들기 (11-06) ─────────────────────────────
+   docs_발주양식/{거래처} — 대표양식을 분석한 틀(`글` 에 JSON). docs_발주함/{차수 id} — 발주함·입력값(`글` 에 JSON).
+   ⚠ JSON 글 한 칸으로 둡니다 — 칸 이름이 양식마다 달라 필드 이름으로 쓰면 깨지고, 배열 안 배열도 안 됩니다.
+   ⚠ 공개 저장소·Pages 에는 안 둡니다. 듣지 않고, 발주서 만들기를 열 때만 한 번씩 읽습니다. */
+export const 양식칸 = 'docs_발주양식';
+export const 발주함칸 = 'docs_발주함';
+async function JSON읽기(칸, id) {
+  try {
+    const s = await ctx.f.getDoc(ctx.f.doc(col(칸), id));
+    const d = s.exists() ? s.data() : null;
+    return { ok: true, doc: d, 값: d?.글 ? JSON.parse(d.글) : null };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 읽음' };
+  }
+}
+export const 발주양식읽기 = (vendor) => JSON읽기(양식칸, overlayKey(vendor));
+export const 발주함읽기 = (batchId) => JSON읽기(발주함칸, overlayKey(batchId));
+export async function 발주양식쓰기(vendor, 값) {
+  const 글 = 값.틀 ? { 글: JSON.stringify(값.틀) } : {};
+  const { 틀: _, ...덧 } = 값;
+  await ctx.f.setDoc(ctx.f.doc(col(양식칸), overlayKey(vendor)), { ...글, ...덧, vendor, at: new Date().toISOString() }, { merge: true });
+}
+export async function 발주함쓰기(batchId, 값, 덧) {
+  await ctx.f.setDoc(ctx.f.doc(col(발주함칸), overlayKey(batchId)), { 글: JSON.stringify(값), batchId, ...덧, at: new Date().toISOString() }, { merge: true });
+}
+
 /* ── 견적서 (제품관리 → 견적서 관리) ─────────────────────
    서버(sync.gs 견적읽기_)가 드라이브 견적 파일을 글자로 바꿔 driveId 마다 한 문서로 적습니다.
    여기서는 읽기만 합니다. */

@@ -706,7 +706,7 @@ function doPost(e) {
     // 견적서 관리(견적목록·견적읽기)도 제 갈래입니다 — 아래 「견적서 불러오기」.
     out = (req && req['일'] === '보링파일') ? 보링파일내주기_(req)
         : (req && /^견적(목록|읽기)$/.test(String(req['일']))) ? 견적_(req)
-        : (req && /^(서랍확인|올리기)$/.test(String(req['일']))) ? 서랍_(req)
+        : (req && /^(서랍확인|올리기|양식올리기)$/.test(String(req['일']))) ? 서랍_(req)
         : (req && /^차수(목록|만들기)$/.test(String(req['일']))) ? 발주하기_(req)
         : 파일내주기_(req);
   } catch (err) {
@@ -1842,10 +1842,11 @@ function 서랍_(req) {
   if (!allow.length || !props.getProperty('fbKey')) return { ok: false, why: 'off' };
   if (req['일'] === '서랍확인') return { ok: true };     // 켜졌는지만 — 로그인 확인(UrlFetch)도 안 함
   // 크기는 로그인 확인 전에 — 큰 몸통이면 UrlFetch 없이 돌려보냅니다.
-  if (req['일'] === '올리기' && String(req.b64 || '').length > Math.ceil(서랍최대_ / 3) * 4) return { ok: false, why: 'big' };
+  if (/올리기$/.test(req['일']) && String(req.b64 || '').length > Math.ceil(서랍최대_ / 3) * 4) return { ok: false, why: 'big' };
   const email = 표확인_(req && req.idToken, props);
   if (!email || allow.indexOf(email.toLowerCase()) < 0) return { ok: false, why: 'who' };
   if (req['일'] === '올리기') return 올리기_(req, email);
+  if (req['일'] === '양식올리기') return 양식올리기_(req, email);
   return { ok: false, why: 'bad' };
 }
 
@@ -1938,6 +1939,33 @@ function 올리기_(req, email) {
     file = 곳.folder.createFile(Utilities.newBlob(bytes, String(req.mime || '') || 'application/octet-stream', name));
   } catch (e) { return { ok: false, why: 'drive' }; }
   return 서랍적기_(file.getId(), 곳, { 일: '올림', driveId: file.getId(), name: name, oldName: 원, from: '', fromId: '', by: email });
+}
+
+/* 발주서 대표양식 원본 — `중국/<거래처>/대표양식/` 에 넣습니다(11-06). 차수 폴더 꼴이 아니라 sync 가 안 훑습니다.
+   분석은 브라우저가 하고 틀은 앱이 Firestore 에 씁니다. 여기는 원본 보관만 — 덮어쓰지 않습니다.
+   UrlFetch: 로그인 확인 1 · 기록 쓰기 1. */
+const 양식폴더_ = '대표양식';
+function 양식올리기_(req, email) {
+  if (VENDOR_DIRS.map(NFC_).indexOf(NFC_(req.vendor)) < 0) return { ok: false, why: 'out' };
+  const vf = 자식폴더_(findRoot_(), NFC_(req.vendor), false);
+  if (!vf) return { ok: false, why: 'out' };
+  const 원 = 파일이름_(req.name);
+  if (!원) return { ok: false, why: 'bad' };
+  const bytes = Utilities.base64Decode(String(req.b64 || ''));
+  if (bytes.length > 서랍최대_) return { ok: false, why: 'big' };
+  let folder, file;
+  try {
+    folder = 자식폴더_(vf, 양식폴더_, true);
+    const name = 빈이름_(folder, 원);
+    if (!name) return { ok: false, why: 'bad' };
+    file = folder.createFile(Utilities.newBlob(bytes, String(req.mime || '') || 'application/octet-stream', name));
+  } catch (e) { return { ok: false, why: 'drive' }; }
+  const path = vf.getName() + '/' + 양식폴더_ + '/' + file.getName();
+  commit_([{ update: { name: NAME + '/' + MOVES + '/' + Utilities.getUuid(), fields: {
+    '일': { stringValue: '양식올림' }, driveId: { stringValue: file.getId() }, name: { stringValue: file.getName() },
+    to: { stringValue: path }, toId: { stringValue: folder.getId() }, at: { stringValue: new Date().toISOString() }, by: { stringValue: email },
+  } } }]);
+  return { ok: true, driveId: file.getId(), path: path };
 }
 
 /* ── 발주하기: 다음 차수 폴더 만들기 ─────────────────────

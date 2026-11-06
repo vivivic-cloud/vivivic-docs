@@ -1,6 +1,7 @@
 import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸 } from './match.js';
+import { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 줄값, 발주합계, 가격칸키 } from './order.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
 
@@ -574,7 +575,7 @@ function renderGrid() {
   const list = visible();
   $('#emptyState').hidden = list.length > 0;
   // 발주하기 — 차수 폴더를 만드는 거래처(제헤우드·해피코)로 걸렀을 때만, 맨 앞에.
-  const 발주곳 = 발주거래처.includes(state.filter.vendor) ? state.filter.vendor : '';
+  const 발주곳 = state.filter.vendor && 발주되나(state.filter.vendor) ? state.filter.vendor : '';
   $('#grid').innerHTML = (발주곳 ? `<button type="button" class="dhh-newbox" id="btnNewBatch">
        <b>＋</b><span>발주하기</span></button>` : '') + list
     .map((b) => {
@@ -1725,12 +1726,13 @@ function renderDrawer(id) {
                 </button>`;
   const 서랍단추 = (key) => (폴더 ? 알약('data-up', key, '올리기', '이 칸에 올리기') : '');
   // 잔액서류·발주서 칸의 「내용보기」 — 둘 다 openCiplView 로 같은 팝업을 엽니다.
-  const 내용보기단추 = (id) => `
+  const 만들기되나 = !b.임시 && 발주되나(b.vendor);
+  const 내용보기단추 = (id, 글 = '내용보기') => `
               <div class="pl-[42px] pr-3 pb-2">
                 <button type="button" id="${id}"
                         class="w-full min-h-[44px] rounded-lg border border-line bg-white
                                text-[12px] font-bold text-ink flex items-center justify-center">
-                  내용보기
+                  ${글}
                 </button>
               </div>`;
 
@@ -2132,7 +2134,7 @@ function renderDrawer(id) {
             </li>`;
             }
             return `
-            <li class="rounded-lg ${on ? '' : 'opacity-60'}">
+            <li class="rounded-lg ${on || (s.key === 'order' && 만들기되나) ? '' : 'opacity-60'}">
               <div class="flex items-center gap-2.5 px-3 py-2">
                 <span class="w-5 h-5 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0
                       ${on ? 'bg-ink text-white' : 'bg-chip text-faint'}">${순번 + 1}</span>
@@ -2145,6 +2147,7 @@ function renderDrawer(id) {
                 : s.key === 'order' ? 발주서칸(s.docs)
                 : `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${((diffs = diffNotes(s.docs)), s.docs.map((d) => docLink(d)).join(''))}</ul>`}
               ${s.key === 'order' && (b.임시 ? on : s.docs.some((d) => /\.pdf$/i.test(d.name))) ? 내용보기단추('orderView') : ''}
+              ${s.key === 'order' && 만들기되나 ? 내용보기단추('orderMake', '발주서 만들기') : ''}
               ${s.key === 'order' && !b.임시 ? 상차일칸() : ''}
               ${s.key === 'cipl' && on ? 내용보기단추('ciplView') : ''}
               ${s.key === 'cipl' && on ? 발주대조칸() : ''}
@@ -2214,6 +2217,8 @@ function renderDrawer(id) {
   for (const el of $('#drawerBody').querySelectorAll('[data-up]')) el.onclick = () => 서랍올리기(b, 폴더, el.dataset.up, 칸이름(el.dataset.up));
   const ciplView = $('#ciplView');
   if (ciplView) ciplView.onclick = () => openCiplView();
+  const orderMake = $('#orderMake');
+  if (orderMake) orderMake.onclick = () => 발주서열기(b);
   const orderView = $('#orderView');
   if (orderView) orderView.onclick = () => openCiplView(undefined, 'order');
   for (const el of $('#drawerBody').querySelectorAll('[data-diff]')) {
@@ -2998,6 +3003,359 @@ function 새차수잇기() {
     render();
     toast(`만듦 · ${r.folder.split('/').pop()}`);
   };
+}
+
+/* ── 발주서 만들기 (11-06 사장님) ─────────────────────────
+   「발주하기 버튼으로 발주생성시 발주서 생성을 위해 제품선택을 해야 합니다 … 일단 여기까지 해보고 화면보면서 수정 합시다」.
+   차수 서랍 발주서 칸의 「발주서 만들기」 → #diffView 팝업에 칩 셋: 제품 선택 · 발주함 · 발주서.
+   제품 = 그 거래처 차수에서 이미 읽어 둔 발주서·잔액서류 표(js/order.js 발주이력). 드라이브·Firestore 를 새로 안 읽습니다.
+   양식 = 브라우저가 엑셀을 분석한 틀(js/order.js 양식분석) — docs_발주양식/{거래처}. 원본은 서버가 거래처/대표양식/ 에(자물쇠 올리기와 같음).
+   발주함·입력값 = docs_발주함/{차수 id}. 읽기는 열 때 문서 둘(양식은 창이 열린 동안 한 번), 쓰기는 고친 뒤 1.5초에 한 번.
+   완성 파일 내보내기·전송은 아직 없습니다 — order.js 발주서값 이 값을 자리(r·c)와 함께 돌려주니 거기에 붙이면 됩니다. */
+let 발주 = null;            // { id, vendor, batch, 제목, 제품들, 판, 양식, 탭, 찾기, 왜, 파일말 … }
+const 양식들 = new Map();   // 거래처 → { 틀, file, path } — 창이 열린 동안 한 번
+const 데모함 = new Map();
+const 발주되나 = (v) => 발주거래처.includes(v) || state.demo;
+const 거래처차수들 = (vendor) => state.batches.filter((b) => b.vendor === vendor)
+  .map((b) => ({ ...b, 확정: state.overlay[b.id]?.confirmedOrder ?? null }));
+const 오늘글 = () => { const d = new Date(); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
+const 발주열림 = () => 발주 && !$('#diffView').hidden && $('#diffBody [data-orderform]');
+const 다시그림 = () => { if (발주열림()) 발주그리기(); };
+const 흐림칸 = '<td class="num vv-blur" title="권한 있는 아이디만">000,000</td>';
+
+async function 발주서열기(b) {
+  const 틀 = b.새 ? 새차수틀() : b;
+  if (!틀?.batch) return toast('차수 꼴 아님');
+  const id = 틀.새 ? `${틀.vendor}::${틀.batch}` : 틀.id;
+  const 나 = (발주 = { id, vendor: 틀.vendor, batch: 틀.batch, 제목: 차수이름(틀), 제품들: 발주이력(거래처차수들(틀.vendor)),
+    판: { 줄: [], 머리: {}, 아래: {} }, 양식: 양식들.get(틀.vendor) ?? null, 탭: '제품', 찾기: '', 왜: '', 파일말: '', 읽는중: !state.demo, 시계: 0, 저장수: 0 });
+  발주그리기();
+  if (!단품표 && !state.demo) 단품표읽기().then(다시그림);
+  if (!단품연결 && !state.demo) 단품연결읽기().then(다시그림);
+  if (가격허락 === null) 가격허락읽기().then(다시그림);
+  if (state.demo) {
+    if (데모함.has(id)) 나.판 = 데모함.get(id);
+  } else {
+    const [함, 양식] = await Promise.all([DB.발주함읽기(id), 나.양식 ? null : DB.발주양식읽기(나.vendor)]);
+    if (발주 !== 나) return;
+    나.읽는중 = false;
+    if (함.ok && 함.값) 나.판 = { 줄: [], 머리: {}, 아래: {}, ...함.값 };
+    if (!함.ok) 나.왜 = `발주함 못 읽음 · ${함.why}`;
+    if (양식?.ok && 양식.값) {
+      나.양식 = { 틀: 양식.값, file: 양식.doc.file ?? '', path: 양식.doc.path ?? '' };
+      양식들.set(나.vendor, 나.양식);
+    } else if (양식 && !양식.ok) 나.왜 = `양식 못 읽음 · ${양식.why}`;
+  }
+  나.탭 = !나.판.줄.length ? '제품' : 나.양식 ? '발주서' : '발주함';
+  다시그림();
+}
+
+function 벤더단품(열쇠) {
+  if (!단품표?.ok) return null;
+  const 이은 = 단품연결?.링크?.get(열쇠);
+  return 단품표.사전.get(열쇠) ?? (이은 ? 단품표.사전.get(코드열쇠(이은)) : null) ?? null;
+}
+
+function 제품탭() {
+  const 담은 = new Set(발주.판.줄.map((x) => x.열쇠));
+  if (!발주.제품들.length) return '<div class="dpr-none">발주한 제품 없음</div>';
+  return `
+    <input id="boQ" type="search" class="field dpr-q" placeholder="코드 · 이름 검색" value="${esc(발주.찾기)}" />
+    <div class="dpr-scroll vv-x"><table class="dpr-t">
+      <thead><tr><th></th><th class="dpr-k">CODE#</th><th>이름</th><th class="bo-nw">벤더피아</th><th>COLOR</th><th class="num">SIZE</th><th class="num">단가</th><th class="num">최근</th><th class="num">차수</th></tr></thead>
+      <tbody>${발주.제품들.map((p) => {
+        const vp = 벤더단품(p.열쇠);
+        return `<tr data-q="${esc(밑줄보기(`${p.code} ${p.name} ${vp?.이름 ?? ''}`).toLowerCase())}">
+          <td><button type="button" class="chip ${담은.has(p.열쇠) ? 'chip-on' : 'chip-off'}" data-boadd="${esc(p.열쇠)}">${담은.has(p.열쇠) ? '담김' : '담기'}</button></td>
+          <td class="dpr-k">${보임(p.code)}</td>
+          <td class="dpr-m">${보임(p.name)}</td>
+          <td>${vp ? 단품단추(vp) : ''}</td>
+          <td>${보임(p.color)}</td>
+          <td class="num">${보임(p.size)}</td>
+          ${가격허락 === true ? `<td class="num">${보임(p.price)}</td>` : p.price ? 흐림칸 : '<td></td>'}
+          <td class="num">${esc(p.최근 ?? '')}</td>
+          <td class="num">${p.차수수}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+}
+
+function 발주함탭() {
+  const 줄들 = 발주.판.줄;
+  if (!줄들.length) return '<div class="dpr-none">담은 제품 없음</div>';
+  return `
+    <div class="dpr-scroll vv-x"><table class="dpr-t">
+      <thead><tr><th class="dpr-k">CODE#</th><th class="num">수량</th><th>이름</th><th class="num bo-nw">지난 수량</th><th></th></tr></thead>
+      <tbody>${줄들.map((x, i) => `<tr>
+        <td class="dpr-k">${보임(x.code)}</td>
+        <td class="num"><span class="bo-step">
+          <button type="button" data-bostep="${i}:-1" aria-label="빼기">−</button>
+          <input type="text" inputmode="numeric" data-boqty="${i}" value="${x.qty || ''}" aria-label="수량" />
+          <button type="button" data-bostep="${i}:1" aria-label="더하기">＋</button>
+        </span></td>
+        <td class="dpr-m">${보임(x.name)}</td>
+        <td class="num">${x.옛수량 ?? ''}</td>
+        <td><button type="button" class="chip chip-off" data-bodel="${i}">지우기</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+function 발주표() {
+  const { 틀 } = 발주.양식;
+  const 줄들 = 발주.판.줄;
+  const 칸들 = 틀.칸.filter((k) => !k.숨김 && k.역할 !== 'image');
+  const 가격 = 가격칸키(틀);
+  const 가림 = (k) => 가격허락 !== true && 가격.has(k.키);
+  const 몸칸 = (k, x, i) => {
+    const v = 줄값(k, x, i, 틀);
+    if (가림(k)) return v.값 ? 흐림칸 : '<td></td>';
+    if (v.계산) return `<td class="num" data-calc="${i}:${esc(k.키)}">${보임(v.값)}</td>`;
+    const 수량 = k.역할 === 'qty';
+    return `<td${k.역할 === 'code' ? ' class="dpr-k"' : ''}><input class="bo-in bo-${k.역할 || 'etc'}" ${수량 ? 'inputmode="numeric" ' : ''}data-bocell="${i}:${esc(k.키)}" value="${esc(밑줄보기(v.값))}" aria-label="${esc(k.라벨)}" /></td>`;
+  };
+  const 합 = 발주합계(틀, 줄들);
+  const 합칸 = (k, c) => (c === 0 && !합.칸[k.키] ? '<td>TOTAL</td>'
+    : 가림(k) && 합.칸[k.키] ? 흐림칸 : `<td class="num" data-total="${esc(k.키)}">${esc(합.칸[k.키] ?? '')}</td>`);
+  return `
+    <div class="dpr-scroll vv-x"><table class="dpr-t bo-t">
+      <thead><tr>${칸들.map((k) => `<th${k.역할 === 'code' ? ' class="dpr-k"' : ''}>${esc(k.라벨)}</th>`).join('')}</tr></thead>
+      <tbody>${줄들.map((x, i) => `<tr>${칸들.map((k) => 몸칸(k, x, i)).join('')}</tr>`).join('')}
+        ${줄들.length ? `<tr class="dpr-f">${칸들.map(합칸).join('')}</tr>` : ''}
+        ${합.비율줄.map((x) => `<tr class="dpr-f"><td colspan="${Math.max(1, 칸들.length - 1)}">${esc(x.라벨)}</td>${가격허락 === true ? `<td class="num">${esc(x.값)}</td>` : 흐림칸}</tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function 발주서탭() {
+  const 왜 = 발주.양식왜 ? `<div class="dpr-sn">${esc(발주.양식왜)}</div>` : '';
+  const 표있나 = !!최근발주표(거래처차수들(발주.vendor));
+  const 양식 = 발주.양식;
+  if (!양식) return `${왜}
+    <div class="dpr-none mb-3">대표양식 없음</div>
+    <button type="button" id="boUp" class="btn btn-primary w-full min-h-[44px]">대표양식 올리기</button>
+    ${표있나 ? '<button type="button" id="boRecent" class="btn btn-ghost w-full min-h-[44px] mt-2">최근 발주서 칸으로</button>' : ''}`;
+  const { 틀 } = 양식;
+  for (const k of 틀.머리칸) 발주.판.머리[k.키] ??= 머리기본값(k, { 차수: 발주.batch, 오늘: 오늘글() });
+  const 판 = 발주.판;
+  const 머리 = (k) => {
+    const v = 판.머리[k.키] ?? '';
+    const 긴 = /\n/.test(v) || v.length > 60;
+    return `<label class="block${긴 ? ' col-span-2' : ''}">
+      <span class="text-[11px] font-bold text-faint tracking-wide">${esc(k.라벨)}</span>
+      ${긴 ? `<textarea rows="4" class="field mt-1 resize-y" data-bohead="${esc(k.키)}">${esc(v)}</textarea>`
+           : `<input class="field mt-1" data-bohead="${esc(k.키)}" value="${esc(v)}" placeholder="${esc(k.값 ?? '')}" />`}
+    </label>`;
+  };
+  const 돈글 = /[¥￥$€£]|\b(CNY|USD|RMB)\b/i;
+  const 아래줄 = (x) => {
+    const 값 = 판.아래[x.키] ?? x.글;
+    return 가격허락 !== true && 돈글.test(값) ? `<div class="bo-fix vv-blur">000,000</div>`
+      : `<input class="bo-in bo-line" data-botail="${esc(x.키)}" value="${esc(값)}" aria-label="아래 글" />`;
+  };
+  return `${왜}
+    <div class="bo-meta"><span class="dpr-sn bo-file">${esc([양식.file, 양식.path ? '' : 발주.파일말].filter(Boolean).join(' · '))}</span>
+      <button type="button" id="boUp" class="chip chip-off">양식 바꾸기</button></div>
+    ${틀.제목 ? `<div class="bo-title">${esc(틀.제목)}</div>` : ''}
+    ${틀.고정.map((x) => `<div class="bo-fix">${esc(x.글)}</div>`).join('')}
+    ${틀.머리칸.length ? `<div class="grid grid-cols-2 gap-3 my-4">${틀.머리칸.map(머리).join('')}</div>` : ''}
+    ${판.줄.length ? 발주표() : '<div class="dpr-none">담은 제품 없음</div>'}
+    ${틀.아래.length ? `
+      <button type="button" class="dhh-old mt-3" data-botog aria-expanded="false">
+        <span class="dhh-old-t">아래 글 (${틀.아래.length})</span><span class="dhh-old-ar">▾</span>
+      </button>
+      <div class="dhh-old-open">${틀.아래.map(아래줄).join('')}</div>` : ''}`;
+}
+
+function 발주그리기() {
+  const 함 = 발주.판.줄.length;
+  const 탭 = [['제품', `제품 선택 ${발주.제품들.length}`], ['발주함', `발주함 ${함}`], ['발주서', '발주서']];
+  const 몸 = 발주.읽는중 ? '<div class="dpr-none">읽는 중</div>'
+    : 발주.탭 === '제품' ? 제품탭() : 발주.탭 === '발주함' ? 발주함탭() : 발주서탭();
+  $('#diffBody').innerHTML = `
+    <div class="p-5">
+      <div class="flex items-center justify-between gap-3 mb-4">
+        <div class="min-w-0">
+          <div class="text-[11px] font-bold text-faint tracking-wide">발주서 만들기</div>
+          <div class="text-[16px] font-bold leading-tight break-words">${esc(발주.vendor)} ${esc(발주.제목)}</div>
+        </div>
+        <span id="boSave" class="text-[11px] font-bold text-faint ml-auto whitespace-nowrap">${esc(발주.저장글 ?? '')}</span>
+        <button id="diffClose" class="btn btn-ghost shrink-0 min-h-[44px]">닫기</button>
+      </div>
+      <div class="dpr-pop" data-orderform>
+        ${발주.왜 ? `<div class="dpr-sn">${esc(발주.왜)}</div>` : ''}
+        ${단품표 && !단품표.ok ? `<div class="dpr-sn">벤더피아 ${esc(단품표.why)}</div>` : ''}
+        ${가격허락 === false ? '<div class="dpr-sn"><span class="dpr-lock">가격 정보 · 권한 있는 아이디만</span></div>' : ''}
+        <div class="dpr-tabs">${탭.map(([k, 글]) => `<button type="button" class="chip ${k === 발주.탭 ? 'chip-on' : 'chip-off'}" data-botab="${k}">${esc(글)}</button>`).join('')}</div>
+        ${몸}
+      </div>
+    </div>`;
+  $('#diffBody').style.maxWidth = '1120px';   // 표 칸이 많습니다. 닫으면 되돌립니다
+  $('#diffView').hidden = false;
+  document.documentElement.setAttribute('data-docsdiff', '1');
+  발주잇기();
+  if (발주.찾기) 발주걸러보기();
+}
+
+function 발주걸러보기() {
+  const q = 밑줄보기(발주.찾기).trim().toLowerCase();
+  for (const tr of $('#diffBody').querySelectorAll('tr[data-q]')) tr.hidden = !!q && !tr.dataset.q.includes(q);
+}
+
+function 발주다시셈() {
+  if (!발주.양식 || 발주.탭 !== '발주서') return;
+  const { 틀 } = 발주.양식;
+  const 줄들 = 발주.판.줄;
+  const 몸 = $('#diffBody');
+  for (const el of 몸.querySelectorAll('[data-calc]')) {
+    const 자리 = el.dataset.calc.indexOf(':');
+    const i = Number(el.dataset.calc.slice(0, 자리)), 키 = el.dataset.calc.slice(자리 + 1);
+    const k = 틀.칸.find((x) => x.키 === 키);
+    if (k && 줄들[i]) el.textContent = 밑줄보기(줄값(k, 줄들[i], i, 틀).값);
+  }
+  const 합 = 발주합계(틀, 줄들);
+  for (const el of 몸.querySelectorAll('[data-total]')) el.textContent = 합.칸[el.dataset.total] ?? '';
+}
+
+function 발주저장글(글) {
+  발주.저장글 = 글;
+  const el = $('#boSave');
+  if (el) el.textContent = 글;
+}
+function 발주바뀜() {
+  발주.바뀜 = true;
+  발주저장글(state.demo ? '데모 · 저장 안 됨' : '저장 중');
+  clearTimeout(발주.시계);
+  const 나 = 발주;
+  나.시계 = setTimeout(() => 발주저장(나), 1500);
+}
+async function 발주저장(나) {
+  if (!나?.바뀜) return;
+  나.바뀜 = false;
+  clearTimeout(나.시계);
+  if (state.demo) { 데모함.set(나.id, 나.판); return; }
+  try {
+    await DB.발주함쓰기(나.id, 나.판, { vendor: 나.vendor, batch: 나.batch, n: 나.판.줄.length, by: state.user?.email ?? '' });
+    if (발주 === 나) 발주저장글('저장됨');
+    if (++나.저장수 === 1) 기록('발주함 저장', 나.id, { 줄: 나.판.줄.length });
+  } catch (e) {
+    나.바뀜 = true;
+    if (발주 === 나) 발주저장글(`저장 못 함 · ${e?.code || e?.message || ''}`);
+  }
+}
+
+function 발주잇기() {
+  const 몸 = $('#diffBody');
+  const 줄들 = 발주.판.줄;
+  $('#diffClose').onclick = () => {
+    const 나 = 발주;
+    $('#diffView').hidden = true;
+    $('#diffBody').style.maxWidth = '';
+    document.documentElement.removeAttribute('data-docsdiff');
+    발주 = null;
+    발주저장(나).then(() => { if (나.저장수 > 1) 기록('발주함 저장', 나.id, { 줄: 나.판.줄.length }); });
+  };
+  for (const btn of 몸.querySelectorAll('[data-botab]')) btn.onclick = () => { 발주.탭 = btn.dataset.botab; 발주그리기(); $('#diffView').scrollTop = 0; };
+  for (const btn of 몸.querySelectorAll('[data-vpk]')) btn.onclick = () => 단품창(btn.dataset.vpk);
+  for (const btn of 몸.querySelectorAll('[data-boadd]')) btn.onclick = () => {
+    const 열쇠 = btn.dataset.boadd;
+    const i = 줄들.findIndex((x) => x.열쇠 === 열쇠);
+    if (i >= 0) 줄들.splice(i, 1);
+    else 줄들.push(담을줄(발주.제품들.find((p) => p.열쇠 === 열쇠)));
+    btn.className = `chip ${i >= 0 ? 'chip-off' : 'chip-on'}`;
+    btn.textContent = i >= 0 ? '담기' : '담김';
+    몸.querySelector('[data-botab="발주함"]').textContent = `발주함 ${줄들.length}`;
+    발주바뀜();
+  };
+  const q = $('#boQ');
+  if (q) q.oninput = () => { 발주.찾기 = q.value; 발주걸러보기(); };
+  for (const btn of 몸.querySelectorAll('[data-bostep]')) btn.onclick = () => {
+    const [i, d] = btn.dataset.bostep.split(':').map(Number);
+    줄들[i].qty = Math.max(0, (Number(줄들[i].qty) || 0) + d);
+    몸.querySelector(`[data-boqty="${i}"]`).value = 줄들[i].qty || '';
+    발주바뀜();
+  };
+  const 수량글 = (v) => Math.max(0, Math.floor(Number(String(v).replace(/[^\d.]/g, '')) || 0));
+  for (const el of 몸.querySelectorAll('[data-boqty]')) el.oninput = () => { 줄들[Number(el.dataset.boqty)].qty = 수량글(el.value); 발주바뀜(); };
+  for (const btn of 몸.querySelectorAll('[data-bodel]')) btn.onclick = () => { 줄들.splice(Number(btn.dataset.bodel), 1); 발주바뀜(); 발주그리기(); };
+  for (const el of 몸.querySelectorAll('[data-bohead]')) el.oninput = () => { 발주.판.머리[el.dataset.bohead] = el.value; 발주바뀜(); };
+  for (const el of 몸.querySelectorAll('[data-botail]')) el.oninput = () => { 발주.판.아래[el.dataset.botail] = el.value; 발주바뀜(); };
+  for (const el of 몸.querySelectorAll('[data-bocell]')) el.oninput = () => {
+    const 자리 = el.dataset.bocell.indexOf(':');
+    const i = Number(el.dataset.bocell.slice(0, 자리)), 키 = el.dataset.bocell.slice(자리 + 1);
+    const 주수량 = 발주.양식.틀.칸.find((k) => k.역할 === 'qty');
+    if (키 === 주수량?.키) 줄들[i].qty = 수량글(el.value);
+    else 줄들[i].고침[키] = el.value;
+    발주다시셈();
+    발주바뀜();
+  };
+  const 토글 = 몸.querySelector('[data-botog]');
+  if (토글) 토글.onclick = () => {
+    const 폄 = 토글.getAttribute('aria-expanded') !== 'true';
+    토글.setAttribute('aria-expanded', String(폄));
+    토글.querySelector('.dhh-old-ar').textContent = 폄 ? '▴' : '▾';
+  };
+  const 올림 = $('#boUp');
+  if (올림) 올림.onclick = 양식고르기;
+  const 최근 = $('#boRecent');
+  if (최근) 최근.onclick = () => {
+    const 틀 = 표로양식(최근발주표(거래처차수들(발주.vendor)));
+    if (틀) 양식적용(틀, '최근 발주서'); else { 발주.양식왜 = '품목표 못 찾음'; 발주그리기(); }
+  };
+}
+
+/* 양식을 고른 자리에서 바로 분석합니다(UrlFetch 없음). 틀은 Firestore, 원본은 서버가 거래처/대표양식/ 에.
+   자물쇠가 꺼져 있어도 틀은 돕니다 — 그때는 원본만 안 남습니다. */
+function 양식고르기() {
+  const 고르개 = Object.assign(document.createElement('input'), { type: 'file', hidden: true, accept: '.xlsx,.xls,.xlsm,.csv,.pdf' });
+  document.body.append(고르개);
+  const 나 = 발주;
+  고르개.onchange = async () => {
+    const f = 고르개.files[0];
+    고르개.remove();
+    if (!f || 발주 !== 나) return;
+    나.양식왜 = '';
+    if (f.size > 서랍최대) { 나.양식왜 = 서랍탈.big; return 다시그림(); }
+    let 틀 = null;
+    if (/\.pdf$/i.test(f.name)) {
+      const t = 최근발주표(거래처차수들(나.vendor));
+      if (!t) { 나.양식왜 = 'PDF 분석 안 됨 · 엑셀로'; return 다시그림(); }
+      틀 = 표로양식(t);
+    } else {
+      try {
+        const wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellStyles: true });
+        틀 = 양식분석(워크북읽기(wb, XLSX));
+      } catch (e) { console.warn('양식 못 읽음', e); }
+    }
+    if (!틀) { 나.양식왜 = '품목표 못 찾음'; return 다시그림(); }
+    await 양식적용(틀, f.name);
+    if (state.demo) return;
+    let b64;
+    try { b64 = await 파일b64(f); } catch { return; }
+    const r = await 견적묻기({ 일: '양식올리기', vendor: 나.vendor, name: f.name, mime: f.type, b64 }, 360_000);
+    if (r?.ok) {
+      나.양식.path = r.path;
+      DB.발주양식쓰기(나.vendor, { path: r.path, driveId: r.driveId }).catch((e) => console.warn('양식 자리 못 씀', e?.message));
+    } else 나.파일말 = r?.why === 'off' ? '원본 보관 꺼짐' : `원본 보관 못 함 · ${서랍탈[r?.why] ?? '실패'}`;
+    다시그림();
+  };
+  고르개.click();
+}
+
+async function 양식적용(틀, file) {
+  const 나 = 발주;
+  나.양식 = { 틀, file, path: '' };
+  양식들.set(나.vendor, 나.양식);
+  나.탭 = '발주서';
+  나.파일말 = '';
+  다시그림();
+  if (state.demo) return;
+  try {
+    await DB.발주양식쓰기(나.vendor, { 틀, file, path: '', by: state.user?.email ?? '' });
+    기록('양식 올리기', 나.vendor, { file, 칸: 틀.칸.length, 줄: 틀.끝 - 틀.시작 });
+  } catch (e) {
+    나.양식왜 = `양식 저장 못 함 · ${e?.code || e?.message || ''}`;
+    다시그림();
+  }
 }
 
 /* 화면에서 한 번 더 거릅니다.

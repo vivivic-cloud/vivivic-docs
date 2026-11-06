@@ -417,3 +417,16 @@ test('임시쓰기_ — 구매사명마다 한 문서 + _목록, 없어진 구�
   assert.equal(칸.rows.arrayValue.values[0].mapValue.fields.c.arrayValue.values[0].stringValue, '1');   // 줄은 {c:[…]}
   assert.equal(r.writes[2].update.fields['사명들'].arrayValue.values[0].mapValue.fields.po.arrayValue.values[0].mapValue.fields.c.arrayValue.values[1].stringValue, 'a');
 });
+
+test('양식올리기 — 자물쇠, 거래처/대표양식 에 저장(같은 이름은 (2)), 대표양식은 차수 폴더가 아님', () => {
+  assert.equal(가짜서랍({ props: { fbKey: 'k' } }).ctx.서랍_({ 일: '양식올리기', vendor: '제헤우드' }).why, 'off');
+  const { ctx, 쓰기 } = 가짜서랍();
+  ctx.Utilities.base64Decode = () => [1, 2, 3];
+  ctx.Utilities.newBlob = (b, m, name) => ({ name });
+  assert.equal(ctx.서랍_({ 일: '양식올리기', vendor: '베이지아', name: 'a.xlsx', b64: 'AA' }).why, 'out');
+  const r = ctx.서랍_({ 일: '양식올리기', vendor: '제헤우드', name: 'a.xlsx', b64: 'AA' });
+  assert.equal(r.path, '제헤우드/대표양식/a.xlsx');
+  assert.equal(ctx.서랍_({ 일: '양식올리기', vendor: '제헤우드', name: 'a.xlsx', b64: 'AA' }).path, '제헤우드/대표양식/a (2).xlsx');
+  assert.equal(쓰기.at(-1).update.fields['일'].stringValue, '양식올림');
+  assert.equal(ctx.차수폴더인가_('대표양식'), false);
+});
