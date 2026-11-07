@@ -297,6 +297,8 @@ export function 대조품목(t) {
     품, 코드없는줄, 코드칸있음: 코드칸 !== undefined,
     // TOTAL 줄이 표 끝에 있나 — 발주서 표가 쪽마다 나뉘면 서버가 첫 쪽 표만 떠 TOTAL 이 없습니다.
     합계줄: rows.slice(f).some((r) => r.some((v) => 합계말.test(String(v ?? '')))),
+    // 낱말 없이 숫자만 있는 합계줄도 있습니다(해피코 — 수량·금액 두 칸). 그 줄의 숫자들 — 없으면 빈 배열.
+    끝수: rows.slice(f).map((r) => r.map(대조숫자).filter((n) => n !== null)).find((n) => n.length) ?? [],
     칸: { price: cols.price !== undefined, amount: cols.amount !== undefined,
          color: cols.color !== undefined, name: 이름칸 !== undefined },
   };
@@ -543,4 +545,89 @@ export function 가격칸(t) {
     return i >= f && !비가격.has(c) && 대조숫자(s) !== null;
   };
   return { 칸, 가릴 };
+}
+
+/* ── 양식만 다른 같은 발주서 ──────────────────────────────
+ * 사장님 11-07 「업로드된 발주서를 분석하여 동일한 내용의 다른양식일때 를 분석하여 두가시 양식을 모두
+ *   양식이 다른 하나의 발주로 볼 수 있게 표현해 주세요」.
+ *
+ * 해피코는 한 발주를 PDF 와 엑셀로 함께 둡니다. 제헤우드도 같은 표를 다른 PDF 로 다시 뽑아 둔 것이 있습니다.
+ * 차수 박스는 차수로 묶이니 하나지만, 발주서 칸에는 파일마다 박스가 섰습니다.
+ *
+ * ⚠ 판단은 **안의 표**로만 합니다. 이름은 안 봅니다.
+ * ⚠ 일부만 같으면 안 묶습니다. 수정 전·후는 각자 판으로 남아 「수정전 발주서」 로 갑니다.
+ * 같은 발주 = 아래가 **모두** 맞을 때:
+ *   ① 두 서류 다 품목 표가 읽힘 (코드 칸 있음, 품목 1개 이상)
+ *   ② 표의 합계줄 숫자가 같음 — 품목 줄이 같아도 줄을 취소하면 합계만 바뀝니다(실물 해피코 26-2 수정·2차수정).
+ *     PDF 표에 합계줄이 없으면 쪽이 나뉜 표의 첫 조각이라 뒤쪽을 모릅니다 — 이때는 상대도 PDF 이고,
+ *     서버가 글자에서 읽은 총수량·총금액(brief)이 둘 다 있고 같을 때만 봅니다(실물 제헤우드 26-03).
+ *   ③ 코드가 하나도 안 빠지고 같음(코드열쇠) · 코드 없는 줄 수도 같음
+ *   ④ 코드마다 수량 같음 · 단가·금액은 둘 다 적힌 것끼리 같음(단가 빈 양식은 그 칸만 안 봄)
+ *   ⑤ 발주일·납기·PO 번호가 같음 — 한쪽에만 있어도 다름 (품목은 그대로 납기만 적어 넣은 수정본. 실물 해피코 26-7 2차수정)
+ *
+ * 묶어도 파일은 그대로입니다. b.docs 는 안 건드리고 발주서 칸(stages)만 판 하나로 접습니다.
+ */
+const 표들 = (d) => (d?.cipl?.sheets ?? (d?.cipl?.sheet ? [d.cipl.sheet] : [])).filter((t) => t?.rows?.length);
+const PDF인가 = (d) => /\.pdf$/i.test(String(d?.name ?? ''));
+const 머리칸 = ['orderDate', 'deliveryDate', 'piNo'];
+
+export function 같은발주인가(a, b) {
+  const [A, B] = [a, b].map((d) => 대조품목(표들(d)[0]));
+  if (!A?.코드칸있음 || !B?.코드칸있음 || !A.품.size || !B.품.size) return false;
+  if (A.끝수.length && B.끝수.length) {
+    if (A.끝수.length !== B.끝수.length || !A.끝수.every((n, i) => 돈같음(n, B.끝수[i]))) return false;
+  } else if ((PDF인가(a) && !A.끝수.length) || (PDF인가(b) && !B.끝수.length)) {
+    const 총 = (d, k) => d.cipl.brief?.[k];
+    if (!PDF인가(a) || !PDF인가(b) || ['qty', 'amount'].some((k) => 총(a, k) == null || 총(a, k) !== 총(b, k))) return false;
+  }
+  if (A.품.size !== B.품.size || A.코드없는줄 !== B.코드없는줄) return false;
+  for (const [k, x] of A.품) {
+    const y = B.품.get(k);
+    if (!y || x.qty !== y.qty) return false;
+    if (x.amount !== null && y.amount !== null && !돈같음(x.amount, y.amount)) return false;
+    if (x.price.length && y.price.length && !(x.price.length === y.price.length && x.price.every((p, i) => 돈같음(p, y.price[i])))) return false;
+  }
+  return 머리칸.every((k) => (a.cipl.brief?.[k] ?? '') === (b.cipl.brief?.[k] ?? ''));
+}
+
+/** 양식 칩 글자 — PDF · 엑셀. 같은 꼴이 둘이면 번호를 붙입니다. */
+function 양식이름들(docs) {
+  const 꼴 = (d) => {
+    const e = /\.([a-z0-9]+)$/i.exec(String(d.name ?? ''))?.[1]?.toLowerCase() ?? '';
+    return e === 'pdf' ? 'PDF' : /^xls/.test(e) ? '엑셀' : e.toUpperCase() || '파일';
+  };
+  const 셈 = new Map(), 차례 = new Map();
+  for (const d of docs) 셈.set(꼴(d), (셈.get(꼴(d)) ?? 0) + 1);
+  return docs.map((d) => {
+    const k = 꼴(d);
+    차례.set(k, (차례.get(k) ?? 0) + 1);
+    return 셈.get(k) > 1 ? `${k} ${차례.get(k)}` : k;
+  });
+}
+
+/**
+ * 발주서들 → 판들. 같은 발주끼리 앞의 것에 접고, 대표(PDF 가 먼저, 그다음 늦게 올린 것)에 `양식들` 을 답니다.
+ * 혼자인 서류는 그대로 돌려줍니다. 판 차례는 처음 나온 자리 그대로입니다.
+ */
+export function 발주판묶기(docs) {
+  const 판들 = [];
+  for (const d of docs ?? []) {
+    const 판 = 판들.find((p) => 같은발주인가(p[0], d));
+    if (판) 판.push(d); else 판들.push([d]);
+  }
+  return 판들.map((판) => {
+    if (판.length < 2) return 판[0];
+    const 줄 = [...판].sort((x, y) => (PDF인가(y) ? 1 : 0) - (PDF인가(x) ? 1 : 0) || (y.mtime ?? 0) - (x.mtime ?? 0));
+    const 이름 = 양식이름들(줄);
+    return { ...줄[0], 양식들: 줄.map((d, i) => ({ ...d, 양식: 이름[i] })) };
+  });
+}
+
+/** 차수 하나 — 발주서 칸만 판으로 접습니다. 묶을 것이 없으면 그대로. */
+export function 양식묶기(b) {
+  const 칸 = b.stages?.find((s) => s.key === 'order');
+  if (!칸 || 칸.docs.length < 2) return b;
+  const 판들 = 발주판묶기(칸.docs);
+  if (판들.length === 칸.docs.length) return b;
+  return { ...b, stages: b.stages.map((s) => (s === 칸 ? { ...s, docs: 판들 } : s)) };
 }

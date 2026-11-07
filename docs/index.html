@@ -325,6 +325,9 @@
   .dhh-dbox .dnm{ font-size:15px; font-weight:600; line-height:1.25; }
   .dhh-dbox .dmt{ font-size:12px; color:#9C9C98; }
   /* 수정전 발주서 보기 — 단품관리 .dit-code 와 같은 꼴. 손가락으로 눌러 펴집니다 — :hover 를 안 씁니다. */
+  /* 양식 칩 — 보이는 알약은 작아도 누르는 자리는 44px */
+  .dhh-yang{ display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 -8px; }
+  .dhh-yang button{ min-height:44px; display:flex; align-items:center; }
   .dhh-old{ width:100%; display:flex; align-items:baseline; gap:10px; min-height:44px; padding:6px 2px;
     border:0; background:none; text-align:left; border-bottom:1px solid #E2E2DF; cursor:pointer;
     font:inherit; color:inherit; }
@@ -390,7 +393,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.112.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.113.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -431,7 +434,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.112.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.113.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1261,7 +1264,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 <script type="module">
 
 const SINGLE_FILE = false;
-const DEMO = {"note": "데모용 샘플입니다. 파일명 형식만 실제와 같게 두고 거래처·제품명은 바꿨습니다. 상차 이미지는 차수 폴더에 넣는 실제 구조를 흉내 냈습니다.", "files": [{"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드", "cipl": {"v": 1, "sheets": [{"name": "발주서", "rows": [{"c": ["ZH#", "code#", "ITEM NAME", "SIZE", "COLOR", "PRICE (FOB Qingdao)", "ORDER QTY", "AMOUNT"]}, {"c": ["HW-1", "TK_01", "가나 책장 3단", "800*300*1200", "Oak", "¥120.00", "30", "¥3,600.00"]}, {"c": ["HW-1", "TK_02", "가나 책장 4단", "800*300*1600", "Oak", "¥150.50", "20", "¥3,010.00"]}, {"c": ["HW-2", "TK▁03", "다라 협탁", "400*400*500", "White", "¥60.00", "15", "¥900.00"]}, {"c": ["TOTAL", "", "", "", "", "", "65", "¥7,510.00"]}], "h": 1, "f": 4}]}}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_20260730.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_20260730.pdf", "size": 99321, "vendor": "한신우드"}, {"name": "AMT2026-18A型加B型订单合同8.03.xlsx", "path": "한신우드/AMT2026-18A型加B型订单合同8.03.xlsx", "size": 301000, "vendor": "한신우드"}, {"name": "TalkFile__26-094-AMT-HW-18(한신우드 26-18차)_계약금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile__26-094-AMT-HW-18(한신우드 26-18차)_계약금 인보이스영수증.pdf.pdf", "size": 144388, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "size": 83762, "vendor": "한신우드", "cipl": {"v": 1, "sheets": [{"name": "발주서", "rows": [{"c": ["ZH#", "code#", "ITEM NAME", "SIZE", "COLOR", "PRICE (FOB Qingdao)", "ORDER QTY", "AMOUNT"]}, {"c": ["HW-1", "TK_01", "가나 책장 3단", "800*300*1200", "Oak", "¥125.00", "40", "¥5,000.00"]}, {"c": ["HW-3", "MB_11", "마바 침대 Q", "1600*2000*300", "Black", "¥410.00", "12", "¥4,920.00"]}, {"c": ["HW-4", "SA_21", "사아 수납장", "600*400*900", "Natural", "¥95.50", "18", "¥1,719.00"]}, {"c": ["TOTAL", "", "", "", "", "", "70", "¥11,639.00"]}], "h": 1, "f": 4}]}}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "size": 83762, "vendor": "한신우드"}, {"name": "AMT2026-19A型订单合同8.19.xlsx", "path": "한신우드/AMT2026-19A型订单合同8.19.xlsx", "size": 396259, "vendor": "한신우드"}, {"name": "TalkFile_26-083-AMT-HW-15(한신우드 26-15차)_잔금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile_26-083-AMT-HW-15(한신우드 26-15차)_잔금 인보이스영수증.pdf.pdf", "size": 141142, "vendor": "한신우드"}, {"name": "HSWD-ING26 -15   2026.08.06- CI&PL...xls", "path": "한신우드/HSWD-ING26 -15   2026.08.06- CI&PL...xls", "size": 250368, "vendor": "한신우드"}, {"name": "TalkFile_26-080-AMT-HW-14(한신우드 26-14차)_잔금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile_26-080-AMT-HW-14(한신우드 26-14차)_잔금 인보이스영수증.pdf.pdf", "size": 141219, "vendor": "한신우드"}, {"name": "HSWD-ING26 -14 2026.07.30- CI&PL...xls", "path": "한신우드/HSWD-ING26 -14 2026.07.30- CI&PL...xls", "size": 251904, "vendor": "한신우드"}, {"name": "FTA ING26-14.pdf", "path": "한신우드/FTA ING26-14.pdf", "size": 1572266, "vendor": "한신우드"}, {"name": "TalkFile_26-079-AMT-HW-13(한신우드 26-13차)_잔금인보이스영수증.pdf", "path": "한신우드/TalkFile_26-079-AMT-HW-13(한신우드 26-13차)_잔금인보이스영수증.pdf", "size": 144485, "vendor": "한신우드"}, {"name": "FTA-ING 26-13.pdf", "path": "한신우드/FTA-ING 26-13.pdf", "size": 1566833, "vendor": "한신우드"}, {"name": "SHBL-CARRIERXX0783101.pdf", "path": "한신우드/SHBL-CARRIERXX0783101.pdf", "size": 219636, "vendor": "한신우드"}, {"name": "SHBL-CARRIERXX0783102.pdf", "path": "한신우드/SHBL-CARRIERXX0783102.pdf", "size": 219627, "vendor": "한신우드"}, {"name": "26-16.17订单，报价，立方数26.08.03.xlsx", "path": "한신우드/26-16.17订单，报价，立方数26.08.03.xlsx", "size": 1022726, "vendor": "한신우드"}, {"name": "26-16.17订单，报价，立方数26.07.30.xlsx", "path": "한신우드/26-16.17订单，报价，立方数26.07.30.xlsx", "size": 965818, "vendor": "한신우드"}, {"name": "HSWD-ING26 -102026.06.18- CI&PL...xls", "path": "한신우드/HSWD-ING26 -102026.06.18- CI&PL...xls", "size": 262656, "vendor": "한신우드"}, {"name": "AMT2026-14床订单(18)合同6.25.xlsx", "path": "한신우드/AMT2026-14床订单(18)合同6.25.xlsx", "size": 221123, "vendor": "한신우드"}, {"name": "TalkFile_올리브 침대 확장패널_서랍협탁400 300_선반협탁_Re 260806.pdf", "path": "한신우드/TalkFile_올리브 침대 확장패널_서랍협탁400 300_선반협탁_Re 260806.pdf", "size": 839935, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 확장패널_서랍협탁_선반협탁.pdf", "path": "한신우드/TalkFile_비스타 침대 확장패널_서랍협탁_선반협탁.pdf", "size": 1048815, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 헤드.pdf", "path": "한신우드/TalkFile_비스타 침대 헤드.pdf", "size": 621456, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 SS.pdf", "path": "한신우드/TalkFile_비스타 침대 SS.pdf", "size": 652842, "vendor": "한신우드"}, {"name": "TalkFile_ING_HW_다이토 테이블_협탁 2차 견적서 및 샘플요청 _2026.08.14.xlsx", "path": "한신우드/TalkFile_ING_HW_다이토 테이블_협탁 2차 견적서 및 샘플요청 _2026.08.14.xlsx", "size": 735465, "vendor": "한신우드"}, {"name": "어린이 침대 견적서_2026.06.18.xlsx.xlsx", "path": "한신우드/어린이 침대 견적서_2026.06.18.xlsx.xlsx", "size": 1502641, "vendor": "한신우드"}, {"name": "어린이 슈벤치 변경 견적서_2026.06.18.xlsx.xlsx", "path": "한신우드/어린이 슈벤치 변경 견적서_2026.06.18.xlsx.xlsx", "size": 624670, "vendor": "한신우드"}, {"name": "올리브침대(신규)_2종_작업지지서 피드백_260707 (1).pdf", "path": "한신우드/올리브침대(신규)_2종_작업지지서 피드백_260707 (1).pdf", "size": 587750, "vendor": "한신우드"}, {"name": "TalkFile_올리브침대_신규깔판2종_도면_260708.dxf", "path": "한신우드/TalkFile_올리브침대_신규깔판2종_도면_260708.dxf", "size": 664196, "vendor": "한신우드"}, {"name": "HW31.pdf", "path": "한신우드/HW31.pdf", "size": 61535, "vendor": "한신우드"}, {"name": "HW32.pdf", "path": "한신우드/HW32.pdf", "size": 62937, "vendor": "한신우드"}, {"name": "HW33.pdf", "path": "한신우드/HW33.pdf", "size": 62910, "vendor": "한신우드"}, {"name": "ING- 선수금 2026031711 PI.xls", "path": "장쑤세라믹/ING- 선수금 2026031711 PI.xls", "size": 410112, "vendor": "장쑤세라믹"}, {"name": "TalkFile_26-1_PO for Ceramic table _ 2nd revised 260317.pdf", "path": "장쑤세라믹/TalkFile_26-1_PO for Ceramic table _ 2nd revised 260317.pdf", "size": 131170, "vendor": "장쑤세라믹"}, {"name": "0131b84db3cfa55a0.JPG", "path": "한신우드/HW-26-18차/0131b84db3cfa55a0.JPG", "size": 2400000, "mtime": 1755000000000, "vendor": "한신우드"}, {"name": "18a5a1b675590faa1.JPG", "path": "한신우드/HW-26-18차/18a5a1b675590faa1.JPG", "size": 2413000, "mtime": 1755000060000, "vendor": "한신우드"}, {"name": "2db4b5d5619cff722.JPG", "path": "한신우드/HW-26-18차/2db4b5d5619cff722.JPG", "size": 2426000, "mtime": 1755000120000, "vendor": "한신우드"}, {"name": "32dee2d8ab1689343.JPG", "path": "한신우드/HW-26-18차/32dee2d8ab1689343.JPG", "size": 2439000, "mtime": 1755000180000, "vendor": "한신우드"}, {"name": "56d4840e4c8780a04.JPG", "path": "한신우드/HW-26-18차/56d4840e4c8780a04.JPG", "size": 2452000, "mtime": 1755000240000, "vendor": "한신우드"}, {"name": "5ed26dda0d7724115.JPG", "path": "한신우드/HW-26-18차/5ed26dda0d7724115.JPG", "size": 2465000, "mtime": 1755000300000, "vendor": "한신우드"}, {"name": "6af135bce0db1a356.JPG", "path": "한신우드/HW-26-18차/6af135bce0db1a356.JPG", "size": 2478000, "mtime": 1755000360000, "vendor": "한신우드"}, {"name": "81950a043fcffa1a7.JPG", "path": "한신우드/HW-26-18차/81950a043fcffa1a7.JPG", "size": 2491000, "mtime": 1755000420000, "vendor": "한신우드"}, {"name": "8f0df7f820157de88.JPG", "path": "한신우드/HW-26-18차/8f0df7f820157de88.JPG", "size": 2504000, "mtime": 1755000480000, "vendor": "한신우드"}, {"name": "b32a02f3b9a48c8a9.JPG", "path": "한신우드/HW-26-18차/b32a02f3b9a48c8a9.JPG", "size": 2517000, "mtime": 1755000540000, "vendor": "한신우드"}], "overlay": {"한신우드::26-18": {"piAmount": "예시 · 실제 값 아님", "memo": "발주서가 8/13에 1차 수정됐습니다. 7/30 원본과 대조 필요."}}, "임시": {"목록": {"at": "2026-11-02", "사명들": [{"id": "가공장-수입", "name": "가공장-수입", "구분": ["외자"], "줄": 7, "po": [{"c": ["901", "HB26-07", "2026-08-01"]}, {"c": ["902", "HB26-08 (1/2)", "2026-09-02"]}, {"c": ["903", "HB26-08 (2/2)", "2026-09-03"]}, {"c": ["904", "26-031-HB-06", "2026-07-01"]}]}, {"id": "나가구(국내)", "name": "나가구(국내)", "구분": ["내자"], "줄": 4, "po": [{"c": ["905", "나가구1012", "2026-10-12"]}, {"c": ["906", "1020나가구", "2026-10-20"]}, {"c": ["907", "나가구0915", "2026-09-15"]}]}]}, "사명": {"가공장-수입": {"name": "가공장-수입", "rows": [{"c": ["901", "HB26-07", "외자", "0.본사", "2026-08-01", "2026-09-10", "HB_01", "한빛 3단 선반", "40", "40", "52,000", "2,080,000", "Y"]}, {"c": ["901", "HB26-07", "외자", "0.본사", "2026-08-01", "2026-09-10", "HB_02", "한빛 4단 선반", "30", "30", "61,000", "1,830,000", "Y"]}, {"c": ["901", "HB26-07", "외자", "0.본사", "2026-08-01", "2026-09-10", "HB_03 ", "한빛 낮은 선반", "20", "20", "0", "0", "Y"]}, {"c": ["902", "HB26-08 (1/2)", "외자", "0.본사", "2026-09-02", "", "HB_01", "한빛 3단 선반", "50", "", "52,000", "2,600,000", "N"]}, {"c": ["902", "HB26-08 (1/2)", "외자", "0.본사", "2026-09-02", "", "HB_04", "한빛 서랍장", "10", "", "88,000", "880,000", "N"]}, {"c": ["903", "HB26-08 (2/2)", "외자", "0.본사", "2026-09-03", "", "HB_05", "한빛 협탁", "25", "", "34,000", "850,000", "N"]}, {"c": ["904", "26-031-HB-06", "외자", "0.본사", "2026-07-01", "2026-08-11", "HB_02", "한빛 4단 선반", "60", "60", "61,000", "3,660,000", "Y"]}]}, "나가구(국내)": {"name": "나가구(국내)", "rows": [{"c": ["905", "나가구1012", "내자", "0.본사", "2026-10-12", "2026-10-13", "NA-t1", "나 테이블", "5", "5", "120,000", "600,000", "Y"]}, {"c": ["905", "나가구1012", "내자", "0.본사", "2026-10-12", "2026-10-13", "NA-c1", "나 의자", "20", "20", "30,000", "600,000", "Y"]}, {"c": ["906", "1020나가구", "내자", "0.본사", "2026-10-20", "", "NA-t1", "나 테이블", "3", "", "120,000", "360,000", "N"]}, {"c": ["907", "나가구0915", "내자", "0.본사", "2026-09-15", "2026-09-16", "NA-b1", "나 침대", "2", "2", "310,000", "620,000", "Y"]}]}}}};
+const DEMO = {"note": "데모용 샘플입니다. 파일명 형식만 실제와 같게 두고 거래처·제품명은 바꿨습니다. 상차 이미지는 차수 폴더에 넣는 실제 구조를 흉내 냈습니다.", "files": [{"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드", "cipl": {"v": 1, "sheets": [{"name": "발주서", "rows": [{"c": ["ZH#", "code#", "ITEM NAME", "SIZE", "COLOR", "PRICE (FOB Qingdao)", "ORDER QTY", "AMOUNT"]}, {"c": ["HW-1", "TK_01", "가나 책장 3단", "800*300*1200", "Oak", "¥120.00", "30", "¥3,600.00"]}, {"c": ["HW-1", "TK_02", "가나 책장 4단", "800*300*1600", "Oak", "¥150.50", "20", "¥3,010.00"]}, {"c": ["HW-2", "TK▁03", "다라 협탁", "400*400*500", "White", "¥60.00", "15", "¥900.00"]}, {"c": ["TOTAL", "", "", "", "", "", "65", "¥7,510.00"]}], "h": 1, "f": 4}]}}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.pdf", "size": 95586, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_20260730.pdf", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_20260730.pdf", "size": 99321, "vendor": "한신우드"}, {"name": "AMT2026-18A型加B型订单合同8.03.xlsx", "path": "한신우드/AMT2026-18A型加B型订单合同8.03.xlsx", "size": 301000, "vendor": "한신우드"}, {"name": "TalkFile__26-094-AMT-HW-18(한신우드 26-18차)_계약금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile__26-094-AMT-HW-18(한신우드 26-18차)_계약금 인보이스영수증.pdf.pdf", "size": 144388, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "size": 83762, "vendor": "한신우드", "cipl": {"v": 1, "sheets": [{"name": "발주서", "rows": [{"c": ["ZH#", "code#", "ITEM NAME", "SIZE", "COLOR", "PRICE (FOB Qingdao)", "ORDER QTY", "AMOUNT"]}, {"c": ["HW-1", "TK_01", "가나 책장 3단", "800*300*1200", "Oak", "¥125.00", "40", "¥5,000.00"]}, {"c": ["HW-3", "MB_11", "마바 침대 Q", "1600*2000*300", "Black", "¥410.00", "12", "¥4,920.00"]}, {"c": ["HW-4", "SA_21", "사아 수납장", "600*400*900", "Natural", "¥95.50", "18", "¥1,719.00"]}, {"c": ["TOTAL", "", "", "", "", "", "70", "¥11,639.00"]}], "h": 1, "f": 4}]}}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.pdf", "size": 83762, "vendor": "한신우드"}, {"name": "AMT2026-19A型订单合同8.19.xlsx", "path": "한신우드/AMT2026-19A型订单合同8.19.xlsx", "size": 396259, "vendor": "한신우드"}, {"name": "TalkFile_26-083-AMT-HW-15(한신우드 26-15차)_잔금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile_26-083-AMT-HW-15(한신우드 26-15차)_잔금 인보이스영수증.pdf.pdf", "size": 141142, "vendor": "한신우드"}, {"name": "HSWD-ING26 -15   2026.08.06- CI&PL...xls", "path": "한신우드/HSWD-ING26 -15   2026.08.06- CI&PL...xls", "size": 250368, "vendor": "한신우드"}, {"name": "TalkFile_26-080-AMT-HW-14(한신우드 26-14차)_잔금 인보이스영수증.pdf.pdf", "path": "한신우드/TalkFile_26-080-AMT-HW-14(한신우드 26-14차)_잔금 인보이스영수증.pdf.pdf", "size": 141219, "vendor": "한신우드"}, {"name": "HSWD-ING26 -14 2026.07.30- CI&PL...xls", "path": "한신우드/HSWD-ING26 -14 2026.07.30- CI&PL...xls", "size": 251904, "vendor": "한신우드"}, {"name": "FTA ING26-14.pdf", "path": "한신우드/FTA ING26-14.pdf", "size": 1572266, "vendor": "한신우드"}, {"name": "TalkFile_26-079-AMT-HW-13(한신우드 26-13차)_잔금인보이스영수증.pdf", "path": "한신우드/TalkFile_26-079-AMT-HW-13(한신우드 26-13차)_잔금인보이스영수증.pdf", "size": 144485, "vendor": "한신우드"}, {"name": "FTA-ING 26-13.pdf", "path": "한신우드/FTA-ING 26-13.pdf", "size": 1566833, "vendor": "한신우드"}, {"name": "SHBL-CARRIERXX0783101.pdf", "path": "한신우드/SHBL-CARRIERXX0783101.pdf", "size": 219636, "vendor": "한신우드"}, {"name": "SHBL-CARRIERXX0783102.pdf", "path": "한신우드/SHBL-CARRIERXX0783102.pdf", "size": 219627, "vendor": "한신우드"}, {"name": "26-16.17订单，报价，立方数26.08.03.xlsx", "path": "한신우드/26-16.17订单，报价，立方数26.08.03.xlsx", "size": 1022726, "vendor": "한신우드"}, {"name": "26-16.17订单，报价，立方数26.07.30.xlsx", "path": "한신우드/26-16.17订单，报价，立方数26.07.30.xlsx", "size": 965818, "vendor": "한신우드"}, {"name": "HSWD-ING26 -102026.06.18- CI&PL...xls", "path": "한신우드/HSWD-ING26 -102026.06.18- CI&PL...xls", "size": 262656, "vendor": "한신우드"}, {"name": "AMT2026-14床订单(18)合同6.25.xlsx", "path": "한신우드/AMT2026-14床订单(18)合同6.25.xlsx", "size": 221123, "vendor": "한신우드"}, {"name": "TalkFile_올리브 침대 확장패널_서랍협탁400 300_선반협탁_Re 260806.pdf", "path": "한신우드/TalkFile_올리브 침대 확장패널_서랍협탁400 300_선반협탁_Re 260806.pdf", "size": 839935, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 확장패널_서랍협탁_선반협탁.pdf", "path": "한신우드/TalkFile_비스타 침대 확장패널_서랍협탁_선반협탁.pdf", "size": 1048815, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 헤드.pdf", "path": "한신우드/TalkFile_비스타 침대 헤드.pdf", "size": 621456, "vendor": "한신우드"}, {"name": "TalkFile_비스타 침대 SS.pdf", "path": "한신우드/TalkFile_비스타 침대 SS.pdf", "size": 652842, "vendor": "한신우드"}, {"name": "TalkFile_ING_HW_다이토 테이블_협탁 2차 견적서 및 샘플요청 _2026.08.14.xlsx", "path": "한신우드/TalkFile_ING_HW_다이토 테이블_협탁 2차 견적서 및 샘플요청 _2026.08.14.xlsx", "size": 735465, "vendor": "한신우드"}, {"name": "어린이 침대 견적서_2026.06.18.xlsx.xlsx", "path": "한신우드/어린이 침대 견적서_2026.06.18.xlsx.xlsx", "size": 1502641, "vendor": "한신우드"}, {"name": "어린이 슈벤치 변경 견적서_2026.06.18.xlsx.xlsx", "path": "한신우드/어린이 슈벤치 변경 견적서_2026.06.18.xlsx.xlsx", "size": 624670, "vendor": "한신우드"}, {"name": "올리브침대(신규)_2종_작업지지서 피드백_260707 (1).pdf", "path": "한신우드/올리브침대(신규)_2종_작업지지서 피드백_260707 (1).pdf", "size": 587750, "vendor": "한신우드"}, {"name": "TalkFile_올리브침대_신규깔판2종_도면_260708.dxf", "path": "한신우드/TalkFile_올리브침대_신규깔판2종_도면_260708.dxf", "size": 664196, "vendor": "한신우드"}, {"name": "HW31.pdf", "path": "한신우드/HW31.pdf", "size": 61535, "vendor": "한신우드"}, {"name": "HW32.pdf", "path": "한신우드/HW32.pdf", "size": 62937, "vendor": "한신우드"}, {"name": "HW33.pdf", "path": "한신우드/HW33.pdf", "size": 62910, "vendor": "한신우드"}, {"name": "ING- 선수금 2026031711 PI.xls", "path": "장쑤세라믹/ING- 선수금 2026031711 PI.xls", "size": 410112, "vendor": "장쑤세라믹"}, {"name": "TalkFile_26-1_PO for Ceramic table _ 2nd revised 260317.pdf", "path": "장쑤세라믹/TalkFile_26-1_PO for Ceramic table _ 2nd revised 260317.pdf", "size": 131170, "vendor": "장쑤세라믹"}, {"name": "0131b84db3cfa55a0.JPG", "path": "한신우드/HW-26-18차/0131b84db3cfa55a0.JPG", "size": 2400000, "mtime": 1755000000000, "vendor": "한신우드"}, {"name": "18a5a1b675590faa1.JPG", "path": "한신우드/HW-26-18차/18a5a1b675590faa1.JPG", "size": 2413000, "mtime": 1755000060000, "vendor": "한신우드"}, {"name": "2db4b5d5619cff722.JPG", "path": "한신우드/HW-26-18차/2db4b5d5619cff722.JPG", "size": 2426000, "mtime": 1755000120000, "vendor": "한신우드"}, {"name": "32dee2d8ab1689343.JPG", "path": "한신우드/HW-26-18차/32dee2d8ab1689343.JPG", "size": 2439000, "mtime": 1755000180000, "vendor": "한신우드"}, {"name": "56d4840e4c8780a04.JPG", "path": "한신우드/HW-26-18차/56d4840e4c8780a04.JPG", "size": 2452000, "mtime": 1755000240000, "vendor": "한신우드"}, {"name": "5ed26dda0d7724115.JPG", "path": "한신우드/HW-26-18차/5ed26dda0d7724115.JPG", "size": 2465000, "mtime": 1755000300000, "vendor": "한신우드"}, {"name": "6af135bce0db1a356.JPG", "path": "한신우드/HW-26-18차/6af135bce0db1a356.JPG", "size": 2478000, "mtime": 1755000360000, "vendor": "한신우드"}, {"name": "81950a043fcffa1a7.JPG", "path": "한신우드/HW-26-18차/81950a043fcffa1a7.JPG", "size": 2491000, "mtime": 1755000420000, "vendor": "한신우드"}, {"name": "8f0df7f820157de88.JPG", "path": "한신우드/HW-26-18차/8f0df7f820157de88.JPG", "size": 2504000, "mtime": 1755000480000, "vendor": "한신우드"}, {"name": "b32a02f3b9a48c8a9.JPG", "path": "한신우드/HW-26-18차/b32a02f3b9a48c8a9.JPG", "size": 2517000, "mtime": 1755000540000, "vendor": "한신우드"}, {"name": "TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.xlsx", "path": "한신우드/TalkFile_AMT(HW)26-18 Ordersheet_1차 수정 20260813.xlsx", "size": 81730, "vendor": "한신우드", "cipl": {"v": 1, "sheets": [{"name": "발주서", "rows": [{"c": ["ZH#", "code#", "ITEM NAME", "SIZE", "COLOR", "PRICE (FOB Qingdao)", "ORDER QTY", "AMOUNT"]}, {"c": ["HW-1", "TK_01", "가나 책장 3단", "800*300*1200", "Oak", "¥120.00", "30", "¥3,600.00"]}, {"c": ["HW-1", "TK_02", "가나 책장 4단", "800*300*1600", "Oak", "¥150.50", "20", "¥3,010.00"]}, {"c": ["HW-2", "TK▁03", "다라 협탁", "400*400*500", "White", "¥60.00", "15", "¥900.00"]}, {"c": ["TOTAL", "", "", "", "", "", "65", "¥7,510.00"]}], "h": 1, "f": 4}]}}, {"name": "TalkFile_AMT(HW)26-19 Ordersheet_20260813.xlsx", "path": "한신우드/TalkFile_AMT(HW)26-19 Ordersheet_20260813.xlsx", "size": 81730, "vendor": "한신우드", "cipl": {"v": 1, "sheets": [{"name": "발주서", "rows": [{"c": ["ZH#", "code#", "ITEM NAME", "SIZE", "COLOR", "PRICE (FOB Qingdao)", "ORDER QTY", "AMOUNT"]}, {"c": ["HW-1", "TK_01", "가나 책장 3단", "800*300*1200", "Oak", "¥125.00", "40", "¥5,000.00"]}, {"c": ["HW-3", "MB_11", "마바 침대 Q", "1600*2000*300", "Black", "¥410.00", "12", "¥4,920.00"]}, {"c": ["HW-4", "SA_21", "사아 수납장", "600*400*900", "Natural", "¥95.50", "18", "¥1,719.00"]}, {"c": ["TOTAL", "", "", "", "", "", "70", "¥11,639.00"]}], "h": 1, "f": 4}]}}], "overlay": {"한신우드::26-18": {"piAmount": "예시 · 실제 값 아님", "memo": "발주서가 8/13에 1차 수정됐습니다. 7/30 원본과 대조 필요."}}, "임시": {"목록": {"at": "2026-11-02", "사명들": [{"id": "가공장-수입", "name": "가공장-수입", "구분": ["외자"], "줄": 7, "po": [{"c": ["901", "HB26-07", "2026-08-01"]}, {"c": ["902", "HB26-08 (1/2)", "2026-09-02"]}, {"c": ["903", "HB26-08 (2/2)", "2026-09-03"]}, {"c": ["904", "26-031-HB-06", "2026-07-01"]}]}, {"id": "나가구(국내)", "name": "나가구(국내)", "구분": ["내자"], "줄": 4, "po": [{"c": ["905", "나가구1012", "2026-10-12"]}, {"c": ["906", "1020나가구", "2026-10-20"]}, {"c": ["907", "나가구0915", "2026-09-15"]}]}]}, "사명": {"가공장-수입": {"name": "가공장-수입", "rows": [{"c": ["901", "HB26-07", "외자", "0.본사", "2026-08-01", "2026-09-10", "HB_01", "한빛 3단 선반", "40", "40", "52,000", "2,080,000", "Y"]}, {"c": ["901", "HB26-07", "외자", "0.본사", "2026-08-01", "2026-09-10", "HB_02", "한빛 4단 선반", "30", "30", "61,000", "1,830,000", "Y"]}, {"c": ["901", "HB26-07", "외자", "0.본사", "2026-08-01", "2026-09-10", "HB_03 ", "한빛 낮은 선반", "20", "20", "0", "0", "Y"]}, {"c": ["902", "HB26-08 (1/2)", "외자", "0.본사", "2026-09-02", "", "HB_01", "한빛 3단 선반", "50", "", "52,000", "2,600,000", "N"]}, {"c": ["902", "HB26-08 (1/2)", "외자", "0.본사", "2026-09-02", "", "HB_04", "한빛 서랍장", "10", "", "88,000", "880,000", "N"]}, {"c": ["903", "HB26-08 (2/2)", "외자", "0.본사", "2026-09-03", "", "HB_05", "한빛 협탁", "25", "", "34,000", "850,000", "N"]}, {"c": ["904", "26-031-HB-06", "외자", "0.본사", "2026-07-01", "2026-08-11", "HB_02", "한빛 4단 선반", "60", "60", "61,000", "3,660,000", "Y"]}]}, "나가구(국내)": {"name": "나가구(국내)", "rows": [{"c": ["905", "나가구1012", "내자", "0.본사", "2026-10-12", "2026-10-13", "NA-t1", "나 테이블", "5", "5", "120,000", "600,000", "Y"]}, {"c": ["905", "나가구1012", "내자", "0.본사", "2026-10-12", "2026-10-13", "NA-c1", "나 의자", "20", "20", "30,000", "600,000", "Y"]}, {"c": ["906", "1020나가구", "내자", "0.본사", "2026-10-20", "", "NA-t1", "나 테이블", "3", "", "120,000", "360,000", "N"]}, {"c": ["907", "나가구0915", "내자", "0.본사", "2026-09-15", "2026-09-16", "NA-b1", "나 침대", "2", "2", "310,000", "620,000", "Y"]}]}}}};
 const PARSE = (() => {
 /**
  * VIVIVIC 서류관리 — 파일명 파서
@@ -2985,6 +2988,8 @@ function 대조품목(t) {
     품, 코드없는줄, 코드칸있음: 코드칸 !== undefined,
     // TOTAL 줄이 표 끝에 있나 — 발주서 표가 쪽마다 나뉘면 서버가 첫 쪽 표만 떠 TOTAL 이 없습니다.
     합계줄: rows.slice(f).some((r) => r.some((v) => 합계말.test(String(v ?? '')))),
+    // 낱말 없이 숫자만 있는 합계줄도 있습니다(해피코 — 수량·금액 두 칸). 그 줄의 숫자들 — 없으면 빈 배열.
+    끝수: rows.slice(f).map((r) => r.map(대조숫자).filter((n) => n !== null)).find((n) => n.length) ?? [],
     칸: { price: cols.price !== undefined, amount: cols.amount !== undefined,
          color: cols.color !== undefined, name: 이름칸 !== undefined },
   };
@@ -3233,7 +3238,92 @@ function 가격칸(t) {
   return { 칸, 가릴 };
 }
 
-return { itemRows, 가격칸, 대조숫자, 대조품목, 맞댈자, 맞춤판정, 맞춰보기, 발주대조, 벤더피아단품사전, 벤더피아맞대기, 벤더피아사전, 벤더피아상품연결, 수량출처, 이름같음, 이름뼈, 이름후보, 적합성, 정식이름, 제품차이, 찾을이름들 };
+/* ── 양식만 다른 같은 발주서 ──────────────────────────────
+ * 사장님 11-07 「업로드된 발주서를 분석하여 동일한 내용의 다른양식일때 를 분석하여 두가시 양식을 모두
+ *   양식이 다른 하나의 발주로 볼 수 있게 표현해 주세요」.
+ *
+ * 해피코는 한 발주를 PDF 와 엑셀로 함께 둡니다. 제헤우드도 같은 표를 다른 PDF 로 다시 뽑아 둔 것이 있습니다.
+ * 차수 박스는 차수로 묶이니 하나지만, 발주서 칸에는 파일마다 박스가 섰습니다.
+ *
+ * ⚠ 판단은 **안의 표**로만 합니다. 이름은 안 봅니다.
+ * ⚠ 일부만 같으면 안 묶습니다. 수정 전·후는 각자 판으로 남아 「수정전 발주서」 로 갑니다.
+ * 같은 발주 = 아래가 **모두** 맞을 때:
+ *   ① 두 서류 다 품목 표가 읽힘 (코드 칸 있음, 품목 1개 이상)
+ *   ② 표의 합계줄 숫자가 같음 — 품목 줄이 같아도 줄을 취소하면 합계만 바뀝니다(실물 해피코 26-2 수정·2차수정).
+ *     PDF 표에 합계줄이 없으면 쪽이 나뉜 표의 첫 조각이라 뒤쪽을 모릅니다 — 이때는 상대도 PDF 이고,
+ *     서버가 글자에서 읽은 총수량·총금액(brief)이 둘 다 있고 같을 때만 봅니다(실물 제헤우드 26-03).
+ *   ③ 코드가 하나도 안 빠지고 같음(코드열쇠) · 코드 없는 줄 수도 같음
+ *   ④ 코드마다 수량 같음 · 단가·금액은 둘 다 적힌 것끼리 같음(단가 빈 양식은 그 칸만 안 봄)
+ *   ⑤ 발주일·납기·PO 번호가 같음 — 한쪽에만 있어도 다름 (품목은 그대로 납기만 적어 넣은 수정본. 실물 해피코 26-7 2차수정)
+ *
+ * 묶어도 파일은 그대로입니다. b.docs 는 안 건드리고 발주서 칸(stages)만 판 하나로 접습니다.
+ */
+const 표들 = (d) => (d?.cipl?.sheets ?? (d?.cipl?.sheet ? [d.cipl.sheet] : [])).filter((t) => t?.rows?.length);
+const PDF인가 = (d) => /\.pdf$/i.test(String(d?.name ?? ''));
+const 머리칸 = ['orderDate', 'deliveryDate', 'piNo'];
+
+function 같은발주인가(a, b) {
+  const [A, B] = [a, b].map((d) => 대조품목(표들(d)[0]));
+  if (!A?.코드칸있음 || !B?.코드칸있음 || !A.품.size || !B.품.size) return false;
+  if (A.끝수.length && B.끝수.length) {
+    if (A.끝수.length !== B.끝수.length || !A.끝수.every((n, i) => 돈같음(n, B.끝수[i]))) return false;
+  } else if ((PDF인가(a) && !A.끝수.length) || (PDF인가(b) && !B.끝수.length)) {
+    const 총 = (d, k) => d.cipl.brief?.[k];
+    if (!PDF인가(a) || !PDF인가(b) || ['qty', 'amount'].some((k) => 총(a, k) == null || 총(a, k) !== 총(b, k))) return false;
+  }
+  if (A.품.size !== B.품.size || A.코드없는줄 !== B.코드없는줄) return false;
+  for (const [k, x] of A.품) {
+    const y = B.품.get(k);
+    if (!y || x.qty !== y.qty) return false;
+    if (x.amount !== null && y.amount !== null && !돈같음(x.amount, y.amount)) return false;
+    if (x.price.length && y.price.length && !(x.price.length === y.price.length && x.price.every((p, i) => 돈같음(p, y.price[i])))) return false;
+  }
+  return 머리칸.every((k) => (a.cipl.brief?.[k] ?? '') === (b.cipl.brief?.[k] ?? ''));
+}
+
+/** 양식 칩 글자 — PDF · 엑셀. 같은 꼴이 둘이면 번호를 붙입니다. */
+function 양식이름들(docs) {
+  const 꼴 = (d) => {
+    const e = /\.([a-z0-9]+)$/i.exec(String(d.name ?? ''))?.[1]?.toLowerCase() ?? '';
+    return e === 'pdf' ? 'PDF' : /^xls/.test(e) ? '엑셀' : e.toUpperCase() || '파일';
+  };
+  const 셈 = new Map(), 차례 = new Map();
+  for (const d of docs) 셈.set(꼴(d), (셈.get(꼴(d)) ?? 0) + 1);
+  return docs.map((d) => {
+    const k = 꼴(d);
+    차례.set(k, (차례.get(k) ?? 0) + 1);
+    return 셈.get(k) > 1 ? `${k} ${차례.get(k)}` : k;
+  });
+}
+
+/**
+ * 발주서들 → 판들. 같은 발주끼리 앞의 것에 접고, 대표(PDF 가 먼저, 그다음 늦게 올린 것)에 `양식들` 을 답니다.
+ * 혼자인 서류는 그대로 돌려줍니다. 판 차례는 처음 나온 자리 그대로입니다.
+ */
+function 발주판묶기(docs) {
+  const 판들 = [];
+  for (const d of docs ?? []) {
+    const 판 = 판들.find((p) => 같은발주인가(p[0], d));
+    if (판) 판.push(d); else 판들.push([d]);
+  }
+  return 판들.map((판) => {
+    if (판.length < 2) return 판[0];
+    const 줄 = [...판].sort((x, y) => (PDF인가(y) ? 1 : 0) - (PDF인가(x) ? 1 : 0) || (y.mtime ?? 0) - (x.mtime ?? 0));
+    const 이름 = 양식이름들(줄);
+    return { ...줄[0], 양식들: 줄.map((d, i) => ({ ...d, 양식: 이름[i] })) };
+  });
+}
+
+/** 차수 하나 — 발주서 칸만 판으로 접습니다. 묶을 것이 없으면 그대로. */
+function 양식묶기(b) {
+  const 칸 = b.stages?.find((s) => s.key === 'order');
+  if (!칸 || 칸.docs.length < 2) return b;
+  const 판들 = 발주판묶기(칸.docs);
+  if (판들.length === 칸.docs.length) return b;
+  return { ...b, stages: b.stages.map((s) => (s === 칸 ? { ...s, docs: 판들 } : s)) };
+}
+
+return { itemRows, 가격칸, 같은발주인가, 대조숫자, 대조품목, 맞댈자, 맞춤판정, 맞춰보기, 발주대조, 발주판묶기, 벤더피아단품사전, 벤더피아맞대기, 벤더피아사전, 벤더피아상품연결, 수량출처, 양식묶기, 이름같음, 이름뼈, 이름후보, 적합성, 정식이름, 제품차이, 찾을이름들 };
 })();
 const ORDER = (() => {
 const { 코드열쇠, 제품줄인가 } = PARSE;
@@ -4816,7 +4906,7 @@ return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, authMessage, fileKey, id
 })();
 const { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, PDF로바꿀꼴, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } = PARSE;
 const { progressWord } = PROGRESS;
-const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸 } = MATCH;
+const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸, 양식묶기 } = MATCH;
 const { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 줄값, 발주합계, 가격칸키 } = ORDER;
 const { 엑셀표본, 시트표본, 모양읽기, 꼬리값 } = SHEET;
 
@@ -5123,7 +5213,9 @@ function cloud(text) {
 }
 
 function applyParse() {
-  const { batches, unassigned, excluded } = buildBatches(state.files, state.rules);
+  const { batches: 낱개, unassigned, excluded } = buildBatches(state.files, state.rules);
+  // 내용이 같고 양식만 다른 발주서는 발주서 칸에서 한 판으로 접습니다(11-07, js/match.js 같은발주인가).
+  const batches = 낱개.map(양식묶기);
   state.파일차수 = batches;
   state.batches = 빈차수더하기(batches);
   state.unassigned = unassigned;
@@ -6257,6 +6349,9 @@ function closeDrawer() {
 
 /* 「수정전 발주서 보기」 를 편 차수 — 서랍을 다시 그려도(스냅샷·확정 바꿈) 펴 둔 채로 둡니다. 처음엔 접힘. */
 const 수정전펴둔 = new Set();
+/* 양식이 둘인 발주서에서 지금 보고 있는 양식 — 대표 path → 고른 path. 서랍을 다시 그려도 남습니다(새로고침하면 대표로). */
+const 양식고른 = new Map();
+const 보일양식 = (d) => d.양식들?.find((x) => x.path === 양식고른.get(d.path)) ?? d.양식들?.[0] ?? d;
 
 function renderDrawer(id) {
   const b = id === 새차수ID ? 새차수틀() : 모든차수().find((x) => x.id === id);
@@ -6544,7 +6639,8 @@ function renderDrawer(id) {
     const 칸 = b.stages.find((s) => s.key === 단계);
     // 발주서는 확정이 있으면 그 한 장만(사장님 11-02 「발주서가 확정되면 확정된 발주서만 내용보기에서」). 확정 없으면 모두.
     const 칸서류 = 단계 === 'order' && !b.임시 && 확정발주서 ? [확정발주서] : (칸?.docs ?? []);
-    const 서류들 = 칸서류.filter((d) => 시트들(d).length);
+    // 양식이 둘인 발주는 고른 양식의 표를 보입니다 — 위 칩으로 바꿉니다.
+    const 서류들 = 칸서류.map((d) => 단계 === 'order' ? { ...보일양식(d), 대표: d } : d).filter((d) => 시트들(d).length);
     const 이름들 = [...new Set(서류들.flatMap((d) => 시트들(d).map((t) => t.name)))];
     if (!이름들.includes(고른)) 고른 = 이름들[0];
     const 본것 = new Set();
@@ -6581,7 +6677,8 @@ function renderDrawer(id) {
           ${가격허락 === false && 표들.some(({ t }) => 가격칸(t).칸.size) ? '<div class="dpr-sn"><span class="dpr-lock">가격 정보 · 권한 있는 아이디만</span></div>' : ''}
           ${이름들.length > 1 ? `<div class="dpr-tabs">${이름들.map((n) =>
             `<button type="button" class="chip ${n === 고른 ? 'chip-on' : 'chip-off'}" data-ciplsheet="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
-          ${표들.length ? 표들.map(({ d, t }) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${표(t)}`).join('')
+          ${표들.length ? 표들.map(({ d, t }) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${d.대표?.양식들 ? `<div class="dpr-tabs">${d.대표.양식들.map((x) =>
+            `<button type="button" class="chip ${x.path === d.path ? 'chip-on' : 'chip-off'}" data-ciplyang="${esc(d.대표.path)}" data-path="${esc(x.path)}">${esc(x.양식)}</button>`).join('')}</div>` : ''}${표(t)}`).join('')
             : '<div class="dpr-none">읽은 값 없음</div>'}
         </div>
       </div>`;
@@ -6589,6 +6686,11 @@ function renderDrawer(id) {
     $('#diffView').scrollTop = 0;
     document.documentElement.setAttribute('data-docsdiff', '1');
     for (const btn of $('#diffBody').querySelectorAll('[data-ciplsheet]')) btn.onclick = () => openCiplView(btn.dataset.ciplsheet, 단계);
+    for (const btn of $('#diffBody').querySelectorAll('[data-ciplyang]')) btn.onclick = () => {
+      양식고른.set(btn.dataset.ciplyang, btn.dataset.path);
+      openCiplView(고른, 단계);
+      renderDrawer(id);
+    };
     for (const btn of $('#diffBody').querySelectorAll('[data-vpk]')) btn.onclick = () => {
       $('#diffBody').querySelectorAll('.vpb.on').forEach((x) => x.classList.remove('on'));
       btn.classList.add('on');
@@ -6654,9 +6756,10 @@ function renderDrawer(id) {
      한 장뿐이면 고를 것이 없으니 그것으로 봅니다(화면에 그렇게 적습니다). */
   const 발주서들 = b.stages.find((s) => s.key === 'order')?.docs ?? [];
   const 고른것 = ov.confirmedOrder ?? null;
-  const 확정발주서 =
-    발주서들.find((d) => d.path === 고른것) ?? (발주서들.length === 1 ? 발주서들[0] : null);
-  const 고르셔야하나 = 발주서들.length > 1 && !발주서들.some((d) => d.path === 고른것);
+  // 판이 양식 둘이면 어느 양식 경로로 확정했어도 그 판입니다.
+  const 고른판 = 발주서들.find((d) => d.path === 고른것 || d.양식들?.some((x) => x.path === 고른것));
+  const 확정발주서 = 고른판 ?? (발주서들.length === 1 ? 발주서들[0] : null);
+  const 고르셔야하나 = 발주서들.length > 1 && !고른판;
 
   /* 여러 장 중 하나를 확정하면 칸에는 확정 발주서만 — 나머지는 「수정전 발주서 보기 (n)」 를 눌러야 펴집니다
      (사장님 11-02). 단품관리 .dit-code 와 같은 꼴: 손가락으로 눌러 펴고, :hover 안 씀. */
@@ -6702,7 +6805,7 @@ function renderDrawer(id) {
       `<span class="text-[11px] font-bold px-2.5 py-1 rounded-md border
                     ${켜짐 ? 'bg-ink text-white border-ink' : 'bg-white text-faint border-line'}">${글}</span>`;
     if (발주서들.length === 1)
-      return `<div class="flex justify-end">${알약('✓ 확정 · 한 장뿐', true)}</div>`;
+      return `<div class="flex justify-end">${알약(d.양식들 ? '✓ 확정 · 한 발주' : '✓ 확정 · 한 장뿐', true)}</div>`;
     return `
       <div class="flex justify-end">
         <button type="button" data-confirm="${esc(d.path)}" data-on="${이것이확정 ? '1' : ''}"
@@ -6929,8 +7032,14 @@ function renderDrawer(id) {
     }).join(''));
   }
 
-  const docLink = (d) => `
-    <li class="dhh-dbox${확정발주서?.path === d.path && 발주서들.length > 1 ? ' ring-1 ring-ink' : ''}">
+  /* 양식이 둘인 발주서 — 박스 하나에 양식 칩, 고른 양식의 이름·열기·보내기가 보입니다. 확정·변동은 대표(판) 기준. */
+  const 양식칩 = (대표, 지금) => !대표.양식들 ? '' : `
+      <div class="dhh-yang" role="group" aria-label="양식">${대표.양식들.map((x) => `
+        <button type="button" data-yang="${esc(대표.path)}" data-path="${esc(x.path)}" title="${esc(x.display ?? x.name)}"
+                aria-pressed="${x.path === 지금.path}"><span class="chip ${x.path === 지금.path ? 'chip-on' : 'chip-off'}">${esc(x.양식)}</span></button>`).join('')}
+      </div>`;
+  const docLink = (대표) => { const d = 보일양식(대표); return `
+    <li class="dhh-dbox${확정발주서?.path === 대표.path && 발주서들.length > 1 ? ' ring-1 ring-ink' : ''}">
       <div class="flex items-start gap-2">
         ${/^(inspect|sample)$/.test(d.stageKey)
           ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-chip text-muted uppercase shrink-0 mt-px">${esc(extOf(d.name ?? '') || '파일')}</span>` : ''}
@@ -6951,7 +7060,8 @@ function renderDrawer(id) {
           <span class="text-[11px] font-bold px-2 py-1 rounded-md border bg-white text-faint border-line">${보내기글(d)}</span>
         </button>
       </div>
-      ${diffs.has(d.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(d.path)}</div>` : ''}
+      ${양식칩(대표, d)}
+      ${diffs.has(대표.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(대표.path)}</div>` : ''}
       ${d.stageKey === 'cipl' ? 잔액대발주(d) : ''}
       ${영수증맞춤(d)}
       ${(() => {
@@ -6974,8 +7084,8 @@ function renderDrawer(id) {
             ${c.swapped ? '<span title="큰 값을 총중량으로 봄">G.W./N.W. 뒤바뀜</span>' : ''}
           </div>`;
       })()}
-      ${확정줄(d)}
-    </li>`;
+      ${확정줄(대표)}
+    </li>`; };
 
   const 이웃 = b.새 ? null : 앞뒤차수(b);
   const 넘김단추 = (이곳, 말, 글) => `<button type="button" class="btn btn-ghost dstep" aria-label="${말}"
@@ -7048,7 +7158,7 @@ function renderDrawer(id) {
                 ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
                 : s.key === 'order' ? 발주서칸(s.docs)
                 : `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${((diffs = diffNotes(s.docs)), s.docs.map((d) => docLink(d)).join(''))}</ul>`}
-              ${s.key === 'order' && (b.임시 ? on : s.docs.some((d) => /\.pdf$/i.test(d.name))) ? 내용보기단추('orderView') : ''}
+              ${s.key === 'order' && (b.임시 ? on : s.docs.some((d) => /\.pdf$/i.test(d.name) || 시트들(d).length)) ? 내용보기단추('orderView') : ''}
               ${s.key === 'order' && 만들기되나 ? 내용보기단추('orderMake', '발주서 만들기') : ''}
               ${s.key === 'order' && !b.임시 ? 상차일칸() : ''}
               ${s.key === 'cipl' && on ? 내용보기단추('ciplView') : ''}
@@ -7151,6 +7261,10 @@ function renderDrawer(id) {
       수정전.querySelector('.dhh-old-ar').textContent = 폈나 ? '▾' : '▴';
       if (폈나) 수정전펴둔.delete(id); else 수정전펴둔.add(id);
     };
+  for (const el of $('#drawerBody').querySelectorAll('[data-yang]')) el.onclick = () => {
+    양식고른.set(el.dataset.yang, el.dataset.path);
+    renderDrawer(id);
+  };
   for (const el of $('#drawerBody').querySelectorAll('[data-confirm]')) {
     // 이미 확정인 것을 다시 누르면 풀립니다 — 잘못 고르셨을 때 되돌리는 길입니다.
     el.onclick = () => setConfirmedOrder(id, el.dataset.on ? '' : el.dataset.confirm);

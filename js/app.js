@@ -1,6 +1,6 @@
 import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, PDF로바꿀꼴, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸, 양식묶기 } from './match.js';
 import { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 줄값, 발주합계, 가격칸키 } from './order.js';
 import { 엑셀표본, 시트표본, 모양읽기, 꼬리값 } from './sheet.js';
 import * as FS from './fsaccess.js';
@@ -303,7 +303,9 @@ function cloud(text) {
 }
 
 function applyParse() {
-  const { batches, unassigned, excluded } = buildBatches(state.files, state.rules);
+  const { batches: 낱개, unassigned, excluded } = buildBatches(state.files, state.rules);
+  // 내용이 같고 양식만 다른 발주서는 발주서 칸에서 한 판으로 접습니다(11-07, js/match.js 같은발주인가).
+  const batches = 낱개.map(양식묶기);
   state.파일차수 = batches;
   state.batches = 빈차수더하기(batches);
   state.unassigned = unassigned;
@@ -1437,6 +1439,9 @@ function closeDrawer() {
 
 /* 「수정전 발주서 보기」 를 편 차수 — 서랍을 다시 그려도(스냅샷·확정 바꿈) 펴 둔 채로 둡니다. 처음엔 접힘. */
 const 수정전펴둔 = new Set();
+/* 양식이 둘인 발주서에서 지금 보고 있는 양식 — 대표 path → 고른 path. 서랍을 다시 그려도 남습니다(새로고침하면 대표로). */
+const 양식고른 = new Map();
+const 보일양식 = (d) => d.양식들?.find((x) => x.path === 양식고른.get(d.path)) ?? d.양식들?.[0] ?? d;
 
 function renderDrawer(id) {
   const b = id === 새차수ID ? 새차수틀() : 모든차수().find((x) => x.id === id);
@@ -1724,7 +1729,8 @@ function renderDrawer(id) {
     const 칸 = b.stages.find((s) => s.key === 단계);
     // 발주서는 확정이 있으면 그 한 장만(사장님 11-02 「발주서가 확정되면 확정된 발주서만 내용보기에서」). 확정 없으면 모두.
     const 칸서류 = 단계 === 'order' && !b.임시 && 확정발주서 ? [확정발주서] : (칸?.docs ?? []);
-    const 서류들 = 칸서류.filter((d) => 시트들(d).length);
+    // 양식이 둘인 발주는 고른 양식의 표를 보입니다 — 위 칩으로 바꿉니다.
+    const 서류들 = 칸서류.map((d) => 단계 === 'order' ? { ...보일양식(d), 대표: d } : d).filter((d) => 시트들(d).length);
     const 이름들 = [...new Set(서류들.flatMap((d) => 시트들(d).map((t) => t.name)))];
     if (!이름들.includes(고른)) 고른 = 이름들[0];
     const 본것 = new Set();
@@ -1761,7 +1767,8 @@ function renderDrawer(id) {
           ${가격허락 === false && 표들.some(({ t }) => 가격칸(t).칸.size) ? '<div class="dpr-sn"><span class="dpr-lock">가격 정보 · 권한 있는 아이디만</span></div>' : ''}
           ${이름들.length > 1 ? `<div class="dpr-tabs">${이름들.map((n) =>
             `<button type="button" class="chip ${n === 고른 ? 'chip-on' : 'chip-off'}" data-ciplsheet="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
-          ${표들.length ? 표들.map(({ d, t }) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${표(t)}`).join('')
+          ${표들.length ? 표들.map(({ d, t }) => `${표들.length > 1 ? `<div class="dpr-sn">${esc(d.display ?? d.name)}</div>` : ''}${d.대표?.양식들 ? `<div class="dpr-tabs">${d.대표.양식들.map((x) =>
+            `<button type="button" class="chip ${x.path === d.path ? 'chip-on' : 'chip-off'}" data-ciplyang="${esc(d.대표.path)}" data-path="${esc(x.path)}">${esc(x.양식)}</button>`).join('')}</div>` : ''}${표(t)}`).join('')
             : '<div class="dpr-none">읽은 값 없음</div>'}
         </div>
       </div>`;
@@ -1769,6 +1776,11 @@ function renderDrawer(id) {
     $('#diffView').scrollTop = 0;
     document.documentElement.setAttribute('data-docsdiff', '1');
     for (const btn of $('#diffBody').querySelectorAll('[data-ciplsheet]')) btn.onclick = () => openCiplView(btn.dataset.ciplsheet, 단계);
+    for (const btn of $('#diffBody').querySelectorAll('[data-ciplyang]')) btn.onclick = () => {
+      양식고른.set(btn.dataset.ciplyang, btn.dataset.path);
+      openCiplView(고른, 단계);
+      renderDrawer(id);
+    };
     for (const btn of $('#diffBody').querySelectorAll('[data-vpk]')) btn.onclick = () => {
       $('#diffBody').querySelectorAll('.vpb.on').forEach((x) => x.classList.remove('on'));
       btn.classList.add('on');
@@ -1834,9 +1846,10 @@ function renderDrawer(id) {
      한 장뿐이면 고를 것이 없으니 그것으로 봅니다(화면에 그렇게 적습니다). */
   const 발주서들 = b.stages.find((s) => s.key === 'order')?.docs ?? [];
   const 고른것 = ov.confirmedOrder ?? null;
-  const 확정발주서 =
-    발주서들.find((d) => d.path === 고른것) ?? (발주서들.length === 1 ? 발주서들[0] : null);
-  const 고르셔야하나 = 발주서들.length > 1 && !발주서들.some((d) => d.path === 고른것);
+  // 판이 양식 둘이면 어느 양식 경로로 확정했어도 그 판입니다.
+  const 고른판 = 발주서들.find((d) => d.path === 고른것 || d.양식들?.some((x) => x.path === 고른것));
+  const 확정발주서 = 고른판 ?? (발주서들.length === 1 ? 발주서들[0] : null);
+  const 고르셔야하나 = 발주서들.length > 1 && !고른판;
 
   /* 여러 장 중 하나를 확정하면 칸에는 확정 발주서만 — 나머지는 「수정전 발주서 보기 (n)」 를 눌러야 펴집니다
      (사장님 11-02). 단품관리 .dit-code 와 같은 꼴: 손가락으로 눌러 펴고, :hover 안 씀. */
@@ -1882,7 +1895,7 @@ function renderDrawer(id) {
       `<span class="text-[11px] font-bold px-2.5 py-1 rounded-md border
                     ${켜짐 ? 'bg-ink text-white border-ink' : 'bg-white text-faint border-line'}">${글}</span>`;
     if (발주서들.length === 1)
-      return `<div class="flex justify-end">${알약('✓ 확정 · 한 장뿐', true)}</div>`;
+      return `<div class="flex justify-end">${알약(d.양식들 ? '✓ 확정 · 한 발주' : '✓ 확정 · 한 장뿐', true)}</div>`;
     return `
       <div class="flex justify-end">
         <button type="button" data-confirm="${esc(d.path)}" data-on="${이것이확정 ? '1' : ''}"
@@ -2109,8 +2122,14 @@ function renderDrawer(id) {
     }).join(''));
   }
 
-  const docLink = (d) => `
-    <li class="dhh-dbox${확정발주서?.path === d.path && 발주서들.length > 1 ? ' ring-1 ring-ink' : ''}">
+  /* 양식이 둘인 발주서 — 박스 하나에 양식 칩, 고른 양식의 이름·열기·보내기가 보입니다. 확정·변동은 대표(판) 기준. */
+  const 양식칩 = (대표, 지금) => !대표.양식들 ? '' : `
+      <div class="dhh-yang" role="group" aria-label="양식">${대표.양식들.map((x) => `
+        <button type="button" data-yang="${esc(대표.path)}" data-path="${esc(x.path)}" title="${esc(x.display ?? x.name)}"
+                aria-pressed="${x.path === 지금.path}"><span class="chip ${x.path === 지금.path ? 'chip-on' : 'chip-off'}">${esc(x.양식)}</span></button>`).join('')}
+      </div>`;
+  const docLink = (대표) => { const d = 보일양식(대표); return `
+    <li class="dhh-dbox${확정발주서?.path === 대표.path && 발주서들.length > 1 ? ' ring-1 ring-ink' : ''}">
       <div class="flex items-start gap-2">
         ${/^(inspect|sample)$/.test(d.stageKey)
           ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-chip text-muted uppercase shrink-0 mt-px">${esc(extOf(d.name ?? '') || '파일')}</span>` : ''}
@@ -2131,7 +2150,8 @@ function renderDrawer(id) {
           <span class="text-[11px] font-bold px-2 py-1 rounded-md border bg-white text-faint border-line">${보내기글(d)}</span>
         </button>
       </div>
-      ${diffs.has(d.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(d.path)}</div>` : ''}
+      ${양식칩(대표, d)}
+      ${diffs.has(대표.path) ? `<div class="mt-1 text-[11px] text-muted">${diffs.get(대표.path)}</div>` : ''}
       ${d.stageKey === 'cipl' ? 잔액대발주(d) : ''}
       ${영수증맞춤(d)}
       ${(() => {
@@ -2154,8 +2174,8 @@ function renderDrawer(id) {
             ${c.swapped ? '<span title="큰 값을 총중량으로 봄">G.W./N.W. 뒤바뀜</span>' : ''}
           </div>`;
       })()}
-      ${확정줄(d)}
-    </li>`;
+      ${확정줄(대표)}
+    </li>`; };
 
   const 이웃 = b.새 ? null : 앞뒤차수(b);
   const 넘김단추 = (이곳, 말, 글) => `<button type="button" class="btn btn-ghost dstep" aria-label="${말}"
@@ -2228,7 +2248,7 @@ function renderDrawer(id) {
                 ? `<div class="pl-[42px] pr-3 pb-2">${photoGrid(s.docs, s.key)}</div>`
                 : s.key === 'order' ? 발주서칸(s.docs)
                 : `<ul class="pl-[42px] pr-3 pb-2 space-y-1.5">${((diffs = diffNotes(s.docs)), s.docs.map((d) => docLink(d)).join(''))}</ul>`}
-              ${s.key === 'order' && (b.임시 ? on : s.docs.some((d) => /\.pdf$/i.test(d.name))) ? 내용보기단추('orderView') : ''}
+              ${s.key === 'order' && (b.임시 ? on : s.docs.some((d) => /\.pdf$/i.test(d.name) || 시트들(d).length)) ? 내용보기단추('orderView') : ''}
               ${s.key === 'order' && 만들기되나 ? 내용보기단추('orderMake', '발주서 만들기') : ''}
               ${s.key === 'order' && !b.임시 ? 상차일칸() : ''}
               ${s.key === 'cipl' && on ? 내용보기단추('ciplView') : ''}
@@ -2331,6 +2351,10 @@ function renderDrawer(id) {
       수정전.querySelector('.dhh-old-ar').textContent = 폈나 ? '▾' : '▴';
       if (폈나) 수정전펴둔.delete(id); else 수정전펴둔.add(id);
     };
+  for (const el of $('#drawerBody').querySelectorAll('[data-yang]')) el.onclick = () => {
+    양식고른.set(el.dataset.yang, el.dataset.path);
+    renderDrawer(id);
+  };
   for (const el of $('#drawerBody').querySelectorAll('[data-confirm]')) {
     // 이미 확정인 것을 다시 누르면 풀립니다 — 잘못 고르셨을 때 되돌리는 길입니다.
     el.onclick = () => setConfirmedOrder(id, el.dataset.on ? '' : el.dataset.confirm);

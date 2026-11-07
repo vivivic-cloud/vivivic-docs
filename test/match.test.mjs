@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 이름후보, 정식이름, 찾을이름들, 가격칸 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 이름후보, 정식이름, 찾을이름들, 가격칸, 같은발주인가, 발주판묶기, 양식묶기 } from '../js/match.js';
 import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
@@ -549,4 +549,90 @@ test('가격칸 — 머리줄 이름으로 가격 칸, 수량·CBM 은 그대로
   // 해피코 머리: 헤보트 CBM · cbm합 · Carton Volume 은 가격 아님
   const hp = 가격칸({ h: 1, rows: [{ c: ['code#', 'ITEM NAME (ENG)', 'ORDER QTY', '헤보트 CBM', 'cbm합', 'Carton Volume (CBM)', 'PRICE (FOB Qingdao)', 'AMOUNT', '환율적용 운임세금 1.15', '매입가'] }] });
   assert.deepEqual([...hp.칸], [6, 7, 8, 9]);
+});
+
+/* ── 양식만 다른 같은 발주서 (사장님 11-07) ── 이름·코드·숫자는 지어낸 것입니다. */
+const 합 = (줄, i) => String(줄.reduce((s, r) => s + (대조숫자(r[i]) ?? 0), 0));
+const 양식표 = (줄, 끝 = true) => ({
+  name: '발주서', h: 1, f: 줄.length + 1,
+  rows: [['no.', 'code#', 'ITEM NAME', 'PRICE (FOB Qingdao)', 'ORDER QTY', 'AMOUNT'], ...줄.map((r, i) => [String(i + 1), ...r]),
+    ...(끝 ? [['TOTAL', '', '', '', 합(줄, 3), 합(줄, 4)]] : [])],
+});
+const 양식서류 = (name, 줄, brief = {}, 끝 = true) => ({ name, path: `해피코/Hp-26-01/${name}`, mtime: 1, cipl: { brief, sheets: [양식표(줄, 끝)] } });
+const 줄1 = [['AA_1', '가', '¥100.00', '10', '¥ 1,000.00'], ['BB-2', '나', '¥20.00', '5', '¥ 100.00']];
+
+test('같은발주인가 — PDF 와 엑셀이 표 내용이 같으면 같은 발주 (돈 표기가 달라도)', () => {
+  const pdf = 양식서류('HPC-26-1차_20260101.pdf', 줄1, { orderDate: '2026-01-01' });
+  const xls = 양식서류('다른이름.xlsx', [['AA▁1', '가나다', '100', '10', '1000'], ['BB-2', '라', '20', '5', '100']], { orderDate: '2026-01-01' }, false);
+  assert.equal(같은발주인가(pdf, xls), true);
+});
+
+test('같은발주인가 — 일부만 같으면 안 묶는다', () => {
+  const pdf = 양식서류('a.pdf', 줄1);
+  const 다름 = (줄) => 같은발주인가(pdf, 양식서류('b.xlsx', 줄));
+  assert.equal(다름([줄1[0]]), false, '품목이 빠짐');
+  assert.equal(다름([...줄1, ['CC_3', '다', '¥1.00', '1', '¥1.00']]), false, '품목이 더 있음');
+  assert.equal(다름([['AA_1', '가', '¥100.00', '11', '¥ 1,000.00'], 줄1[1]]), false, '수량 다름');
+  assert.equal(다름([['AA_1', '가', '¥100.00', '10', '¥ 1,100.00'], 줄1[1]]), false, '금액 다름');
+  assert.equal(다름([['AA_1', '가', '¥90.00', '10', '¥ 1,000.00'], 줄1[1]]), false, '단가 다름');
+  assert.equal(다름([['AA-1', '가', '¥100.00', '10', '¥ 1,000.00'], 줄1[1]]), false, '코드 꼴 다름(- 와 _ 는 다른 코드)');
+});
+
+test('같은발주인가 — 이름이 같아도 내용이 다르면 다른 발주, 이름이 달라도 같으면 같은 발주', () => {
+  const 이름같음 = [양식서류('HPC-26-1차.pdf', 줄1), 양식서류('HPC-26-1차.xlsx', [['AA_1', '가', '¥100.00', '12', '¥ 1,200.00'], 줄1[1]])];
+  assert.equal(같은발주인가(...이름같음), false);
+  assert.equal(같은발주인가(양식서류('완전히.pdf', 줄1), 양식서류('다른 이름.pdf', 줄1)), true);
+});
+
+test('같은발주인가 — 품목이 같아도 납기가 고쳐졌으면 다른 판', () => {
+  const a = 양식서류('a.pdf', 줄1, { orderDate: '2026-01-01', deliveryDate: '2026-02-01' });
+  assert.equal(같은발주인가(a, 양식서류('b.xlsx', 줄1, { orderDate: '2026-01-01', deliveryDate: '2026-03-01' })), false);
+  assert.equal(같은발주인가(a, 양식서류('c.xlsx', 줄1, { orderDate: '2026-01-02', deliveryDate: '2026-02-01' })), false);
+  assert.equal(같은발주인가(a, 양식서류('d.xlsx', 줄1, { orderDate: '2026-01-01' })), false, '납기를 적어 넣은 수정본');
+});
+
+test('같은발주인가 — 못 읽거나 표가 잘렸으면 묶지 않는다', () => {
+  const pdf = 양식서류('a.pdf', 줄1);
+  assert.equal(같은발주인가(pdf, { name: 'b.xlsx', path: 'b.xlsx' }), false, '엑셀을 아직 안 읽음');
+  assert.equal(같은발주인가(pdf, { name: 'c.xlsx', cipl: { sheets: [] } }), false, '읽을 표 없음');
+  assert.equal(같은발주인가(양식서류('쪽나뉨.pdf', 줄1, {}, false), 양식서류('b.xlsx', 줄1)), false, 'PDF 합계줄 없음');
+  assert.equal(같은발주인가(양식서류('a.pdf', []), 양식서류('b.pdf', [])), false, '품목 없음');
+  const 끝 = (d, q, a) => { d.cipl.sheets[0].rows.push(['', '', '', '', q, a]); return d; };
+  assert.equal(같은발주인가(끝(양식서류('숫자합계.pdf', 줄1, {}, false), '15', '¥1,100.00'), 양식서류('b.xlsx', 줄1)), true, '낱말 없는 합계줄(해피코)');
+  assert.equal(같은발주인가(끝(양식서류('a.pdf', 줄1, {}, false), '15', '¥1,100.00'), 끝(양식서류('b.pdf', 줄1, {}, false), '15', '¥1,100.00')), true);
+  assert.equal(같은발주인가(끝(양식서류('a.pdf', 줄1, {}, false), '15', '¥1,100.00'), 끝(양식서류('b.pdf', 줄1, {}, false), '14', '¥900.00')), false, '줄을 취소해 합계만 다름(해피코 26-2)');
+  // 표가 첫 쪽에서 끊긴 PDF 끼리 — 글자에서 읽은 총수량·총금액이 같을 때만
+  const 끊김 = (n, b) => 양식서류(n, 줄1, b, false);
+  assert.equal(같은발주인가(끊김('a.pdf', { qty: 15, amount: 1100 }), 끊김('b.pdf', { qty: 15, amount: 1100 })), true, '제헤우드 26-03');
+  assert.equal(같은발주인가(끊김('a.pdf', { qty: 15, amount: 1100 }), 끊김('b.pdf', { qty: 15, amount: 900 })), false, '뒤쪽이 다름');
+  assert.equal(같은발주인가(끊김('a.pdf', {}), 끊김('b.pdf', {})), false, '총합을 모름');
+});
+
+test('발주판묶기 — 수정 전·후는 판으로 나뉘고 판마다 PDF 가 대표', () => {
+  const 수정줄 = [줄1[0], ['BB-2', '나', '¥20.00', '7', '¥ 140.00']];
+  const [판1, 판2, ...더] = 발주판묶기([
+    양식서류('1차수정.xlsx', 수정줄), 양식서류('1차수정.pdf', 수정줄), 양식서류('처음.xlsx', 줄1), 양식서류('처음.pdf', 줄1),
+  ]);
+  assert.equal(더.length, 0);
+  assert.equal(판1.name, '1차수정.pdf');
+  assert.deepEqual(판1.양식들.map((d) => [d.양식, d.name]), [['PDF', '1차수정.pdf'], ['엑셀', '1차수정.xlsx']]);
+  assert.equal(판2.name, '처음.pdf');
+});
+
+test('발주판묶기 — 같은 꼴 양식은 번호, 셋도 한 판', () => {
+  const [판] = 발주판묶기([양식서류('a.pdf', 줄1), 양식서류('b.pdf', 줄1), 양식서류('c.xlsx', 줄1)]);
+  assert.deepEqual(판.양식들.map((d) => d.양식), ['PDF 1', 'PDF 2', '엑셀']);
+});
+
+test('양식묶기 — 발주서 칸만 접고 b.docs 는 그대로, 혼자면 그대로', () => {
+  const docs = [양식서류('a.pdf', 줄1), 양식서류('a.xlsx', 줄1)];
+  const b = { docs, stages: [{ key: 'order', docs }, { key: 'cipl', docs: [] }] };
+  const 뒤 = 양식묶기(b);
+  assert.equal(뒤.stages[0].docs.length, 1);
+  assert.equal(뒤.stages[0].docs[0].양식들.length, 2);
+  assert.equal(뒤.docs.length, 2);
+  assert.equal(뒤.stages[1], b.stages[1]);
+  const 혼자 = { docs: docs.slice(0, 1), stages: [{ key: 'order', docs: docs.slice(0, 1) }] };
+  assert.equal(양식묶기(혼자), 혼자);
+  assert.equal(양식묶기({ 임시: true, docs: [] }).stages, undefined);
 });

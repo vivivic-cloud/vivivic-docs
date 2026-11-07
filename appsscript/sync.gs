@@ -14,7 +14,7 @@ const COLLECTION = 'artifacts/vivivic-4b7ef/public/data/docs_files';
 const CONFIG = 'artifacts/vivivic-4b7ef/public/data/docs_config';
 const MAX_DEPTH = 4;
 // 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 지문이 달라져 전체를 다시 훑습니다.
-const MARK_VERSION = 19;   // 19 — 범위 밖 docs_files 지우기(10-30). 한 번 다 훑게.
+const MARK_VERSION = 20;   // 20 — 엑셀 발주서를 새로 읽음(11-07). 한 번 다 훑게. 19 — 범위 밖 docs_files 지우기(10-30).
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
 const READ_VERSION = 15; // 15 — 위아래 합친 칸을 아래 품목 줄에도 채움(11-02).
@@ -32,6 +32,8 @@ let ciplCut = 0;
 let 병합채움 = 0; // 위아래 합친 칸을 아래 줄에 채운 수 — sync 끝 글에 붙습니다.
 let poOk = 0;
 let poAll = 0;
+let xlsOk = 0;
+let xlsAll = 0;
 let lastNote = '';
 let runStart = new Date();
 let lastCiplError = '';
@@ -45,6 +47,8 @@ function sync() {
   병합채움 = 0;
   poOk = 0;
   poAll = 0;
+  xlsOk = 0;
+  xlsAll = 0;
   lastCiplError = '';
   const root = findRoot_();
   const files = [];
@@ -90,7 +94,7 @@ function sync() {
   const toRead = [];
   files.forEach(function (f) {
     const before = existing[docId_(f.path)];
-    const doc = isCipl_(f.name) || isOrderPdf_(f.name);
+    const doc = 서류인가_(f.name);
     if (!before || changed_(before, f)) {
       // 내용이 바뀐 서류는 예전 cipl 을 비웁니다. 남겨 두면 다시 읽기 전에 시간이 끊겼을 때
       // 다음번에 「이미 읽었다」 로 보여 영영 다시 안 읽고, 그동안 틀린 값으로 대조합니다.
@@ -145,7 +149,7 @@ function sync() {
   const secs = (new Date() - started) / 1000;
   const note = '파일 ' + files.length + '건' + (남긴밖 ? ' · 범위 밖 남김 ' + 남긴밖 + '건' : '') + (지운밖 ? ' · 범위 밖 지움 ' + 지운밖 + '건' : '') +
     (밖지운글 ? ' · ' + 밖지운글 : '') + ' · 쓰기 ' + (writes.length + ciplWrites) + '건 · 서류 읽음 ' + ciplOk +
-    '건, 읽을 표 없음 ' + ciplNone + '건' + (poAll ? ' · 발주서 표 ' + poOk + '/' + poAll + '건' : '') + (병합채움 ? ' · 병합 채움 ' + 병합채움 + '칸' : '') + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
+    '건, 읽을 표 없음 ' + ciplNone + '건' + (poAll ? ' · 발주서 표 ' + poOk + '/' + poAll + '건' : '') + (xlsAll ? ' · 엑셀 발주서 표 ' + xlsOk + '/' + xlsAll + '건' : '') + (병합채움 ? ' · 병합 채움 ' + 병합채움 + '칸' : '') + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
     ' · ' + secs + '초' + (lastCiplError ? ' · 마지막 오류: ' + lastCiplError : '');
   console.log(note);
   lastNote = note;
@@ -595,7 +599,7 @@ function ciplWrite_(f) {
     ciplCut++;
     return null;
   }
-  const cipl = isOrderPdf_(f.name) ? orderCipl_(f) : ciplValue_(f);
+  const cipl = 서류값_(f);
   return {
     update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: { cipl: cipl } },
     updateMask: { fieldPaths: ['cipl'] },
@@ -616,6 +620,28 @@ function orderCipl_(f) {
   return { mapValue: { fields: {
     brief: briefValue_(pb), invoiceDate: { stringValue: '' }, items: itemsValue_(pi),
     sheets: { arrayValue: { values: pt ? [sheetValue_(pt)] : [] } },
+    v: { integerValue: String(READ_VERSION) },
+  } } };
+}
+
+/** 안을 읽는 서류인지 · 읽어서 cipl 칸 값 — 잔액서류·계약서, 발주서 PDF, 엑셀 발주서. */
+function 서류인가_(name) { return isCipl_(name) || isOrderPdf_(name) || isOrderSheet_(name); }
+function 서류값_(f) {
+  return isOrderPdf_(f.name) ? orderCipl_(f) : isOrderSheet_(f.name) ? orderSheetCipl_(f) : ciplValue_(f);
+}
+
+/* 엑셀 발주서(11-07) — 같은 발주를 PDF 와 엑셀 두 양식으로 두는 해피코 때문에 읽습니다.
+   화면이 둘을 내용으로 맞대 한 발주로 묶습니다(js/match.js 같은발주인가). 꼴은 발주서 PDF 와 같습니다.
+   ⚠ items 는 일부러 비웁니다 — docs단품수량 이 발주서 칸 items 를 더해, 양식이 둘이면 수량이 두 배가 됩니다. */
+function orderSheetCipl_(f) {
+  const c = ciplOf_(f.driveId, f.name, true) || {};
+  const t = c.sheets && c.sheets[0];
+  xlsAll++;
+  if (t) xlsOk++;
+  if (t || c.brief) ciplOk++; else ciplNone++;
+  return { mapValue: { fields: {
+    brief: briefValue_(c.brief || null), invoiceDate: { stringValue: '' }, items: itemsValue_(null),
+    sheets: { arrayValue: { values: t ? [sheetValue_(t)] : [] } },
     v: { integerValue: String(READ_VERSION) },
   } } };
 }
@@ -958,11 +984,18 @@ const HAPPYCO_PO_ = /^(?:TalkFile_+)?HPC\s*-\s*\d{2}\s*-\s*\d{1,2}\s*차/i;
       서버가 **안 읽습니다** — 10-16 에 진짜 이름 11장으로 세니 **6장이 그랬습니다**
       (`PO_poniel 26-05` · `26-1_PO for Ceramic table` 꼴. `PO`·`발주서`·`주문서` 가 빠져 있었습니다).
       한쪽만 고치지 마십시오. */
+const ORDER_WORD_ = /ordersheet|order\s*sheet|(?:^|[^A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서/i;
+function 발주이름인가_(name) {
+  return (ORDER_WORD_.test(name) || HAPPYCO_PO_.test(String(name).normalize('NFC'))) && !/영수증|receipt/i.test(name);
+}
 function isOrderPdf_(name) {
-  return /\.pdf$/i.test(name) &&
-    (/ordersheet|order\s*sheet|(?:^|[^A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서/i.test(name) ||
-      HAPPYCO_PO_.test(String(name).normalize('NFC'))) &&
-    !/영수증|receipt/i.test(name);
+  return /\.pdf$/i.test(name) && 발주이름인가_(name);
+}
+
+/* 엑셀 발주서 — 잔액서류·계약서(isCipl_)가 먼저입니다. PI·상차·선하증권은 화면이 발주서로 안 보니 뺍니다(parse.js classify 차례). */
+function isOrderSheet_(name) {
+  return CIPL_EXT.test(name) && !isCipl_(name) && 발주이름인가_(name) &&
+    !/(?:^|[^A-Za-z])PI(?![A-Za-z])|계약서|주문계약|상차|装[车車]|裝車|loading|선하증권/i.test(name);
 }
 
 const cellKey_ = function (v) { return String(v == null ? '' : v).replace(/[\s.()]+/g, '').toLowerCase(); };
@@ -1057,7 +1090,7 @@ function readMeta_(rows) {
  * 엑셀을 구글 시트로 잠깐 복사해 값을 읽고, 복사본은 지웁니다.
  * 브라우저는 폴더가 연결돼 있어야 파일 속을 볼 수 있지만, 여기서는 그냥 됩니다.
  */
-function ciplOf_(fileId, name) {
+function ciplOf_(fileId, name, 발주) {
   let copyId = null;
   try {
     const res = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/copy', {
@@ -1096,6 +1129,17 @@ function ciplOf_(fileId, name) {
     let brief = null;
     let items = null;
     const 표들 = [];
+    // 엑셀 발주서 — 숨긴 칸·줄은 보낸 발주서에 없는 값입니다. 품목 줄이 가장 많은 시트 하나만, PDF 와 같은 이름으로.
+    if (발주) {
+      sheets.forEach(function (sh) {
+        if (sh.isSheetHidden()) return;
+        const 표 = 원본표_(sh.getDataRange().getValues(), sh, 숨김자리_(sh));
+        if (표 && (!표들[0] || 표.f - 표.h > 표들[0].f - 표들[0].h)) 표들[0] = 표;
+      });
+      if (!표들.length) return null;
+      표들[0].name = '발주서';
+      return { sheets: 표들, brief: readPdfBrief_(표들[0].머리글) };
+    }
     for (let i = 0; i < sheets.length; i++) {
       const rows = sheets[i].getDataRange().getValues();
       // 내용보기 팝업이 원본 양식 그대로 그릴 표 — 품목 표가 있는 시트마다(CI · PL). 팝업에서 시트 칩으로 고릅니다.
@@ -1501,8 +1545,10 @@ function itemsValue_(list) {
    거래처마다 양식이 다릅니다 — 제헤우드 CI 12칸, 베이지아 CI 5칸에 머리줄 두 줄(「(PCS) CNY」).
    h = 머리줄 수, f = 합계·잔금 줄이 시작하는 자리(없으면 줄 수). 둘 다 rows 안의 번호입니다.
    ⚠ Firestore 는 배열 안에 배열을 못 둡니다 — 줄마다 { c: [...] } 로 감쌉니다. */
-function 원본표_(rows, sh) {
+function 원본표_(rows, sh, 숨) {
   if (!rows || !rows.length) return null;
+  const 숨긴칸 = function (r) { return !숨 ? r : (r || []).map(function (v, c) { return 숨.칸[c] ? '' : v; }); };
+  if (숨) rows = rows.map(숨긴칸);
   let head = -1;
   let cols = {};
   for (let i = 0; i < Math.min(rows.length, 20); i++) {
@@ -1521,7 +1567,7 @@ function 원본표_(rows, sh) {
   if (head < 0) return null;
 
   // 보이는 글자 그대로 — 14.056000000000001 이 아니라 14.056.
-  const shown = sh.getDataRange().getDisplayValues();
+  let shown = sh.getDataRange().getDisplayValues();
   const 글 = function (v) { return String(v == null ? '' : v).replace(/\s*\n\s*/g, ' ').trim().slice(0, 60); };
   // 위아래로 합친 칸은 맨 윗줄에만 글이 있습니다 — 머리줄 밑 품목 줄이면 아래 줄에도 넣습니다(병합채울칸_).
   let 합친 = [];
@@ -1537,6 +1583,15 @@ function 원본표_(rows, sh) {
       }
     }
   });
+  // 숨긴 칸·줄을 걷습니다 — 병합을 채운 뒤에(병합 자리는 원래 줄 번호입니다).
+  let 머리글 = '';
+  if (숨) {
+    머리글 = shown.slice(0, head).filter(function (r, i) { return !숨.줄[i]; }).map(function (r) {
+      return 숨긴칸(r).filter(function (v) { return String(v).trim(); }).join('\n');
+    }).filter(Boolean).join('\n');
+    head -= shown.slice(0, head).filter(function (r, i) { return 숨.줄[i]; }).length;
+    shown = shown.filter(function (r, i) { return !숨.줄[i]; }).map(숨긴칸);
+  }
   const 빈줄 = function (r) { return !(r || []).some(function (v) { return 글(v); }); };
 
   // 은행·서명 글귀가 나오면 표가 끝난 것입니다. 빈 줄이 셋 이어져도 끝입니다.
@@ -1577,7 +1632,18 @@ function 원본표_(rows, sh) {
     const 비었나 = function (c) { return c === undefined || !글(r[c]); };
     if (r.some(function (v) { return TOTAL_ROW_.test(글(v)); }) || (비었나(코드칸) && 비었나(cols.name))) { f = i; break; }
   }
-  return { name: String(sh.getName()).slice(0, 40), rows: out, h: h, f: f };
+  const 표 = { name: String(sh.getName()).slice(0, 40), rows: out, h: h, f: f };
+  if (숨) 표.머리글 = 머리글;
+  return 표;
+}
+
+/** 시트의 숨긴 칸·줄 자리(0부터). 거른 줄도 숨긴 줄입니다 — 인쇄·PDF 에 안 나옵니다. */
+function 숨김자리_(sh) {
+  const 칸 = {}, 줄 = {};
+  const 범위 = sh.getDataRange();
+  for (let c = 1; c <= 범위.getLastColumn(); c++) if (sh.isColumnHiddenByUser(c)) 칸[c - 1] = true;
+  for (let r = 1; r <= 범위.getLastRow(); r++) if (sh.isRowHiddenByUser(r) || sh.isRowHiddenByFilter(r)) 줄[r - 1] = true;
+  return { 칸: 칸, 줄: 줄 };
 }
 
 /* ── 발주서 원본 표 (발주서 내용보기) ──
@@ -2019,9 +2085,9 @@ function 서랍적기_(fileId, 곳, 기록) {
     f = fileOf_(meta, 곳.path + '/' + meta.name, 곳.vendor);
     const fields = baseFields_(f);
     const mask = Object.keys(fields);
-    if (isCipl_(f.name) || isOrderPdf_(f.name)) {
+    if (서류인가_(f.name)) {
       runStart = new Date();
-      fields.cipl = isOrderPdf_(f.name) ? orderCipl_(f) : ciplValue_(f);
+      fields.cipl = 서류값_(f);
       mask.push('cipl');
     }
     writes.push({ update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields }, updateMask: { fieldPaths: mask } });

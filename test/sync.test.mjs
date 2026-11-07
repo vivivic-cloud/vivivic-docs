@@ -530,3 +530,44 @@ test('파일내주기_ — pdf 부탁도 같은 자물쇠: shareAllow 가 비면
   g.PropertiesService = { getScriptProperties: () => ({ getProperty: () => '' }) };
   assert.equal(g.파일내주기_({ pdf: true, driveId: 'abcdefghijklmn', idToken: 'x' }).why, 'off');
 });
+
+test('원본표_ — 엑셀 발주서는 숨긴 칸·줄을 빼고 뜬다, 머리 글자도 (해피코, 11-07)', () => {
+  // 실물 꼴: 머리 밑 줄은 숨긴 칸(박스 가로·세로)만 차 있고, 안 시킨 줄은 숨겨져 있습니다. 숨긴 줄에 수량이 남은 양식도 있습니다.
+  const shown = [
+    ['Order Date', '2026.10.23', '', '', '', '', ''],
+    ['Delivery Date', '2026.11.17 (상차요청일)', '', '', '', '', ''],
+    ['no.', 'code#', 'cbm', 'ORDER QTY', 'AMOUNT', '박스', 'PRICE'],
+    ['', '', '', '', '', '가로', ''],
+    ['1', 'LS_a', '0.16', '39', '10,951.20', '', '280.80'],
+    ['2', 'LS_b', '0.2', '5', '100.00', '', '20.00'],
+    ['3', 'LS_c', '', '', '0', '', '30.00'],
+    ['', 'TOTAL', '', '39', '10,951.20', '', ''],
+  ];
+  const sh = {
+    getName: () => '해피코 26-5차 발주서',
+    getDataRange: () => ({ getDisplayValues: () => shown.map((r) => r.slice()), getMergedRanges: () => [] }),
+  };
+  const 숨 = { 칸: { 2: true, 5: true }, 줄: { 5: true, 6: true } };
+  const t = gs.원본표_(shown, sh, 숨);
+  assert.deepEqual([...t.rows.map((r) => [...r])], [
+    ['no.', 'code#', 'ORDER QTY', 'AMOUNT', 'PRICE'],
+    ['1', 'LS_a', '39', '10,951.20', '280.80'],
+    ['', 'TOTAL', '39', '10,951.20', ''],
+  ]);
+  assert.equal(t.h, 1);
+  assert.equal(t.f, 2);
+  const b = gs.readPdfBrief_(t.머리글);
+  assert.equal(b.orderDate, '2026-10-23');
+  assert.equal(b.deliveryDate, '2026-11-17');
+  // 숨김 안 주면 예전 그대로 — 머리글 없음
+  assert.equal(gs.원본표_(shown, sh).머리글, undefined);
+});
+
+test('isOrderSheet_ — 엑셀 발주서만 새로 읽는다', () => {
+  for (const n of ['HPC-26-10차 _20260325.xlsx', 'HPC-26-24차_1차 수정 2026.09.14.pdf.xlsx', 'AMT 발주서.xls', 'PO_26-151.xlsm'])
+    assert.equal(gs.isOrderSheet_(n), true, n);
+  for (const n of ['HPC-26-10차 _20260325.pdf', 'ZH26-1 CI&PL.xlsx', '合同 26-7.xlsx', '발주서 영수증.xlsx', 'PI 26-1 발주서.xlsx', '제품목록.xlsx'])
+    assert.equal(gs.isOrderSheet_(n), false, n);
+  assert.equal(gs.서류인가_('HPC-26-10차 _20260325.xlsx'), true);
+  assert.equal(gs.서류인가_('제품목록.xlsx'), false);
+});
