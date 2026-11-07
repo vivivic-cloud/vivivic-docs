@@ -393,8 +393,8 @@ export async function 단품연결쓰기(열쇠, vp, email) {
   await ctx.f.setDoc(ctx.f.doc(col(CONFIG), '단품연결'), { 링크: { [열쇠]: 값 } }, { merge: true });
 }
 
-/* ── 대표양식·특이사항 (11-07) ─────────────────────────
-   `docs_config/서류단서` 한 건 — { <거래처>: { pdf만, 메모, 칸: { order|pi|cipl: { file, path, driveId, 낱말: [{ w, 곳, 임시 }] } } } }.
+/* ── 대표양식 (11-07) ─────────────────────────
+   `docs_config/서류단서` 한 건 — { <거래처>: { 칸: { order|pi|cipl: { file, path, driveId, 낱말: [{ w, 곳, 임시 }] } } } }.
    ⚠ 듣지 않습니다. 앱을 열 때 한 번 읽습니다(읽기 +1). 서버는 안 읽습니다 — 판정은 앱이 합니다. */
 export async function 서류단서읽기() {
   try {

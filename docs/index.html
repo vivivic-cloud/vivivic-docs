@@ -99,11 +99,7 @@
   :is(#docs-prod, .dpr-pop) .dpr-t td.dpr-m{ white-space:normal; min-width:140px; }
   :is(#docs-prod, .dpr-pop) .dpr-t .dpr-k{ position:sticky; left:0; z-index:1; background:var(--vg-bg); font-weight:700; color:var(--vg-ink); }
   :is(#docs-prod, .dpr-pop) .dpr-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
-  /* 대표양식 · 특이사항 (11-07) — #diffView 팝업. 칸 밖 가로 넘침은 없고 표는 .vv-x 안에서만. */
-  .dpr-pop .dan-opt{ display:flex; align-items:center; gap:8px; }
-  .dpr-pop .dan-opt .chip{ flex:none; min-height:40px; }
-  .dpr-pop .dan-opt input{ flex:1; min-width:0; }
-  .dpr-pop .dan-opt input{ min-height:40px; border:1px solid #ededeb; border-radius:10px; padding:0 12px; font-size:14px; background:#fff; color:var(--vg-ink); }
+  /* 대표양식 (11-07) — #diffView 팝업. 칸 밖 가로 넘침은 없고 표는 .vv-x 안에서만. */
   .dpr-pop .dan-box{ border:1px solid #ededeb; border-radius:16px; padding:14px; margin:0 0 10px; background:#fff; }
   .dpr-pop .dan-top{ display:flex; align-items:center; gap:8px; }
   .dpr-pop .dan-top b{ flex:none; font-size:14px; font-weight:800; color:var(--vg-ink); }
@@ -424,7 +420,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.120.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.121.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -465,7 +461,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.120.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.121.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1570,7 +1566,6 @@ const 단서종류 = [
 ];
 const 단서무게 = { 직접: 3, 시트: 2, 제목: 2, 머리: 1 };
 const 단서문턱 = 3;       // 낱말 둘은 맞아야 합니다(직접 넣은 낱말은 하나로)
-const 단서문턱PDF = 2;    // 「PDF 로만 보냄」 업체의 PDF — 시트가 없어 제목 하나로 봅니다(임시)
 
 const 고른글 = (v) => String(v ?? '').normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
 const 낱글 = (m) => m.replace(/\s+/g, ' ').trim();
@@ -1613,20 +1608,20 @@ function 가르는낱말(나) {
     (칸들[k]?.낱말 ?? []).map((x) => ({ 글: 고른글(x.w), 곳: x.곳 })).filter((x) => x.글.length >= 2 && 수.get(x.글) === 1)]));
 }
 
-function 단서로(나, 시트들, 글, pdf) {
+function 단서로(나, 시트들, 글) {
   const 표 = 가르는낱말(나);
   const 점수 = Object.entries(표).map(([key, 낱말들]) => {
     const 맞음 = 낱말들.filter((x) => (x.곳 === '시트' ? 시트들.includes(x.글) : 글.includes(x.글) || 시트들.includes(x.글)));
     return { key, 맞음, 합: 맞음.reduce((s, x) => s + (단서무게[x.곳] ?? 1), 0) };
   }).sort((a, b) => b.합 - a.합);
   const [첫, 둘] = 점수;
-  if (!첫 || 첫.합 < (나?.pdf만 && pdf ? 단서문턱PDF : 단서문턱) || 첫.합 === 둘?.합) return null;
+  if (!첫 || 첫.합 < 단서문턱 || 첫.합 === 둘?.합) return null;
   return 감지값(첫.key, `단서 ${첫.맞음.slice(0, 3).map((x) => x.글).join(' · ')}`);
 }
 
 /**
  * 안의 글로 서류 종류를 가립니다. 못 가르면 null — 그대로 미분류입니다.
- * 나 = 그 거래처 단서 { pdf만, 칸: { order: { 낱말: [{ w, 곳, 임시 }] }, … } } — 구성이 없을 때만 씁니다.
+ * 나 = 그 거래처 단서 { 칸: { order: { 낱말: [{ w, 곳, 임시 }] }, … } } — 구성이 없을 때만 씁니다.
  * 구성으로 = 그 거래처에 구성이 있을 때 (sniff) => { key, 말 } | null. parse.js 는 form.js 를 모릅니다(앱이 건넵니다).
  */
 function 내용판별(sniff, 나, 구성으로 = null) {
@@ -1641,7 +1636,7 @@ function 내용판별(sniff, 나, 구성으로 = null) {
     const r = 구성으로(sniff);
     return r ? 감지값(r.key, r.말) : 공통둘째(시트들, 다);
   }
-  return 단서로(나, 시트들, 다, sniff.kind === 'p') ?? 공통둘째(시트들, 다);
+  return 단서로(나, 시트들, 다) ?? 공통둘째(시트들, 다);
 }
 
 /* ── 중국어 파일명 뜻풀이 ─────────────────────────────── */
@@ -4865,7 +4860,7 @@ function 틀구성(틀, 파일 = '') {
    재료 = sniff { kind, sheets, text } + 있으면 표(cipl.sheets). 양식에 적힌 글 그대로와 맞댑니다 — 낱말 표가 아닙니다.
    시트 구성 3 · 표 칸 6 · 제목·머리칸 3. 어느 쪽이 없으면 그 몫을 뺀 나머지로 셉니다.
    문턱·간격은 임시입니다(11-07 실물로 잼 — CLAUDE.md). */
-const 맞대기문턱 = 0.6, 맞대기문턱PDF = 0.5, 맞대기간격 = 0.1;
+const 맞대기문턱 = 0.6, 맞대기간격 = 0.1;
 const 값없는시트 = /^(sheet|시트|wps|工作表)?\d*$/;
 function 구성점수(구성, 재) {
   const 시트 = (구성.시트 ?? []);
@@ -4890,7 +4885,7 @@ function 구성점수(구성, 재) {
  * 구성들 = { order: 구성, pi: 구성, cipl: 구성 }. → { key, 점, 말 } 또는 null.
  * 말은 사람이 읽는 까닭 — 「구성 잔액서류 86% · 시트 2/2 · 표 칸 9/11 · 머리 3/4」.
  */
-function 구성맞대기(sniff, 구성들, { 표들 = [], pdf만 = false, 말 = {} } = {}) {
+function 구성맞대기(sniff, 구성들, { 표들 = [], 말 = {} } = {}) {
   const 있는 = Object.entries(구성들 ?? {}).filter(([, g]) => g?.시트?.length);
   if (!있는.length || !sniff) return null;
   const 표글 = 표들.flatMap((t) => (t?.rows ?? []).slice(0, t?.h ?? 1).flatMap((r) => r.c ?? r)).join(' ');
@@ -4898,8 +4893,7 @@ function 구성맞대기(sniff, 구성들, { 표들 = [], pdf만 = false, 말 = 
   if (재.글.length < 10 && !재.시트.length) return null;          // 글자 없는 스캔은 무리하지 않습니다
   const 줄 = 있는.map(([key, g]) => ({ key, ...구성점수(g, 재) })).sort((a, z) => z.점 - a.점);
   const [첫, 둘] = 줄;
-  const 문턱 = pdf만 && sniff.kind === 'p' ? 맞대기문턱PDF : 맞대기문턱;
-  if (첫.점 < 문턱 || (둘 && 첫.점 - 둘.점 < 맞대기간격)) return null;
+  if (첫.점 < 맞대기문턱 || (둘 && 첫.점 - 둘.점 < 맞대기간격)) return null;
   return { key: 첫.key, 점: 첫.점, 말: `구성 ${말[첫.key] ?? 첫.key} ${Math.round(첫.점 * 100)}% · ${첫.줄.join(' · ')}` };
 }
 
@@ -5716,8 +5710,8 @@ async function 단품연결쓰기(열쇠, vp, email) {
   await ctx.f.setDoc(ctx.f.doc(col(CONFIG), '단품연결'), { 링크: { [열쇠]: 값 } }, { merge: true });
 }
 
-/* ── 대표양식·특이사항 (11-07) ─────────────────────────
-   `docs_config/서류단서` 한 건 — { <거래처>: { pdf만, 메모, 칸: { order|pi|cipl: { file, path, driveId, 낱말: [{ w, 곳, 임시 }] } } } }.
+/* ── 대표양식 (11-07) ─────────────────────────
+   `docs_config/서류단서` 한 건 — { <거래처>: { 칸: { order|pi|cipl: { file, path, driveId, 낱말: [{ w, 곳, 임시 }] } } } }.
    ⚠ 듣지 않습니다. 앱을 열 때 한 번 읽습니다(읽기 +1). 서버는 안 읽습니다 — 판정은 앱이 합니다. */
 async function 서류단서읽기() {
   try {
@@ -5854,7 +5848,7 @@ const state = {
   viewer: { list: [], idx: 0 },
   unsub: [],
   임시차수: [],         // 임시통합 — 연 구매사명의 차수(벤더피아 구매발주목록). 드라이브 차수와 따로 둡니다
-  단서: {},                                         // docs_config/서류단서 — 거래처별 특이사항·대표양식 단서
+  단서: {},                                         // docs_config/서류단서 — 거래처별 대표양식 단서
   캐시: { files: true, rules: true, kinds: true, 단서: true, overlay: true },   // 아직 서버 값을 못 봤으면 true — 그동안은 안 씁니다
 };
 
@@ -9522,14 +9516,15 @@ async function 양식적용(틀, file, 모양 = null) {
   }
 }
 
-/* ── 대표양식 · 특이사항 (사장님 11-07) ─────────────────
+/* ── 대표양식 (사장님 11-07) ─────────────────
+   업체 서류를 정확히 알아보는 장치입니다 — 나중에 그 업체 발주서를 쓰거나 잔액서류 내용을 파악할 때 씁니다. 특이사항 칸은 지웠습니다(v0.121.0).
    「대표양식 올리기 저런 낱말 더하기가 아니라 실제 양식을 업로드 하면 분석해서 해당업체의 각 서류들이 어떻게 구성되어 있는지 정확히 파악하라는 말이야」
    거래처 판 「대표양식」 타일 → 이 팝업. 종류마다 파일을 올리면 브라우저가 끝까지 분석합니다(js/form.js, UrlFetch 없음).
    구성은 docs_config/서류단서 의 칸마다 `구성글`(JSON 글). 배열 안 배열을 피하려고 글로 둡니다. 사람이 칸 뜻을 고치면 그 값이 남습니다.
    그 거래처 서류의 종류 감지·품목·번호 읽기가 이 구성을 씁니다(구성일). 예전 낱말(칸.낱말)은 안 지웁니다 — 구성이 없는 거래처의 자리이음입니다.
    원본은 서버가 거래처/대표양식/ 에(자물쇠 올리기와 같음). 꺼져 있어도 분석은 돕니다. 발주서 엑셀은 발주서 만들기 양식과 같은 것입니다. */
 let 단서창 = null;   // { vendor, 왜, 도는칸, 대기, 저장틀, 시트: { 칸: 시트 번호 } }
-const 빈단서 = () => ({ pdf만: false, 메모: '', 칸: {} });
+const 빈단서 = () => ({ 칸: {} });
 const 단서열림 = () => 단서창 && !$('#diffView').hidden && $('#diffBody [data-dandan]');
 const 단서판 = (vendor) => (state.단서[vendor] ??= 빈단서());
 const 단서칸 = (vendor, key) => ((단서판(vendor).칸 ??= {})[key] ??= { 낱말: [] });
@@ -9556,7 +9551,7 @@ const 구성일 = {
   감지(f) {
     const 들 = 구성들(f.vendor);
     if (!Object.keys(들).length) return null;
-    return (sniff) => 구성맞대기(sniff, 들, { 표들: f.cipl?.sheets ?? [], pdf만: !!state.단서[f.vendor]?.pdf만, 말: 종말 });
+    return (sniff) => 구성맞대기(sniff, 들, { 표들: f.cipl?.sheets ?? [], 말: 종말 });
   },
   보강(doc) {
     const 들 = 구성들(doc.vendor);
@@ -9788,16 +9783,11 @@ function 단서그리기() {
   const 줄들 = 감지목록(나.vendor);
   견적팝업('대표양식', 나.vendor, `<div data-dandan>
     ${나.왜 ? `<div class="dpr-sn">${esc(나.왜)}</div>` : ''}
-    <div class="dpr-sn">특이사항</div>
-    <div class="dan-opt"><button type="button" id="danPdf" class="chip ${판.pdf만 ? 'chip-on' : 'chip-off'}">PDF로만 보냄</button>
-      <input id="danMemo" type="text" maxlength="200" placeholder="메모" value="${esc(판.메모 ?? '')}" /></div>
     <div class="dpr-sn">대표양식</div>
     ${칸글}
     <div class="dpr-sn">내용으로 본 서류 ${줄들.length}</div>
     ${줄들.length ? `<div class="vv-x"><table class="dpr-t"><thead><tr><th>차수</th><th>종류</th><th>까닭</th><th>파일</th></tr></thead><tbody>${줄들.join('')}</tbody></table></div>` : '<div class="dpr-none">없음</div>'}
   </div>`);
-  $('#danPdf').onclick = () => { 판.pdf만 = !판.pdf만; 단서그리기(); 단서저장(나.vendor); };
-  $('#danMemo').onchange = (e) => { 판.메모 = e.target.value.trim(); 단서저장(나.vendor); };
   const 몸 = $('#diffBody');
   for (const b of 몸.querySelectorAll('[data-danup]')) b.onclick = () => 단서올리기(b.dataset.danup);
   for (const b of 몸.querySelectorAll('[data-gs]')) b.onclick = () => {

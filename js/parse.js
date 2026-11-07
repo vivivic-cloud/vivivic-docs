@@ -266,7 +266,6 @@ export const 단서종류 = [
 ];
 const 단서무게 = { 직접: 3, 시트: 2, 제목: 2, 머리: 1 };
 const 단서문턱 = 3;       // 낱말 둘은 맞아야 합니다(직접 넣은 낱말은 하나로)
-const 단서문턱PDF = 2;    // 「PDF 로만 보냄」 업체의 PDF — 시트가 없어 제목 하나로 봅니다(임시)
 
 const 고른글 = (v) => String(v ?? '').normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
 const 낱글 = (m) => m.replace(/\s+/g, ' ').trim();
@@ -309,20 +308,20 @@ function 가르는낱말(나) {
     (칸들[k]?.낱말 ?? []).map((x) => ({ 글: 고른글(x.w), 곳: x.곳 })).filter((x) => x.글.length >= 2 && 수.get(x.글) === 1)]));
 }
 
-function 단서로(나, 시트들, 글, pdf) {
+function 단서로(나, 시트들, 글) {
   const 표 = 가르는낱말(나);
   const 점수 = Object.entries(표).map(([key, 낱말들]) => {
     const 맞음 = 낱말들.filter((x) => (x.곳 === '시트' ? 시트들.includes(x.글) : 글.includes(x.글) || 시트들.includes(x.글)));
     return { key, 맞음, 합: 맞음.reduce((s, x) => s + (단서무게[x.곳] ?? 1), 0) };
   }).sort((a, b) => b.합 - a.합);
   const [첫, 둘] = 점수;
-  if (!첫 || 첫.합 < (나?.pdf만 && pdf ? 단서문턱PDF : 단서문턱) || 첫.합 === 둘?.합) return null;
+  if (!첫 || 첫.합 < 단서문턱 || 첫.합 === 둘?.합) return null;
   return 감지값(첫.key, `단서 ${첫.맞음.slice(0, 3).map((x) => x.글).join(' · ')}`);
 }
 
 /**
  * 안의 글로 서류 종류를 가립니다. 못 가르면 null — 그대로 미분류입니다.
- * 나 = 그 거래처 단서 { pdf만, 칸: { order: { 낱말: [{ w, 곳, 임시 }] }, … } } — 구성이 없을 때만 씁니다.
+ * 나 = 그 거래처 단서 { 칸: { order: { 낱말: [{ w, 곳, 임시 }] }, … } } — 구성이 없을 때만 씁니다.
  * 구성으로 = 그 거래처에 구성이 있을 때 (sniff) => { key, 말 } | null. parse.js 는 form.js 를 모릅니다(앱이 건넵니다).
  */
 export function 내용판별(sniff, 나, 구성으로 = null) {
@@ -337,7 +336,7 @@ export function 내용판별(sniff, 나, 구성으로 = null) {
     const r = 구성으로(sniff);
     return r ? 감지값(r.key, r.말) : 공통둘째(시트들, 다);
   }
-  return 단서로(나, 시트들, 다, sniff.kind === 'p') ?? 공통둘째(시트들, 다);
+  return 단서로(나, 시트들, 다) ?? 공통둘째(시트들, 다);
 }
 
 /* ── 중국어 파일명 뜻풀이 ─────────────────────────────── */

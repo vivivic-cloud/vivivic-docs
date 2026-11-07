@@ -27,7 +27,7 @@ const state = {
   viewer: { list: [], idx: 0 },
   unsub: [],
   임시차수: [],         // 임시통합 — 연 구매사명의 차수(벤더피아 구매발주목록). 드라이브 차수와 따로 둡니다
-  단서: {},                                         // docs_config/서류단서 — 거래처별 특이사항·대표양식 단서
+  단서: {},                                         // docs_config/서류단서 — 거래처별 대표양식 단서
   캐시: { files: true, rules: true, kinds: true, 단서: true, overlay: true },   // 아직 서버 값을 못 봤으면 true — 그동안은 안 씁니다
 };
 
@@ -3695,14 +3695,15 @@ async function 양식적용(틀, file, 모양 = null) {
   }
 }
 
-/* ── 대표양식 · 특이사항 (사장님 11-07) ─────────────────
+/* ── 대표양식 (사장님 11-07) ─────────────────
+   업체 서류를 정확히 알아보는 장치입니다 — 나중에 그 업체 발주서를 쓰거나 잔액서류 내용을 파악할 때 씁니다. 특이사항 칸은 지웠습니다(v0.121.0).
    「대표양식 올리기 저런 낱말 더하기가 아니라 실제 양식을 업로드 하면 분석해서 해당업체의 각 서류들이 어떻게 구성되어 있는지 정확히 파악하라는 말이야」
    거래처 판 「대표양식」 타일 → 이 팝업. 종류마다 파일을 올리면 브라우저가 끝까지 분석합니다(js/form.js, UrlFetch 없음).
    구성은 docs_config/서류단서 의 칸마다 `구성글`(JSON 글). 배열 안 배열을 피하려고 글로 둡니다. 사람이 칸 뜻을 고치면 그 값이 남습니다.
    그 거래처 서류의 종류 감지·품목·번호 읽기가 이 구성을 씁니다(구성일). 예전 낱말(칸.낱말)은 안 지웁니다 — 구성이 없는 거래처의 자리이음입니다.
    원본은 서버가 거래처/대표양식/ 에(자물쇠 올리기와 같음). 꺼져 있어도 분석은 돕니다. 발주서 엑셀은 발주서 만들기 양식과 같은 것입니다. */
 let 단서창 = null;   // { vendor, 왜, 도는칸, 대기, 저장틀, 시트: { 칸: 시트 번호 } }
-const 빈단서 = () => ({ pdf만: false, 메모: '', 칸: {} });
+const 빈단서 = () => ({ 칸: {} });
 const 단서열림 = () => 단서창 && !$('#diffView').hidden && $('#diffBody [data-dandan]');
 const 단서판 = (vendor) => (state.단서[vendor] ??= 빈단서());
 const 단서칸 = (vendor, key) => ((단서판(vendor).칸 ??= {})[key] ??= { 낱말: [] });
@@ -3729,7 +3730,7 @@ const 구성일 = {
   감지(f) {
     const 들 = 구성들(f.vendor);
     if (!Object.keys(들).length) return null;
-    return (sniff) => 구성맞대기(sniff, 들, { 표들: f.cipl?.sheets ?? [], pdf만: !!state.단서[f.vendor]?.pdf만, 말: 종말 });
+    return (sniff) => 구성맞대기(sniff, 들, { 표들: f.cipl?.sheets ?? [], 말: 종말 });
   },
   보강(doc) {
     const 들 = 구성들(doc.vendor);
@@ -3961,16 +3962,11 @@ function 단서그리기() {
   const 줄들 = 감지목록(나.vendor);
   견적팝업('대표양식', 나.vendor, `<div data-dandan>
     ${나.왜 ? `<div class="dpr-sn">${esc(나.왜)}</div>` : ''}
-    <div class="dpr-sn">특이사항</div>
-    <div class="dan-opt"><button type="button" id="danPdf" class="chip ${판.pdf만 ? 'chip-on' : 'chip-off'}">PDF로만 보냄</button>
-      <input id="danMemo" type="text" maxlength="200" placeholder="메모" value="${esc(판.메모 ?? '')}" /></div>
     <div class="dpr-sn">대표양식</div>
     ${칸글}
     <div class="dpr-sn">내용으로 본 서류 ${줄들.length}</div>
     ${줄들.length ? `<div class="vv-x"><table class="dpr-t"><thead><tr><th>차수</th><th>종류</th><th>까닭</th><th>파일</th></tr></thead><tbody>${줄들.join('')}</tbody></table></div>` : '<div class="dpr-none">없음</div>'}
   </div>`);
-  $('#danPdf').onclick = () => { 판.pdf만 = !판.pdf만; 단서그리기(); 단서저장(나.vendor); };
-  $('#danMemo').onchange = (e) => { 판.메모 = e.target.value.trim(); 단서저장(나.vendor); };
   const 몸 = $('#diffBody');
   for (const b of 몸.querySelectorAll('[data-danup]')) b.onclick = () => 단서올리기(b.dataset.danup);
   for (const b of 몸.querySelectorAll('[data-gs]')) b.onclick = () => {

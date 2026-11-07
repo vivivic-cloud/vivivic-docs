@@ -274,7 +274,7 @@ export function 틀구성(틀, 파일 = '') {
    재료 = sniff { kind, sheets, text } + 있으면 표(cipl.sheets). 양식에 적힌 글 그대로와 맞댑니다 — 낱말 표가 아닙니다.
    시트 구성 3 · 표 칸 6 · 제목·머리칸 3. 어느 쪽이 없으면 그 몫을 뺀 나머지로 셉니다.
    문턱·간격은 임시입니다(11-07 실물로 잼 — CLAUDE.md). */
-export const 맞대기문턱 = 0.6, 맞대기문턱PDF = 0.5, 맞대기간격 = 0.1;
+export const 맞대기문턱 = 0.6, 맞대기간격 = 0.1;
 const 값없는시트 = /^(sheet|시트|wps|工作表)?\d*$/;
 function 구성점수(구성, 재) {
   const 시트 = (구성.시트 ?? []);
@@ -299,7 +299,7 @@ function 구성점수(구성, 재) {
  * 구성들 = { order: 구성, pi: 구성, cipl: 구성 }. → { key, 점, 말 } 또는 null.
  * 말은 사람이 읽는 까닭 — 「구성 잔액서류 86% · 시트 2/2 · 표 칸 9/11 · 머리 3/4」.
  */
-export function 구성맞대기(sniff, 구성들, { 표들 = [], pdf만 = false, 말 = {} } = {}) {
+export function 구성맞대기(sniff, 구성들, { 표들 = [], 말 = {} } = {}) {
   const 있는 = Object.entries(구성들 ?? {}).filter(([, g]) => g?.시트?.length);
   if (!있는.length || !sniff) return null;
   const 표글 = 표들.flatMap((t) => (t?.rows ?? []).slice(0, t?.h ?? 1).flatMap((r) => r.c ?? r)).join(' ');
@@ -307,8 +307,7 @@ export function 구성맞대기(sniff, 구성들, { 표들 = [], pdf만 = false,
   if (재.글.length < 10 && !재.시트.length) return null;          // 글자 없는 스캔은 무리하지 않습니다
   const 줄 = 있는.map(([key, g]) => ({ key, ...구성점수(g, 재) })).sort((a, z) => z.점 - a.점);
   const [첫, 둘] = 줄;
-  const 문턱 = pdf만 && sniff.kind === 'p' ? 맞대기문턱PDF : 맞대기문턱;
-  if (첫.점 < 문턱 || (둘 && 첫.점 - 둘.점 < 맞대기간격)) return null;
+  if (첫.점 < 맞대기문턱 || (둘 && 첫.점 - 둘.점 < 맞대기간격)) return null;
   return { key: 첫.key, 점: 첫.점, 말: `구성 ${말[첫.key] ?? 첫.key} ${Math.round(첫.점 * 100)}% · ${첫.줄.join(' · ')}` };
 }
 
