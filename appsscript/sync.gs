@@ -14,9 +14,11 @@ const COLLECTION = 'artifacts/vivivic-4b7ef/public/data/docs_files';
 const CONFIG = 'artifacts/vivivic-4b7ef/public/data/docs_config';
 const MAX_DEPTH = 4;
 // 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 지문이 달라져 전체를 다시 훑습니다.
-const MARK_VERSION = 21;   // 21 — 이름으로 못 가른 서류만 안을 떠 둡니다(11-07, 감지판_). 20 — 엑셀 발주서를 새로 읽음(11-07). 19 — 범위 밖 docs_files 지우기(10-30). 한 번 다 훑게.
+const MARK_VERSION = 22;   // 22 — 엑셀 발주서 숨김을 xlsx 에서 읽음. 21 — 이름으로 못 가른 서류만 안을 떠 둡니다(11-07, 감지판_). 20 — 엑셀 발주서를 새로 읽음(11-07). 19 — 범위 밖 docs_files 지우기(10-30). 한 번 다 훑게.
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
+// 엑셀 발주서만 따로 매기는 판 — 이것만 올리면 엑셀 발주서만 다시 읽습니다. 지문에는 MARK_VERSION 을 같이 올립니다.
+const ORDER_SHEET_READ = 16; // 16 — 숨긴 칸·줄을 xlsx 안 XML 에서 읽음(11-07).
 const READ_VERSION = 15; // 15 — 위아래 합친 칸을 아래 품목 줄에도 채움(11-02).
 const 감지판_ = 1;         // 감지 재료(sniff)를 뜨는 법이 바뀌면 올립니다 — 이름으로 못 가른 서류만 다시 읽습니다. 낱말 판정은 앱(parse.js 내용판별)이라 낱말을 고쳐도 안 올립니다.
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
@@ -107,7 +109,7 @@ function sync() {
       if (doc || 볼) toRead.push(f);
     }
     // 서류인데 아직 안을 못 읽었으면 한 번 더 읽습니다. 예전 cipl 은 새로 읽을 때까지 둡니다.
-    else if (doc && (!before.hasCipl || before.readV !== READ_VERSION)) toRead.push(f);
+    else if (doc && (!before.hasCipl || before.readV !== (isOrderSheet_(f.name) ? ORDER_SHEET_READ : READ_VERSION))) toRead.push(f);
     // 이름으로 못 가른 서류 — 파일당 한 번만 안을 떠 둡니다(sniff). 그 뒤로는 파일이 바뀌어야 다시 봅니다.
     else if (볼 && before.sniffV !== 감지판_) toRead.push(f);
     // 예전에 올라간 파일에는 ctime 이 없습니다. 그 칸 하나만 덧칠합니다 —
@@ -668,7 +670,7 @@ function orderSheetCipl_(f) {
   return { mapValue: { fields: {
     brief: briefValue_(c.brief || null), invoiceDate: { stringValue: '' }, items: itemsValue_(null),
     sheets: { arrayValue: { values: t ? [sheetValue_(t)] : [] } },
-    v: { integerValue: String(READ_VERSION) },
+    v: { integerValue: String(ORDER_SHEET_READ) },
   } } };
 }
 
@@ -1221,9 +1223,10 @@ function ciplOf_(fileId, name, 발주) {
     const 표들 = [];
     // 엑셀 발주서 — 숨긴 칸·줄은 보낸 발주서에 없는 값입니다. 품목 줄이 가장 많은 시트 하나만, PDF 와 같은 이름으로.
     if (발주) {
+      const 엑셀숨김 = 파일숨김_(fileId);
       sheets.forEach(function (sh) {
         if (sh.isSheetHidden()) return;
-        const 표 = 원본표_(sh.getDataRange().getValues(), sh, 숨김자리_(sh));
+        const 표 = 원본표_(sh.getDataRange().getValues(), sh, 엑셀숨김[sh.getName()] || 숨김자리_(sh));
         if (표 && (!표들[0] || 표.f - 표.h > 표들[0].f - 표들[0].h)) 표들[0] = 표;
       });
       if (!표들.length) return null;
@@ -1725,6 +1728,53 @@ function 원본표_(rows, sh, 숨) {
   }
   const 표 = { name: String(sh.getName()).slice(0, 40), rows: out, h: h, f: f };
   if (숨) 표.머리글 = 머리글;
+  return 표;
+}
+
+/* xlsx 안의 XML 에서 시트마다 숨긴 칸·줄을 읽습니다 — { 시트이름: { 칸, 줄 } }.
+   ① 빠릅니다. 시트에 줄마다 묻는 숨김자리_ 는 한 파일에 50초쯤 걸려 sync 한 번에 5건밖에 못 읽었습니다.
+   ② 저장된 그대로입니다. 구글 시트로 바꾸면 거르기를 다시 계산해, 엑셀에서 숨겨 PDF 에 없던 줄이 살아납니다(해피코 26-07).
+   zip 이 아닌 .xls 나 못 읽는 파일은 빈 값 — 그때만 숨김자리_ 로 갑니다. */
+function 파일숨김_(fileId) {
+  const 글 = {};
+  try {
+    const blob = DriveApp.getFileById(fileId).getBlob().setContentType('application/zip');
+    Utilities.unzip(blob).forEach(function (b) {
+      const n = b.getName();
+      if (/^xl\/workbook\.xml$|^xl\/_rels\/workbook\.xml\.rels$|^xl\/worksheets\/[^/]+\.xml$/.test(n)) 글[n] = b.getDataAsString('UTF-8');
+    });
+  } catch (e) { return {}; }
+  return 엑셀숨김표_(글);
+}
+
+/** 위의 순수한 부분 — 파일 이름 → XML 글자. 시험합니다. */
+function 엑셀숨김표_(글) {
+  const 속성 = function (태그, k) {
+    const m = new RegExp('(?:^|\\s)' + k + '="([^"]*)"').exec(태그);
+    return m ? m[1] : '';
+  };
+  const 풀기 = function (v) {
+    return v.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+  };
+  const 숨김 = function (태그) { return /^(1|true)$/.test(속성(태그, 'hidden')); };
+  const 길 = {};
+  (String(글['xl/_rels/workbook.xml.rels'] || '').match(/<Relationship\b[^>]*>/g) || []).forEach(function (t) {
+    길[속성(t, 'Id')] = 'xl/' + 속성(t, 'Target').replace(/^\/?xl\//, '');
+  });
+  const 표 = {};
+  (String(글['xl/workbook.xml'] || '').match(/<sheet\b[^>]*>/g) || []).forEach(function (t) {
+    const xml = 글[길[속성(t, 'r:id')]];
+    if (!xml) return;
+    const 칸 = {}, 줄 = {};
+    (xml.match(/<col\b[^>]*>/g) || []).forEach(function (c) {
+      if (!숨김(c)) return;
+      for (let i = Number(속성(c, 'min')); i <= Number(속성(c, 'max')) && i <= 1000; i++) 칸[i - 1] = true;
+    });
+    (xml.match(/<row\b[^>]*>/g) || []).forEach(function (r) {
+      if (숨김(r)) 줄[Number(속성(r, 'r')) - 1] = true;
+    });
+    표[풀기(속성(t, 'name'))] = { 칸: 칸, 줄: 줄 };
+  });
   return 표;
 }
 

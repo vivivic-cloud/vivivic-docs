@@ -629,4 +629,15 @@ test('서류칸_ — 감지 대상은 cipl·sniff 를 함께, 못 읽으면 표�
   const 큰 = ctx.서류칸_({ ...f, size: 30 * 1024 * 1024 });
   assert.equal(불림, 0);
   assert.equal(큰.sniff.mapValue.fields.text.stringValue, '');
+test('엑셀숨김표_ — xlsx XML 에서 시트마다 숨긴 칸·줄 (시트 파일 번호와 차례가 달라도)', () => {
+  const 표 = gs.엑셀숨김표_({
+    'xl/workbook.xml': '<sheets><sheet name="해피코 26-5차 &amp; 발주서" sheetId="3" r:id="rId2"/><sheet name="Sheet2" sheetId="1" r:id="rId1"/></sheets>',
+    'xl/_rels/workbook.xml.rels': '<Relationships><Relationship Id="rId1" Type="x" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="x" Target="/xl/worksheets/sheet2.xml"/></Relationships>',
+    'xl/worksheets/sheet1.xml': '<cols><col min="1" max="1" hidden="1"/></cols>',
+    'xl/worksheets/sheet2.xml': '<cols><col min="6" max="8" width="3" hidden="1"/><col min="9" max="9" width="9"/></cols><sheetData><row r="17" spans="1:3"/><row r="18" hidden="1" ht="33"><c r="A18"/></row><row r="20" hidden="true"/></sheetData>',
+  });
+  assert.deepEqual(Object.keys(표['해피코 26-5차 & 발주서'].칸), ['5', '6', '7']);
+  assert.deepEqual(Object.keys(표['해피코 26-5차 & 발주서'].줄), ['17', '19']);
+  assert.deepEqual(Object.keys(표.Sheet2.칸), ['0']);
+  assert.deepEqual(Object.keys(gs.엑셀숨김표_({})), []);
 });
