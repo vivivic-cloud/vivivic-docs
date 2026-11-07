@@ -77,6 +77,7 @@
   html[data-docstemp="1"]   #docs-temp{ display:block; }
   /* 견적서 관리에서 여는 팝업(#diffView)은 판 위로 */
   html[data-docsquote="1"]  #diffView{ z-index:8250; }
+  html[data-docsvendor="1"] #diffView{ z-index:8250; }
 
   /* 제품관리 — 거래처 한 덩이, 그 아래 코드마다 여덟 칸 */
   #docs-prod .dpr-g{ margin:0 0 18px; }
@@ -95,6 +96,29 @@
   :is(#docs-prod, .dpr-pop) .dpr-t td.dpr-m{ white-space:normal; min-width:140px; }
   :is(#docs-prod, .dpr-pop) .dpr-t .dpr-k{ position:sticky; left:0; z-index:1; background:var(--vg-bg); font-weight:700; color:var(--vg-ink); }
   :is(#docs-prod, .dpr-pop) .dpr-none{ font-size:12px; color:var(--vg-muted); padding:6px 2px; }
+  /* 대표양식 · 특이사항 (11-07) — #diffView 팝업. 칸 밖 가로 넘침은 없고 표는 .vv-x 안에서만. */
+  .dpr-pop .dan-opt{ display:flex; align-items:center; gap:8px; }
+  .dpr-pop .dan-opt .chip{ flex:none; min-height:40px; }
+  .dpr-pop .dan-opt input{ flex:1; min-width:0; }
+  .dpr-pop .dan-opt input, .dpr-pop .dan-add input{ min-height:40px; border:1px solid #ededeb; border-radius:10px; padding:0 12px; font-size:14px; background:#fff; color:var(--vg-ink); }
+  .dpr-pop .dan-box{ border:1px solid #ededeb; border-radius:16px; padding:14px; margin:0 0 10px; background:#fff; }
+  .dpr-pop .dan-top{ display:flex; align-items:center; gap:8px; }
+  .dpr-pop .dan-top b{ flex:none; font-size:14px; font-weight:800; color:var(--vg-ink); }
+  .dpr-pop .dan-file{ flex:1; min-width:0; font-size:12px; color:var(--vg-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .dpr-pop .dan-up{ flex:none; min-height:40px; }
+  .dpr-pop .dan-up:disabled{ opacity:.5; }
+  .dpr-pop .dan-note{ font-size:11px; font-weight:700; color:var(--vg-muted); margin:6px 0 0; }
+  .dpr-pop .dan-words{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; }
+  .dpr-pop .dan-words:empty{ display:none; }
+  .dpr-pop .dan-w{ display:inline-flex; align-items:center; max-width:100%; border-radius:10px; background:#f1f1ef; font-size:12.5px; font-weight:600; color:var(--vg-ink); }
+  .dpr-pop .dan-w.dan-tmp{ background:#fff; box-shadow:inset 0 0 0 1px #dcdcd8; color:var(--vg-body); }
+  .dpr-pop .dan-w > button:first-child{ min-height:36px; min-width:0; padding:0 2px 0 10px; text-align:left; overflow-wrap:anywhere; }
+  .dpr-pop .dan-w i{ font-style:normal; font-size:10px; font-weight:700; color:var(--vg-muted); margin-left:5px; }
+  .dpr-pop .dan-w em{ font-style:normal; font-size:10px; font-weight:800; color:#a15c00; margin-left:5px; }
+  .dpr-pop .dan-x{ flex:none; width:32px; min-height:36px; color:var(--vg-muted); font-size:15px; }
+  .dpr-pop .dan-add{ display:flex; gap:6px; margin:10px 0 0; }
+  .dpr-pop .dan-add input{ flex:1; min-width:0; }
+  .dpr-pop .dan-add .chip{ flex:none; min-height:40px; }
   /* 발주서 만들기 (11-06) — #diffView 팝업. 표는 .dpr-t, 칸마다 입력칸. 떠 있는 뒤로 단추가 표를 가려 팝업 동안 숨깁니다. */
   html[data-docsdiff] #docs-back{ display:none; }
   .dpr-pop .bo-t td{ padding:6px 8px; }
@@ -391,7 +415,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.113.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.114.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -432,7 +456,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.113.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.114.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -999,6 +1023,11 @@
           <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
           <span><span class="dhh-nm">단품관리</span>
             <span class="dhh-pct">${dit단품수(docsVendor)}</span></span>
+        </button>
+        <button type="button" class="dhh-tile dhh-white" onclick="docs대표양식(docsVendor)">
+          <span class="dhh-ico">${DHH_ICO_VENDOR}</span>
+          <span><span class="dhh-nm">대표양식</span>
+            <span class="dhh-pct">${dhhEsc(window.docs단서말?.(docsVendor) ?? '')}</span></span>
         </button>
 ` +
         // 이 거래처 안에 손으로 만든 박스 — 뒤에 이어 섭니다

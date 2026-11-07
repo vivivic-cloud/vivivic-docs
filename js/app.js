@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, PDF로바꿀꼴, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
+import { STAGES, STAGE_BY_KEY, ASIDE, 단서종류, 단서뽑기, 단서합치기, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, PDF로바꿀꼴, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸, 양식묶기 } from './match.js';
 import { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 줄값, 발주합계, 가격칸키 } from './order.js';
@@ -26,7 +26,8 @@ const state = {
   viewer: { list: [], idx: 0 },
   unsub: [],
   임시차수: [],         // 임시통합 — 연 구매사명의 차수(벤더피아 구매발주목록). 드라이브 차수와 따로 둡니다
-  캐시: { files: true, rules: true, kinds: true },   // 아직 서버 값을 못 봤으면 true — 그동안은 안 씁니다
+  단서: {},                                         // docs_config/서류단서 — 거래처별 특이사항·대표양식 단서
+  캐시: { files: true, rules: true, kinds: true, 단서: true },   // 아직 서버 값을 못 봤으면 true — 그동안은 안 씁니다
 };
 
 const $ = (s) => document.querySelector(s);
@@ -131,6 +132,13 @@ async function enterApp(user) {
   renderConnectState();
   checkForUpdate();
   askSync();
+  // 거래처 단서 — 듣지 않고 열 때 한 번. 못 읽어도 공통 낱말·이름 규칙은 그대로 돕니다.
+  DB.서류단서읽기().then((r) => {
+    if (r.ok) state.단서 = r.값;
+    else console.warn('단서 못 읽음', r.why);
+    state.캐시.단서 = false;
+    applyParse();
+  });
 
   state.unsub.push(
     DB.watchFiles((files, 캐시) => { state.files = files; state.캐시.files = 캐시; applyParse(); }),
@@ -303,7 +311,7 @@ function cloud(text) {
 }
 
 function applyParse() {
-  const { batches: 낱개, unassigned, excluded } = buildBatches(state.files, state.rules);
+  const { batches: 낱개, unassigned, excluded } = buildBatches(state.files, state.rules, state.단서);
   // 내용이 같고 양식만 다른 발주서는 발주서 칸에서 한 판으로 접습니다(11-07, js/match.js 같은발주인가).
   const batches = 낱개.map(양식묶기);
   state.파일차수 = batches;
@@ -341,7 +349,7 @@ function 빈차수더하기(batches) {
 let 갈래쓴적 = '';     // 같은 것을 두 번 쓰지 않게 — 실패해도 매번 다시 쓰지 않습니다
 async function saveKindsIfNew() {
   if (state.demo || !state.user) return;
-  if (state.캐시.files || state.캐시.rules || state.캐시.kinds) return;   // 캐시 값으로 쓰면 남이 고친 갈래를 덮습니다
+  if (state.캐시.files || state.캐시.rules || state.캐시.kinds || state.캐시.단서) return;   // 캐시 값으로 쓰면 남이 고친 갈래를 덮습니다
   const 적힌것 = state.kinds ?? {};
   const 새것 = {};
   for (const d of state.unassigned)
@@ -2136,6 +2144,7 @@ function renderDrawer(id) {
         <button data-doc="${esc(d.path)}" class="dnm text-left text-info hover:underline break-words" title="${esc(fileTitle(d))}">
           ${esc(d.display)}
         </button>
+        ${d.감지 ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-chip text-muted shrink-0 mt-px" title="${esc(d.why)}">내용</span>` : ''}
         ${linkBadge(d)}${copyBadge(d)}
         ${d.driveId ? `<a href="${driveOpen(d.driveId)}" target="_blank" rel="noopener"
              class="text-[11px] text-faint hover:text-ink shrink-0 ml-auto">↗</a>` : ''}
@@ -3553,6 +3562,7 @@ function 양식고르기() {
     }
     if (!틀) { 나.양식왜 = '품목표 못 찾음'; return 다시그림(); }
     await 양식적용(틀, f.name, 모양);
+    if (!state.캐시.단서 || state.demo) 양식재료(f).then((재) => 단서담기(나.vendor, 'order', f.name, 재)).catch((e) => console.warn('단서 못 뽑음', e?.message));
     if (state.demo) return;
     let b64;
     try { b64 = await 파일b64(f); } catch { return; }
@@ -3628,6 +3638,221 @@ async function 양식적용(틀, file, 모양 = null) {
     다시그림();
   }
 }
+
+/* ── 대표양식 · 특이사항 (사장님 11-07) ─────────────────
+   「간혹 피디에프만으로 서류를 보내는 업체들이 있으니 업체별 특이사항을 두어 이를 단서로 감지 …
+    각 거래처별 대표양식을 등록해 두게 해주세요」.
+   거래처 판 「대표양식」 타일 → 이 팝업. 종류마다 대표양식을 올리면 브라우저가 낱말을 뽑아(UrlFetch 없음) docs_config/서류단서 에 둡니다.
+   뽑은 낱말은 「임시」 — 누르면 확정, × 는 빼기, 직접 더할 수 있습니다. 고치면 곧장 다시 가릅니다(parse.js 내용판별 — 서버를 안 부름).
+   원본은 서버가 거래처/대표양식/ 에(자물쇠 올리기와 같음). 꺼져 있어도 낱말은 돕니다. 발주서 엑셀은 발주서 만들기 양식과 같은 것입니다. */
+let 단서창 = null;   // { vendor, 왜 }
+const 빈단서 = () => ({ pdf만: false, 메모: '', 칸: {} });
+const 단서곳말 = { 시트: '시트', 제목: '제목', 머리: '머리글', 직접: '직접' };
+const 단서열림 = () => 단서창 && !$('#diffView').hidden && $('#diffBody [data-dandan]');
+const 단서판 = (vendor) => (state.단서[vendor] ??= 빈단서());
+const 단서칸 = (vendor, key) => ((단서판(vendor).칸 ??= {})[key] ??= { 낱말: [] });
+
+window.docs단서말 = (vendor) => {
+  const 낱말들 = Object.values(state.단서[vendor]?.칸 ?? {}).flatMap((x) => x.낱말 ?? []);
+  const 임시 = 낱말들.filter((x) => x.임시).length;
+  return 낱말들.length ? `단서 ${낱말들.length}${임시 ? ` · 임시 ${임시}` : ''}` : '없음';
+};
+
+async function 단서저장(vendor) {
+  applyParse();
+  if (state.demo) return;
+  try { await DB.서류단서쓰기(vendor, 단서판(vendor)); }
+  catch (e) {
+    if (단서창?.vendor === vendor) { 단서창.왜 = `저장 못 함 · ${e?.code || e?.message || ''}`; 단서그리기(); }
+  }
+}
+
+/* 올린 파일에서 낱말 재료를 뜹니다 — 엑셀은 SheetJS, PDF 는 pdf.js. 둘 다 브라우저 안에서(UrlFetch 없음). */
+async function 양식재료(f) {
+  const 알맹이 = await f.arrayBuffer();
+  if (/\.pdf$/i.test(f.name)) return { 꼴: 'p', 시트: [], 판: [await PDF줄들(알맹이)] };
+  const wb = XLSX.read(알맹이, { type: 'array', sheetRows: 40 });
+  return { 꼴: 'x', 시트: wb.SheetNames, 판: wb.SheetNames.map((n) => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, blankrows: false, raw: false })) };
+}
+
+let PDF라이브러리 = null;
+function PDF불러오기() {
+  PDF라이브러리 ??= new Promise((된, 안됨) => {
+    const 끝 = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = './js/vendor/pdf.worker.min.js'; 된(window.pdfjsLib); };
+    if (window.pdfjsLib) return 끝();
+    const s = Object.assign(document.createElement('script'), { src: './js/vendor/pdf.min.js', onload: 끝, onerror: () => { PDF라이브러리 = null; 안됨(new Error('pdf.js')); } });
+    document.head.append(s);
+  });
+  return PDF라이브러리;
+}
+
+/** 앞 두 쪽을 줄마다 [글] 로 — 글자가 없는 스캔이면 빈 배열입니다. */
+async function PDF줄들(알맹이) {
+  const pdf = await (await PDF불러오기()).getDocument({ data: 알맹이 }).promise;
+  const 줄들 = [];
+  for (let i = 1; i <= Math.min(2, pdf.numPages); i++) {
+    const { items } = await (await pdf.getPage(i)).getTextContent();
+    const 묶음 = new Map();
+    for (const it of items) {
+      if (!it.str?.trim()) continue;
+      const y = Math.round(it.transform[5] / 3);
+      묶음.set(y, [...(묶음.get(y) ?? []), it]);
+    }
+    for (const y of [...묶음.keys()].sort((a, b) => b - a))
+      줄들.push([묶음.get(y).sort((a, b) => a.transform[4] - b.transform[4]).map((x) => x.str).join(' ').replace(/\s+/g, ' ').trim()]);
+  }
+  return 줄들;
+}
+
+/** 올린 양식의 낱말을 담습니다. 사람이 손댄 낱말은 남습니다. */
+async function 단서담기(vendor, key, file, 재료) {
+  const 칸 = 단서칸(vendor, key);
+  const 새것 = 단서뽑기(재료);
+  칸.낱말 = 단서합치기(칸.낱말, 새것);
+  칸.file = file;
+  칸.at = new Date().toISOString();
+  칸.by = state.user?.email ?? '';
+  칸.글없음 = !새것.length;
+  await 단서저장(vendor);
+  if (단서창?.vendor === vendor && 단서열림()) 단서그리기();
+}
+
+function 단서올리기(key) {
+  const 나 = 단서창;
+  const 고르개 = Object.assign(document.createElement('input'), { type: 'file', hidden: true, accept: '.xlsx,.xls,.xlsm,.pdf' });
+  document.body.append(고르개);
+  고르개.onchange = async () => {
+    const f = 고르개.files[0];
+    고르개.remove();
+    if (!f || 단서창 !== 나) return;
+    나.왜 = '';
+    if (f.size > 서랍최대) { 나.왜 = 서랍탈.big; return 단서그리기(); }
+    나.도는칸 = key;
+    단서그리기();
+    let 재;
+    try { 재 = await 양식재료(f); }
+    catch (e) {
+      console.warn('양식 못 읽음', e);
+      나.도는칸 = '';
+      나.왜 = '못 읽음';
+      return 단서그리기();
+    }
+    if (key === 'order' && 재.꼴 === 'x') await 발주틀저장(나.vendor, f);
+    await 단서담기(나.vendor, key, f.name, 재);
+    기록('대표양식', 나.vendor, { 종류: key, file: f.name });
+    if (!state.demo) await 단서원본(나.vendor, key, f);
+    나.도는칸 = '';
+    if (단서창 === 나 && 단서열림()) 단서그리기();
+  };
+  고르개.click();
+}
+
+/* 발주서 엑셀은 발주서 만들기 양식도 됩니다 — 같은 대표양식을 두 번 올리지 않게. 품목표를 못 찾으면 낱말만 남깁니다. */
+async function 발주틀저장(vendor, f) {
+  try {
+    const 알맹이 = await f.arrayBuffer();
+    const wb = XLSX.read(알맹이, { type: 'array', cellStyles: true });
+    const 시트들 = 워크북읽기(wb, XLSX);
+    const 틀 = 양식분석(시트들);
+    if (!틀) return;
+    const 모양 = await 양식모양(알맹이, wb, 시트들.find((x) => x.name === 틀.시트), 틀, f.name);
+    양식들.set(vendor, { 틀, 모양, file: f.name, path: '' });
+    if (!state.demo) await DB.발주양식쓰기(vendor, { 틀, 모양, file: f.name, path: '', by: state.user?.email ?? '' });
+  } catch (e) { console.warn('발주 양식 못 씀', e?.message); }
+}
+
+async function 단서원본(vendor, key, f) {
+  const 칸 = 단서칸(vendor, key);
+  let b64;
+  try { b64 = await 파일b64(f); } catch { return; }
+  const r = await 견적묻기({ 일: '양식올리기', 종류: key, vendor, name: f.name, mime: f.type, b64 }, 360_000);
+  if (r?.ok) {
+    Object.assign(칸, { path: r.path, driveId: r.driveId, 원본말: '' });
+    if (key === 'order' && 양식들.get(vendor)) {
+      양식들.get(vendor).path = r.path;
+      DB.발주양식쓰기(vendor, { path: r.path, driveId: r.driveId }).catch((e) => console.warn('양식 자리 못 씀', e?.message));
+    }
+  } else 칸.원본말 = r?.why === 'off' ? '원본 보관 꺼짐' : `원본 보관 못 함 · ${서랍탈[r?.why] ?? '실패'}`;
+  await 단서저장(vendor);
+}
+
+/* 내용으로 가른 서류·못 가른 서류 — 어떤 낱말로 갈렸는지 봅니다. */
+function 감지목록(vendor) {
+  const 차수서류 = state.batches.filter((b) => b.vendor === vendor).flatMap((b) => (b.docs ?? []).map((d) => ({ ...d, 차수: b.batch })));
+  const 다 = [...new Map([...차수서류, ...state.unassigned.filter((d) => d.vendor === vendor)].map((d) => [d.path, d])).values()];
+  const 칸이름 = (k) => STAGE_BY_KEY[k]?.short ?? ASIDE.find((a) => a.key === k)?.label ?? k;
+  return 다.filter((d) => d.감지 || (d.sniff && d.stageKey === 'etc'))
+    .sort((a, b) => Number(!!b.감지) - Number(!!a.감지) || String(a.차수 ?? '').localeCompare(String(b.차수 ?? '')))
+    .map((d) => `<tr><td>${esc(d.차수 ?? '—')}</td><td>${d.감지 ? esc(칸이름(d.stageKey)) : '미분류'}</td><td>${d.감지 ? esc(d.why.replace(/^내용 · /, '')) : d.sniff.text ? '단서 없음' : '글자 없음'}</td><td>${보임(d.display ?? d.name)}</td></tr>`);
+}
+
+function 단서그리기() {
+  const 나 = 단서창;
+  const 판 = 단서판(나.vendor);
+  const 칸글 = 단서종류.map((종) => {
+    const 칸 = 판.칸?.[종.key] ?? { 낱말: [] };
+    const 도는 = 나.도는칸 === 종.key;
+    return `<section class="dan-box">
+      <div class="dan-top"><b>${esc(종.label)}</b>
+        <span class="dan-file">${esc(칸.file ?? '없음')}</span>
+        <button type="button" class="chip chip-off dan-up" data-danup="${종.key}" ${나.도는칸 ? 'disabled' : ''}>${도는 ? '읽는 중' : 칸.file ? '바꾸기' : '올리기'}</button></div>
+      ${칸.글없음 ? '<div class="dan-note">글자 없음 · 낱말 직접</div>' : ''}
+      ${칸.원본말 ? `<div class="dan-note">${esc(칸.원본말)}</div>` : ''}
+      <div class="dan-words">${(칸.낱말 ?? []).map((w, i) => `<span class="dan-w${w.임시 ? ' dan-tmp' : ''}">
+        <button type="button" data-danw="${종.key}:${i}" title="${w.임시 ? '확정' : '임시로'}">${esc(w.w)}<i>${esc(단서곳말[w.곳] ?? '')}</i>${w.임시 ? '<em>임시</em>' : ''}</button>
+        <button type="button" class="dan-x" data-danx="${종.key}:${i}" aria-label="빼기">×</button></span>`).join('')}</div>
+      <form class="dan-add" data-danadd="${종.key}"><input type="text" maxlength="40" placeholder="낱말 더하기" /><button type="submit" class="chip chip-off">더하기</button></form>
+    </section>`;
+  }).join('');
+  const 줄들 = 감지목록(나.vendor);
+  견적팝업('대표양식', 나.vendor, `<div data-dandan>
+    ${나.왜 ? `<div class="dpr-sn">${esc(나.왜)}</div>` : ''}
+    <div class="dpr-sn">특이사항</div>
+    <div class="dan-opt"><button type="button" id="danPdf" class="chip ${판.pdf만 ? 'chip-on' : 'chip-off'}">PDF로만 보냄</button>
+      <input id="danMemo" type="text" maxlength="200" placeholder="메모" value="${esc(판.메모 ?? '')}" /></div>
+    <div class="dpr-sn">대표양식</div>
+    ${칸글}
+    <div class="dpr-sn">내용으로 본 서류 ${줄들.length}</div>
+    ${줄들.length ? `<div class="vv-x"><table class="dpr-t"><thead><tr><th>차수</th><th>종류</th><th>단서</th><th>파일</th></tr></thead><tbody>${줄들.join('')}</tbody></table></div>` : '<div class="dpr-none">없음</div>'}
+  </div>`);
+  $('#danPdf').onclick = () => { 판.pdf만 = !판.pdf만; 단서그리기(); 단서저장(나.vendor); };
+  $('#danMemo').onchange = (e) => { 판.메모 = e.target.value.trim(); 단서저장(나.vendor); };
+  const 몸 = $('#diffBody');
+  const 자리 = (v) => { const [k, i] = v.split(':'); return [단서칸(나.vendor, k), Number(i)]; };
+  for (const b of 몸.querySelectorAll('[data-danup]')) b.onclick = () => 단서올리기(b.dataset.danup);
+  for (const b of 몸.querySelectorAll('[data-danw]')) b.onclick = () => {
+    const [칸, i] = 자리(b.dataset.danw);
+    칸.낱말[i].임시 = !칸.낱말[i].임시;
+    단서그리기(); 단서저장(나.vendor);
+  };
+  for (const b of 몸.querySelectorAll('[data-danx]')) b.onclick = () => {
+    const [칸, i] = 자리(b.dataset.danx);
+    칸.낱말.splice(i, 1);
+    단서저장(나.vendor).then(() => { if (단서열림()) 단서그리기(); });
+  };
+  for (const 폼 of 몸.querySelectorAll('[data-danadd]')) 폼.onsubmit = (e) => {
+    e.preventDefault();
+    const 글 = 폼.querySelector('input').value.trim();
+    if (글.length < 2) return;
+    const 칸 = 단서칸(나.vendor, 폼.dataset.danadd);
+    if (!칸.낱말.some((x) => x.w.toLowerCase() === 글.toLowerCase())) 칸.낱말.push({ w: 글, 곳: '직접' });
+    단서저장(나.vendor).then(() => { if (단서열림()) 단서그리기(); });
+  };
+}
+
+/* 발주서 만들기에서 이미 올린 양식이 있으면 칸을 채워 둡니다 — 두 번 안 올리게. 읽기는 처음 열 때만(양식 문서 1~). */
+window.docs대표양식 = async (vendor) => {
+  const 나 = (단서창 = { vendor, 왜: '', 도는칸: '' });
+  단서그리기();
+  if (state.demo || 단서판(vendor).칸?.order?.file) return;
+  const 있는 = 양식들.get(vendor);
+  const r = 있는 ? null : await DB.발주양식읽기(vendor);
+  if (r?.ok && r.값) 양식들.set(vendor, { 틀: r.값, 모양: r.모양 ?? null, file: r.doc.file ?? '', path: r.doc.path ?? '' });
+  const 양식 = 양식들.get(vendor);
+  if (!양식?.틀 || !양식.file || 단서창 !== 나) return;
+  const 줄 = 양식.틀.칸.map((k) => k.라벨).filter(Boolean);
+  await 단서담기(vendor, 'order', 양식.file, { 꼴: 'x', 시트: [양식.틀.시트], 판: [[[양식.틀.제목 ?? ''], 줄]] });
+};
 
 /* 화면에서 한 번 더 거릅니다.
    거르는 규칙은 js/parse.js 의 readItems 가 이미 갖고 있지만, **이미 올라가 있는 자료**에는
@@ -3803,7 +4028,7 @@ function 수량줄(vendor) {
  */
 window.docs수량건네기 = async (vendor) => {
   if (state.demo || !state.user) return null;
-  if (state.캐시.files || state.캐시.rules) return null;   // 서버 값을 보기 전엔 안 올립니다 — 곧 다시 불립니다
+  if (state.캐시.files || state.캐시.rules || state.캐시.단서) return null;   // 서버 값을 보기 전엔 안 올립니다 — 곧 다시 불립니다
   if (수량도는중) { 수량또 = true; return 수량도는중; }   // 파일·규칙이 따로 와서 겹쳐 불립니다
   수량도는중 = 수량한번(vendor);
   try { return await 수량도는중; }

@@ -148,6 +148,8 @@ else:
     # ExcelJS 는 양식을 올릴 때만 부릅니다(860KB). 본 파일에 안 묶고 곁에 둡니다 — 주소는 원본과 같은 ./js/vendor/.
     곁 = docs / 'js' / 'vendor'
     곁.mkdir(parents=True, exist_ok=True)
-    shutil.copy(ROOT / 'js' / 'vendor' / 'exceljs.min.js', 곁 / 'exceljs.min.js')
+    # pdf.js 도 같습니다 — 대표양식 PDF 를 올릴 때만 부릅니다.
+    for 이름 in ('exceljs.min.js', 'pdf.min.js', 'pdf.worker.min.js'):
+        shutil.copy(ROOT / 'js' / 'vendor' / 이름, 곁 / 이름)
 
 print(f'{out} · {out.stat().st_size // 1024} KB')

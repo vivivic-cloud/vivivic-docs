@@ -586,6 +586,57 @@
      }
     ]
    }
+  },
+  {
+   "name": "出货清单 2026.08.xlsx",
+   "path": "한신우드/HW-26-18/出货清单 2026.08.xlsx",
+   "size": "41000",
+   "vendor": "한신우드",
+   "sniff": {
+    "kind": "x",
+    "sheets": [
+     "INVOICE",
+     "PACKING LIST"
+    ],
+    "text": "Sample Trading Co NO ITEM QTY AMOUNT",
+    "v": 1
+   }
+  },
+  {
+   "name": "FK 20260801正本.pdf",
+   "path": "한신우드/HW-26-18/FK 20260801正本.pdf",
+   "size": "120000",
+   "vendor": "한신우드",
+   "sniff": {
+    "kind": "p",
+    "sheets": [],
+    "text": "ORIGINAL Page 1 of 1 1.Exporter's name, and address country: SAMPLE TRADING",
+    "v": 1
+   }
+  },
+  {
+   "name": "박스 스티커 시안.pdf",
+   "path": "한신우드/HW-26-18/박스 스티커 시안.pdf",
+   "size": "90000",
+   "vendor": "한신우드",
+   "sniff": {
+    "kind": "p",
+    "sheets": [],
+    "text": "MADE IN CHINA 물류 바코드 스티커 부착 전사이즈 공통",
+    "v": 1
+   }
+  },
+  {
+   "name": "스캔본 1.pdf",
+   "path": "한신우드/HW-26-18/스캔본 1.pdf",
+   "size": "800000",
+   "vendor": "한신우드",
+   "sniff": {
+    "kind": "p",
+    "sheets": [],
+    "text": "",
+    "v": 1
+   }
   }
  ],
  "overlay": {

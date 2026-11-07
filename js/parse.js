@@ -148,6 +148,10 @@ export function parseVendor(rawName, vendors = [], doc = null) {
 export function parseBatch(rawName) {
   const n = normalizeName(rawName);
 
+  // 「第26-27次」 는 26·27 두 차수를 묶은 서류입니다 — 26년 27차가 아닙니다. 들어 있는 폴더의 차수를 씁니다.
+  // ⚠ appsscript/sync.gs 차수표_ 와 같게.
+  if (/第\s*\d{1,2}\s*[-~～]\s*\d{1,2}\s*次/.test(n)) return null;
+
   // 1) 한글 명시형이 가장 확실합니다: "제헤우드 26-18차", "26-14차"
   let m = /(\d{2})\s*-\s*(\d{1,2})\s*차/.exec(n);
   if (m) return mk(m[1], m[2]);
@@ -213,7 +217,8 @@ export function classify(rawName) {
   if (/(?<![A-Za-z])PI(?![A-Za-z])|proforma|形式发票/i.test(n)) return hit('pi', 'PI 번호');
 
   // 5. 잔액서류 — CI&PL / 인보이스+패킹
-  if (/CI\s*[&＆和]\s*PL|CI\s*_?\s*PL\b|packing\s*list|装箱单/i.test(n)) return hit('cipl', 'CI&PL');
+  // ⚠ 낱말을 더하면 appsscript/sync.gs CIPL_NAME · 이름갈래_ 도 같이. 시험이 맞대 봅니다.
+  if (/CI\s*[&＆和]\s*PL|CI\s*_?\s*PL\b|packing\s*list|装箱单|出货明细/i.test(n)) return hit('cipl', 'CI&PL');
   if (/70\s*%/.test(n)) return hit('cipl', '70% 표기');
 
   // 2. 계약금서류 — PI 번호, 그리고 거래처가 보내오는 订单合同(주문계약서)
@@ -246,6 +251,132 @@ export function classify(rawName) {
 }
 
 
+/* ── 내용 감지 — 이름으로 못 가른 서류를 안의 글로 가릅니다 (사장님 11-07) ──────
+   sniff = 서버가 파일마다 한 번 떠 둔 재료 { kind:'x'|'p', sheets:[시트 이름], text:'앞부분 글자' } — docs_files 의 칸.
+   판정을 앱에서 하므로 낱말을 고쳐도 드라이브·UrlFetch 를 안 부릅니다(서버는 sync.gs 감지대상_ 만 압니다).
+   차례: 공통 선하증권·원산지 → 거래처 단서 → 공통 PI·잔액서류·발주서. 글이 없으면(스캔 PDF) 안 가릅니다.
+   11-07 실물 572개로 잰 값·문턱은 CLAUDE.md. */
+
+/** 거래처별 대표양식을 받는 칸. 선하증권은 없습니다 — 업체가 달라도 공통 낱말로 잡힙니다. */
+export const 단서종류 = [
+  { key: 'order', label: '발주서' },
+  { key: 'pi', label: '계약금서류 (PI)' },
+  { key: 'cipl', label: '잔액서류 (CI/PL)' },
+];
+const 단서무게 = { 직접: 3, 시트: 2, 제목: 2, 머리: 1 };
+const 단서문턱 = 3;       // 낱말 둘은 맞아야 합니다(직접 넣은 낱말은 하나로)
+const 단서문턱PDF = 2;    // 「PDF 로만 보냄」 업체의 PDF — 시트가 없어 제목 하나로 봅니다(임시)
+
+const 고른글 = (v) => String(v ?? '').normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
+const 낱글 = (m) => m.replace(/\s+/g, ' ').trim();
+
+function 감지값(key, 말) {
+  return { key, stage: STAGE_BY_KEY[key]?.id ?? null, why: `내용 · ${말.toUpperCase()}`, 감지: true };
+}
+
+function 공통첫째(글) {
+  const m = /bill of lading|sea waybill|提单|선하증권/.exec(글);
+  if (m) return 감지값('bl', 낱글(m[0]));
+  if (/\bshipper\b/.test(글) && /\bconsignee\b/.test(글) && /port of (?:loading|discharge)|\bvessel\b/.test(글)) return 감지값('bl', 'SHIPPER · CONSIGNEE');
+  const o = /certificate of origin|exporter'?s name|원산지증명/.exec(글);
+  if (o) return 감지값('fta', 낱글(o[0]));
+  return null;
+}
+
+function 공통둘째(시트들, 글) {
+  const m = /proforma|形式发票|sales contract|销售合同|合同/.exec(글);
+  if (m) return 감지값('pi', 낱글(m[0]));
+  const 인보 = 시트들.find((s) => /invoice|^ci$/.test(s));
+  const 패킹 = 시트들.find((s) => /packing|^pl$/.test(s));
+  if (인보 && 패킹) return 감지값('cipl', `시트 ${인보} · ${패킹}`);
+  const c = /packing list|装箱单|出货明细|commercial invoice|商业发票/.exec(글);
+  if (c) return 감지값('cipl', 낱글(c[0]));
+  const o = /purchase order|order ?sheet|발주서/.exec(글);
+  if (o) return 감지값('order', 낱글(o[0]));
+  if (/\bpo no\b/.test(글) && /\border date\b/.test(글)) return 감지값('order', 'PO NO · ORDER DATE');
+  return null;
+}
+
+/** 두 종류 이상에 나온 낱말은 못 가르니 뺍니다. → 종류별 [{ 글, 곳 }] */
+function 가르는낱말(나) {
+  const 칸들 = 나?.칸 ?? {};
+  const 수 = new Map();
+  for (const k of Object.keys(칸들)) {
+    for (const 글 of new Set((칸들[k]?.낱말 ?? []).map((x) => 고른글(x.w)))) 수.set(글, (수.get(글) ?? 0) + 1);
+  }
+  return Object.fromEntries(Object.keys(칸들).map((k) => [k,
+    (칸들[k]?.낱말 ?? []).map((x) => ({ 글: 고른글(x.w), 곳: x.곳 })).filter((x) => x.글.length >= 2 && 수.get(x.글) === 1)]));
+}
+
+function 단서로(나, 시트들, 글, pdf) {
+  const 표 = 가르는낱말(나);
+  const 점수 = Object.entries(표).map(([key, 낱말들]) => {
+    const 맞음 = 낱말들.filter((x) => (x.곳 === '시트' ? 시트들.includes(x.글) : 글.includes(x.글) || 시트들.includes(x.글)));
+    return { key, 맞음, 합: 맞음.reduce((s, x) => s + (단서무게[x.곳] ?? 1), 0) };
+  }).sort((a, b) => b.합 - a.합);
+  const [첫, 둘] = 점수;
+  if (!첫 || 첫.합 < (나?.pdf만 && pdf ? 단서문턱PDF : 단서문턱) || 첫.합 === 둘?.합) return null;
+  return 감지값(첫.key, `단서 ${첫.맞음.slice(0, 3).map((x) => x.글).join(' · ')}`);
+}
+
+/**
+ * 안의 글로 서류 종류를 가립니다. 못 가르면 null — 그대로 미분류입니다.
+ * 나 = 그 거래처 단서 { pdf만, 칸: { order: { 낱말: [{ w, 곳, 임시 }] }, … } }
+ */
+export function 내용판별(sniff, 나) {
+  if (!sniff) return null;
+  const 시트들 = (sniff.sheets ?? []).map(고른글).filter(Boolean);
+  const 글 = 고른글(sniff.text);
+  if (글.length < 20 && !시트들.length) return null;   // 글자 없는 스캔은 무리하지 않습니다
+  const 다 = `${시트들.join(' | ')} ${글}`;
+  return 공통첫째(다) ?? 단서로(나, 시트들, 다, sniff.kind === 'p') ?? 공통둘째(시트들, 다);
+}
+
+const 시트이름값없음 = /^(sheet|시트|sheet\s*\d+|시트\s*\d+|\d+|wps\S*|工作表\d*)$/i;
+const 문서말 = /commercial invoice|proforma invoice|packing list|invoice|purchase order|order ?sheet|sales contract|contract|po no|order date|delivery date|mfg no|形式发票|商业发票|发票|装箱单|出货明细|销售合同|合同|订单|발주서|주문서|계약서|인보이스|패킹리스트/gi;
+const 편지머리 = /co\.?,?\s*ltd|有限公司|주식회사|\(주\)|tel\b|fax\b|e-?mail|https?:|www\.|@|road|street|province|地址|电话|传真|전화|주소/i;
+const 머리말들 = /code|model|item|description|goods|품명|상품|제품|코드|품번|qty|quantity|수량|price|단가|amount|금액|size|규격|cbm|ctn|carton|名称|数量|单价|金额/i;
+
+/**
+ * 대표양식에서 단서 낱말을 뽑습니다. 사람이 보고 고치니 뽑은 것은 모두 임시입니다.
+ * 재료 = { 꼴: 'x'|'p', 시트: [이름], 판: [[[칸 글…]…]…] } — 시트마다 줄들. PDF 는 판 하나에 줄마다 한 칸으로 넘깁니다.
+ */
+export function 단서뽑기(재료) {
+  const 판들 = (재료?.판 ?? []).map((줄들) => 줄들.map((r) => r.map((v) => String(v ?? '').trim()).filter(Boolean)).filter((r) => r.length));
+  const 낱말 = [];
+  const 본 = new Set();
+  const 담기 = (w, 곳) => {
+    const 글 = 낱글(String(w ?? '')).slice(0, 40);
+    const 키 = 고른글(글);
+    if (키.length < 2 || 본.has(키)) return;
+    본.add(키);
+    낱말.push({ w: 글, 곳, 임시: true });
+  };
+  for (const s of 재료?.시트 ?? []) if (!시트이름값없음.test(String(s).trim())) 담기(s, '시트');
+  for (const 줄들 of 판들) {
+    for (const m of 줄들.slice(0, 30).flat().join('\n').matchAll(문서말)) 담기(m[0], '제목');
+    // 맨 위 짧은 큰 글 — 회사 이름·주소·날짜·값이 붙은 칸이 아닌 것만
+    for (const r of 줄들.slice(0, 12)) {
+      if (r.length !== 1) continue;
+      const 글 = r[0];
+      if (글.length < 4 || 글.length > 36 || 편지머리.test(글) || /[:：]/.test(글) || (글.match(/\d/g) ?? []).length > 3) continue;
+      if (/[A-Z]{3}/.test(글) ? 글 === 글.toUpperCase() : /[\u3131-\u318e\uac00-\ud7a3\u4e00-\u9fff]/.test(글)) 담기(글, '제목');
+    }
+  }
+  if (재료?.꼴 !== 'p') {
+    const 머리 = 판들.flatMap((줄들) => 줄들.slice(0, 40)).find((r) => r.length >= 3 && r.filter((c) => c.length <= 24 && 머리말들.test(c)).length >= 3);
+    for (const c of (머리 ?? []).slice(0, 12)) if (c.length <= 24 && 머리말들.test(c)) 담기(c, '머리');
+  }
+  return 낱말.slice(0, 16);
+}
+
+/** 사람이 손댄 낱말은 남기고, 새로 뽑은 것을 더합니다. */
+export function 단서합치기(예전, 새것) {
+  const 남김 = (예전 ?? []).filter((x) => !x.임시);
+  const 본 = new Set(남김.map((x) => 고른글(x.w)));
+  return [...남김, ...(새것 ?? []).filter((x) => !본.has(고른글(x.w)))];
+}
+
 /* ── 중국어 파일명 뜻풀이 ─────────────────────────────── */
 
 /**
@@ -257,6 +388,7 @@ export const CJK_GLOSS = [
   ['形式发票和装箱单', 'PI·패킹리스트'],
   ['形式发票', '프로포마 인보이스(PI)'],
   ['装箱单', '패킹리스트'],
+  ['出货明细', '출고 명세'],
   ['电放单', '전신방출 선하증권'],
   ['立方数', '제품 부피'],
   ['两种方案', '두 가지 안'],
@@ -1022,7 +1154,7 @@ const dayGap = (a, b) => Math.abs(new Date(a) - new Date(b)) / 86400000;
  * 파일 목록 → 차수별로 묶인 구조.
  * files: [{ name, path, size, mtime, vendor }]
  */
-export function buildBatches(files, rules = []) {
+export function buildBatches(files, rules = [], 단서 = {}) {
   // 이번 스캔에서 본 거래처 이름들 — 파일명에서 거래처를 읽을 때 대조표로 씁니다.
   const vendors = [...new Set(files.map((f) => f.vendor).filter(Boolean))];
 
@@ -1038,6 +1170,8 @@ export function buildBatches(files, rules = []) {
     // 차수 폴더에 올린 사진은 상차 이미지입니다. 파일명이 해시라도 이걸로 잡힙니다.
     if (fromPath && cls.key === 'etc' && IMAGE_EXT.has(extOf(f.name)))
       cls = { key: 'loading', stage: STAGE_BY_KEY.loading.id, why: '차수 폴더에 올린 사진' };
+    // 이름으로 못 가른 서류만 안의 글로 봅니다. 서버가 파일마다 한 번 떠 둔 sniff 를 씁니다 — 드라이브를 다시 안 부릅니다.
+    if (cls.key === 'etc' && f.sniff) cls = 내용판별(f.sniff, 단서?.[f.vendor]) ?? cls;
     // 검수·샘플 폴더에 든 것은 이름이 무엇이든 그 칸입니다. 사진이 상차로 새지 않습니다.
     const sub = subdirOf(f.path);
     if (sub) cls = { key: sub.key, stage: null, why: `${sub.label} 폴더` };
@@ -1053,6 +1187,7 @@ export function buildBatches(files, rules = []) {
       stageKey: cls.key,
       stageId: cls.stage,
       why: cls.why,
+      ...(cls.감지 ? { 감지: true } : {}),
       date: parseDate(f.name),
       docNo: parseDocNo(f.name),
       batch: parsed ? parsed.label : null,

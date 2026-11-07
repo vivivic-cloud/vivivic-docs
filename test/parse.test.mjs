@@ -988,3 +988,113 @@ test('PDF로바꿀꼴 — 엑셀·워드·피피티만. 도면·zip·PDF 는 아
   for (const n of ['a.xlsx', 'CI&PL.XLS', 'a.docx', 'a.ppt ']) assert.equal(PDF로바꿀꼴(n), true, n);
   for (const n of ['a.pdf', 'a.dwg', 'a.zip', '', null]) assert.equal(PDF로바꿀꼴(n), false, String(n));
 });
+
+/* ── 내용 감지 (11-07) ── 이름으로 못 가른 서류만 sniff 로 ── 이름·낱말은 가짜 ── */
+import { 내용판별, 단서뽑기, 단서합치기 } from '../js/parse.js';
+
+const 엑셀재료 = (sheets, text = '') => ({ kind: 'x', sheets, text });
+const PDF재료 = (text) => ({ kind: 'p', sheets: [], text });
+const 받기 = (r) => r && { key: r.key, stage: r.stage };
+
+test('이름 규칙 — 出货明细 는 잔액서류, 「第26-27次」 는 차수로 안 읽고 폴더를 따른다', () => {
+  const n = 'TalkFile_修改第26-27次出货明细2026.11.5.xlsx';
+  assert.equal(classify(n).key, 'cipl');
+  assert.equal(parseBatch(n), null);
+  const { batches } = buildBatches([{ name: n, path: '해피코/Hp-26-26/' + n, vendor: '해피코' }]);
+  assert.equal(batches[0].id, '해피코::26-26');
+  assert.equal(batches[0].docs[0].stageKey, 'cipl');
+});
+
+test('내용판별 — 시트 INVOICE·PACKING LIST 는 잔액서류, 어떤 단서로 갈랐는지 why 에 남긴다', () => {
+  const r = 내용판별(엑셀재료(['INVOICE ', 'PACKING LIST'], 'Sample Co 출고'));
+  assert.deepEqual(받기(r), { key: 'cipl', stage: 5 });
+  assert.match(r.why, /시트 INVOICE · PACKING LIST/);
+});
+
+test('내용판별 — 공통 낱말: 선하증권·원산지·PI·발주서', () => {
+  assert.equal(내용판별(PDF재료('Shipper ABC Consignee DEF Port of Loading QINGDAO Vessel X')).key, 'bl');
+  assert.equal(내용판별(PDF재료('TELEX RELEASE BILL OF LADING NO 1234 ... ...')).key, 'bl');
+  assert.equal(내용판별(PDF재료("ORIGINAL Page 1 of 1 1.Exporter's name, and address country")).key, 'fta');
+  assert.equal(내용판별(PDF재료('PROFORMA INVOICE no 12 date 2026 buyer ...')).key, 'pi');
+  assert.equal(내용판별(PDF재료('PURCHASE ORDER PO NO 12 date 2026 buyer')).key, 'order');
+  assert.equal(내용판별(PDF재료('PO NO 26-1 Delivery Date Order Date 2026.09.22 MFG No')).key, 'order');
+});
+
+test('내용판별 — 글자 없는 스캔은 가르지 않는다, 재료 없으면 null', () => {
+  assert.equal(내용판별(PDF재료('')), null);
+  assert.equal(내용판별(PDF재료('  1 2  ')), null);
+  assert.equal(내용판별(null), null);
+  assert.equal(내용판별(PDF재료('스티커 디자인 시안 박스 라벨 전사이즈 공통입니다')), null);
+});
+
+test('내용판별 — 거래처 단서: 낱말 둘이면 가르고, 하나면 임시로 안 가른다', () => {
+  const 나 = { 칸: { cipl: { 낱말: [{ w: '결제명세', 곳: '제목' }, { w: '선적표', 곳: '제목' }] } } };
+  assert.equal(내용판별(PDF재료('우리 회사 결제명세 선적표 2026 합계 123'), 나).key, 'cipl');
+  assert.match(내용판별(PDF재료('우리 회사 결제명세 선적표 2026 합계 123'), 나).why, /단서/);
+  assert.equal(내용판별(PDF재료('우리 회사 결제명세 2026 합계 123 입니다'), 나), null);
+});
+
+test('내용판별 — 직접 넣은 낱말은 하나로, PDF 만 보내는 업체는 제목 하나로', () => {
+  const 직접 = { 칸: { pi: { 낱말: [{ w: '선금청구', 곳: '직접' }] } } };
+  assert.equal(내용판별(PDF재료('우리 회사 선금청구 2026 합계 123 입니다'), 직접).key, 'pi');
+  const 제목 = { 칸: { cipl: { 낱말: [{ w: '결제명세', 곳: '제목' }] } } };
+  assert.equal(내용판별(PDF재료('우리 회사 결제명세 2026 합계 123 입니다'), 제목), null);
+  assert.equal(내용판별(PDF재료('우리 회사 결제명세 2026 합계 123 입니다'), { ...제목, pdf만: true }).key, 'cipl');
+  assert.equal(내용판별(엑셀재료([], '우리 회사 결제명세 2026 합계 123 입니다'), { ...제목, pdf만: true }), null);
+});
+
+test('내용판별 — 두 종류에 나온 낱말은 못 가르니 안 센다, 점수가 같으면 안 가른다', () => {
+  const 나 = { 칸: {
+    pi: { 낱말: [{ w: '공통머리', 곳: '제목' }, { w: '선금', 곳: '제목' }] },
+    cipl: { 낱말: [{ w: '공통머리', 곳: '제목' }, { w: '잔금', 곳: '제목' }] },
+  } };
+  assert.equal(내용판별(PDF재료('공통머리 선금 잔금 2026 합계 123 입니다'), { ...나, pdf만: true }), null);
+  assert.equal(내용판별(PDF재료('공통머리 선금 2026 합계 123 입니다 ...'), 나), null);
+});
+
+test('내용판별 — 선하증권·원산지는 거래처 단서보다 먼저, PI·잔액서류는 거래처 단서가 먼저', () => {
+  const 나 = { 칸: { order: { 낱말: [{ w: 'PACKING LIST', 곳: '직접' }] } } };
+  assert.equal(내용판별(PDF재료('BILL OF LADING packing list attached 2026'), 나).key, 'bl');
+  assert.equal(내용판별(PDF재료('packing list attached 2026 합계 123 입니다'), 나).key, 'order');
+});
+
+test('buildBatches — 이름으로 가른 파일은 sniff 가 있어도 안 바뀐다', () => {
+  const 가짜 = { kind: 'p', sheets: [], text: 'BILL OF LADING BILL OF LADING ok' };
+  const f = (name, 덧 = {}) => ({ name, path: '제헤우드/zh-26-20/' + name, vendor: '제헤우드', ...덧 });
+  const 이름 = ['ZH 26-20 Ordersheet.pdf', 'CI&PL 26-20.xls', '合同.xlsx', '계약금 영수증 30%.pdf', 'PI 26-20.pdf'];
+  const 없이 = buildBatches(이름.map((n) => f(n))).batches[0].docs.map((d) => [d.name, d.stageKey, d.why]);
+  const 있이 = buildBatches(이름.map((n) => f(n, { sniff: 가짜 }))).batches[0].docs.map((d) => [d.name, d.stageKey, d.why]);
+  assert.deepEqual(있이, 없이);
+});
+
+test('buildBatches — 미분류만 감지하고 표식을 남긴다 · 검수 폴더는 폴더가 이긴다 · 단서는 거래처별', () => {
+  const 가짜 = { kind: 'p', sheets: [], text: '우리 회사 결제명세 선적표 2026 합계 123' };
+  const 단서 = { 해피코: { 칸: { cipl: { 낱말: [{ w: '결제명세', 곳: '제목' }, { w: '선적표', 곳: '제목' }] } } } };
+  const f = (path) => ({ name: path.split('/').pop(), path, vendor: path.split('/')[0], sniff: 가짜 });
+  const { batches } = buildBatches([f('해피코/Hp-26-02/a.pdf'), f('해피코/Hp-26-02/검수/b.pdf'), f('제헤우드/zh-26-02/c.pdf')], [], 단서);
+  const 칸 = Object.fromEntries(batches.flatMap((b) => b.docs).map((d) => [d.name, [d.stageKey, !!d.감지]]));
+  assert.deepEqual(칸, { 'a.pdf': ['cipl', true], 'b.pdf': ['inspect', false], 'c.pdf': ['etc', false] });
+});
+
+test('단서뽑기 — 시트 이름·문서 제목·머리글을 임시로, 회사 이름·주소는 빼고', () => {
+  const 낱말 = 단서뽑기({ 꼴: 'x', 시트: ['INVOICE', 'PACKING LIST', 'Sheet3'], 판: [[
+    ['Sample Trading Co.,Ltd'], ['12 Some Road, Somewhere'], ['Tel:+86-532-0000'], ['COMMERCIAL INVOICE'], ['NO', 'CODE#', 'Product model', 'Qty pcs', 'Amount'],
+  ]] });
+  assert.ok(낱말.every((x) => x.임시));
+  const 곳 = (q) => 낱말.filter((x) => x.곳 === q).map((x) => x.w);
+  assert.deepEqual(곳('시트'), ['INVOICE', 'PACKING LIST']);
+  assert.ok(곳('제목').includes('COMMERCIAL INVOICE'));
+  assert.ok(!낱말.some((x) => /Sample|Road|Tel/.test(x.w)));
+  assert.deepEqual(곳('머리'), ['CODE#', 'Product model', 'Qty pcs', 'Amount']);
+});
+
+test('단서뽑기 — PDF 는 줄 글에서 문서 제목만', () => {
+  const 낱말 = 단서뽑기({ 꼴: 'p', 시트: [], 판: [[['PACKING LIST'], ['DATE 2026.10.01'], ['Buyer ABC']]] });
+  assert.deepEqual(낱말.map((x) => [x.w, x.곳]), [['PACKING LIST', '제목']]);
+});
+
+test('단서합치기 — 사람이 손댄 낱말은 남고 임시는 새로 갈린다', () => {
+  const r = 단서합치기([{ w: '직접말', 곳: '직접' }, { w: '옛임시', 곳: '제목', 임시: true }, { w: 'INVOICE', 곳: '제목' }],
+    [{ w: 'invoice', 곳: '제목', 임시: true }, { w: '새말', 곳: '제목', 임시: true }]);
+  assert.deepEqual(r.map((x) => x.w), ['직접말', 'INVOICE', '새말']);
+});

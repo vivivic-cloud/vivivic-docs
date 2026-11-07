@@ -14,10 +14,11 @@ const COLLECTION = 'artifacts/vivivic-4b7ef/public/data/docs_files';
 const CONFIG = 'artifacts/vivivic-4b7ef/public/data/docs_config';
 const MAX_DEPTH = 4;
 // 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 지문이 달라져 전체를 다시 훑습니다.
-const MARK_VERSION = 20;   // 20 — 엑셀 발주서를 새로 읽음(11-07). 한 번 다 훑게. 19 — 범위 밖 docs_files 지우기(10-30).
+const MARK_VERSION = 21;   // 21 — 이름으로 못 가른 서류만 안을 떠 둡니다(11-07, 감지판_). 20 — 엑셀 발주서를 새로 읽음(11-07). 19 — 범위 밖 docs_files 지우기(10-30). 한 번 다 훑게.
 // 서류에서 뽑는 규칙이 바뀌면 이 숫자를 올립니다. 이미 읽어둔 서류도 다시 읽습니다.
 // (지문만 올리면, 칸이 비어 있어도 "이미 읽었다"로 넘어가 버립니다.)
 const READ_VERSION = 15; // 15 — 위아래 합친 칸을 아래 품목 줄에도 채움(11-02).
+const 감지판_ = 1;         // 감지 재료(sniff)를 뜨는 법이 바뀌면 올립니다 — 이름으로 못 가른 서류만 다시 읽습니다. 낱말 판정은 앱(parse.js 내용판별)이라 낱말을 고쳐도 안 올립니다.
 const SKIP_DIR = /^(_옵시디언|\.|node_modules)/;
 
 // 문서 이름(name)에는 URL이 아니라 projects/... 부터 들어가야 합니다.
@@ -44,6 +45,8 @@ function sync() {
   ciplOk = 0;
   ciplNone = 0;
   ciplCut = 0;
+  감지수 = 0;
+  감지못읽음 = 0;
   병합채움 = 0;
   poOk = 0;
   poAll = 0;
@@ -95,14 +98,18 @@ function sync() {
   files.forEach(function (f) {
     const before = existing[docId_(f.path)];
     const doc = 서류인가_(f.name);
+    const 볼 = 감지대상_(f);
     if (!before || changed_(before, f)) {
       // 내용이 바뀐 서류는 예전 cipl 을 비웁니다. 남겨 두면 다시 읽기 전에 시간이 끊겼을 때
       // 다음번에 「이미 읽었다」 로 보여 영영 다시 안 읽고, 그동안 틀린 값으로 대조합니다.
-      writes.push(baseWrite_(f, baseFields_(f), doc && before && before.hasCipl ? ['cipl'] : []));
-      if (doc) toRead.push(f);
+      const 비울 = (doc && before && before.hasCipl ? ['cipl'] : []).concat(before && before.sniffV ? ['sniff'] : []);
+      writes.push(baseWrite_(f, baseFields_(f), 비울));
+      if (doc || 볼) toRead.push(f);
     }
     // 서류인데 아직 안을 못 읽었으면 한 번 더 읽습니다. 예전 cipl 은 새로 읽을 때까지 둡니다.
     else if (doc && (!before.hasCipl || before.readV !== READ_VERSION)) toRead.push(f);
+    // 이름으로 못 가른 서류 — 파일당 한 번만 안을 떠 둡니다(sniff). 그 뒤로는 파일이 바뀌어야 다시 봅니다.
+    else if (볼 && before.sniffV !== 감지판_) toRead.push(f);
     // 예전에 올라간 파일에는 ctime 이 없습니다. 그 칸 하나만 덧칠합니다 —
     // 통째로 다시 쓰면 읽어둔 cipl 이 날아갑니다.
     else if (f.ctime && !before.ctime) writes.push(ctimeWrite_(f));
@@ -149,7 +156,7 @@ function sync() {
   const secs = (new Date() - started) / 1000;
   const note = '파일 ' + files.length + '건' + (남긴밖 ? ' · 범위 밖 남김 ' + 남긴밖 + '건' : '') + (지운밖 ? ' · 범위 밖 지움 ' + 지운밖 + '건' : '') +
     (밖지운글 ? ' · ' + 밖지운글 : '') + ' · 쓰기 ' + (writes.length + ciplWrites) + '건 · 서류 읽음 ' + ciplOk +
-    '건, 읽을 표 없음 ' + ciplNone + '건' + (poAll ? ' · 발주서 표 ' + poOk + '/' + poAll + '건' : '') + (xlsAll ? ' · 엑셀 발주서 표 ' + xlsOk + '/' + xlsAll + '건' : '') + (병합채움 ? ' · 병합 채움 ' + 병합채움 + '칸' : '') + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
+    '건, 읽을 표 없음 ' + ciplNone + '건' + (감지수 || 감지못읽음 ? ' · 내용 뜸 ' + 감지수 + '건' + (감지못읽음 ? ', 못 읽음 ' + 감지못읽음 + '건' : '') : '') + (poAll ? ' · 발주서 표 ' + poOk + '/' + poAll + '건' : '') + (xlsAll ? ' · 엑셀 발주서 표 ' + xlsOk + '/' + xlsAll + '건' : '') + (병합채움 ? ' · 병합 채움 ' + 병합채움 + '칸' : '') + (ciplCut ? ', 시간 모자라 미룸 ' + ciplCut + '건' : '') +
     ' · ' + secs + '초' + (lastCiplError ? ' · 마지막 오류: ' + lastCiplError : '');
   console.log(note);
   lastNote = note;
@@ -166,7 +173,7 @@ function fingerprint_(files) {
   const parts = files
     .map(function (f) { return f.path + '|' + f.mtime + '|' + f.size + '|' + f.md5; })
     .sort();
-  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, MARK_VERSION + '.' + READ_VERSION + '\n' + parts.join('\n'), Utilities.Charset.UTF_8);
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, MARK_VERSION + '.' + READ_VERSION + '.' + 감지판_ + '\n' + parts.join('\n'), Utilities.Charset.UTF_8);
   return bytes
     .map(function (b) { return ((b + 256) % 256).toString(16).padStart(2, '0'); })
     .join('');
@@ -232,6 +239,7 @@ function 차수폴더인가_(name) {
 function 차수표_(name) {
   let n = String(name).normalize('NFC').replace(/^TalkFile_+/i, '').replace(/(\.[a-z0-9]{2,5})\1+$/i, '$1').trim();
   n = n.replace(/_/g, '-').replace(/(^|[^\d])20(2[4-9])\s*-/g, '$1$2-');
+  if (/第\s*\d{1,2}\s*[-~～]\s*\d{1,2}\s*次/.test(n)) return null;   // 두 차수를 묶은 표기 — 26년 27차가 아닙니다
   const mk = function (y, no) {
     const v = Number(no);
     if (!(v >= 1 && v <= 60)) return null;
@@ -514,7 +522,7 @@ function 밖지우기_(root) {
 function listExisting_() {
   const out = {};
   let pageToken = '';
-  const mask = ['name', 'path', 'vendor', 'size', 'mtime', 'ctime', 'md5', 'driveId', 'cipl']
+  const mask = ['name', 'path', 'vendor', 'size', 'mtime', 'ctime', 'md5', 'driveId', 'cipl', 'sniff.v']
     .map(function (f) { return 'mask.fieldPaths=' + f; })
     .join('&');
   do {
@@ -545,6 +553,8 @@ function listExisting_() {
                     fields.cipl.mapValue.fields.items !== undefined),
         readV: Number((((fields.cipl || {}).mapValue || {}).fields || {}).v &&
                       fields.cipl.mapValue.fields.v.integerValue) || 0,
+        sniffV: Number((((fields.sniff || {}).mapValue || {}).fields || {}).v &&
+                       fields.sniff.mapValue.fields.v.integerValue) || 0,
       };
     });
     pageToken = body.nextPageToken || '';
@@ -599,17 +609,33 @@ function ciplWrite_(f) {
     ciplCut++;
     return null;
   }
-  const cipl = 서류값_(f);
+  const fields = 서류칸_(f);
+  if (!fields) return null;
   return {
-    update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: { cipl: cipl } },
-    updateMask: { fieldPaths: ['cipl'] },
+    update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields },
+    updateMask: { fieldPaths: Object.keys(fields) },
   };
+}
+
+/** 서류 안을 읽어 cipl 칸(감지 대상이면 sniff 칸도)을 만듭니다. 파일 하나에 읽기는 한 번입니다.
+    감지 대상을 못 읽었으면 null — 표를 안 찍어 뒤에 다시 봅니다(한도·일시 오류로 영영 비지 않게). */
+function 서류칸_(f) {
+  const 볼 = 감지대상_(f);
+  if (볼 && Number(f.size) > 감지최대_) return { sniff: sniffValue_({ kind: /\.pdf$/i.test(f.name) ? 'p' : 'x', sheets: [], text: '' }) };
+  감지재료 = null;
+  const fields = { cipl: 서류인가_(f.name) ? 서류값_(f) : /\.pdf$/i.test(f.name) ? orderCipl_(f) : ciplValue_(f) };
+  if (!볼) return fields;
+  if (!감지재료) { 감지못읽음++; return null; }
+  fields.sniff = sniffValue_(감지재료);
+  감지수++;
+  return fields;
 }
 
 /** 발주서 PDF 는 글자로 바꿔 읽습니다. */
 function orderCipl_(f) {
   const doc = pdfText_(f.driveId) || {};
   const text = doc.text;
+  if (text != null) 감지재료 = { kind: 'p', sheets: [], text: 감지글_(text) };
   const pb = readPdfBrief_(text);
   const pi = readPdfItems_(text);
   if (pb || pi) ciplOk++; else ciplNone++;
@@ -968,12 +994,75 @@ function publishUrl() {
 /* ── 잔액서류(CI&PL) 수치 뽑기 ─────────────────────────── */
 
 const SHEET_MIME = 'application/vnd.google-apps.spreadsheet';
-const CIPL_NAME = /CI\s*[&＆和]\s*PL|CI\s*[_,]\s*PL|packing\s*list|装箱单|形式发票|proforma|合同|订单|contract/i;
+const CIPL_NAME = /CI\s*[&＆和]\s*PL|CI\s*[_,]\s*PL|packing\s*list|装箱单|出货明细|形式发票|proforma|合同|订单|contract/i;
 const CIPL_EXT = /\.(xlsx?|xlsm)$/i;
 
 /** 잔액서류 엑셀인지. 같은 이름이라도 영수증은 아닙니다. */
 function isCipl_(name) {
   return CIPL_EXT.test(name) && CIPL_NAME.test(name) && !/영수증|receipt/i.test(name);
+}
+
+/* ── 내용 감지 재료 ──────────────────────────────────────
+   사장님 11-07 — 이름으로 못 가른 서류만 안을 봅니다. 여기는 **재료만** 뜹니다(시트 이름 + 앞부분 글자, docs_files 의 sniff 칸).
+   가르는 것은 앱(js/parse.js 내용판별)이라 낱말을 고쳐도 드라이브를 다시 안 부릅니다.
+   대상 = 거래처 차수 폴더 안(검수·샘플 밖)의 엑셀·PDF 중 이름 규칙이 etc 로 끝낸 것. 파일당 한 번, 복사 읽기 그대로(UrlFetch 3~4). */
+const 감지글자_ = 2000;
+const 감지최대_ = 20 * 1024 * 1024;
+const 감지꼴_ = /\.(xlsx?|xlsm|pdf)$/i;
+let 감지재료 = null;
+let 감지수 = 0;
+let 감지못읽음 = 0;
+
+function 감지글_(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().slice(0, 감지글자_); }
+
+/** 시트 앞 25줄을 한 줄 글로. 칸마다 긴 글은 자릅니다. */
+function 앞줄글_(rows) {
+  const out = [];
+  for (let i = 0; i < rows.length && i < 25; i++) {
+    (rows[i] || []).forEach(function (v) {
+      const t = (v instanceof Date) ? '' : String(v == null ? '' : v).trim();
+      if (t) out.push(t.slice(0, 60));
+    });
+  }
+  return out.join(' ').slice(0, 700);
+}
+
+function sniffValue_(g) {
+  return { mapValue: { fields: {
+    kind: { stringValue: g.kind },
+    sheets: { arrayValue: { values: g.sheets.map(function (s) { return { stringValue: String(s).slice(0, 60) }; }) } },
+    text: { stringValue: g.text },
+    v: { integerValue: String(감지판_) },
+  } } };
+}
+
+/** 안을 볼 파일인가 — 이름 규칙이 못 가른 차수 폴더 안 서류만. */
+function 감지대상_(f) {
+  const 조각 = String(f.path || '').normalize('NFC').split('/');
+  if (조각.length < 3 || !감지꼴_.test(f.name)) return false;
+  if (VENDOR_DIRS.map(NFC_).indexOf(NFC_(조각[0])) < 0 || !차수폴더인가_(조각[1])) return false;
+  if (서랍칸_.indexOf(NFC_(조각[2])) >= 0) return false;
+  return 이름갈래_(f.name) === 'etc';
+}
+
+/** 파일 이름 → 서류 갈래. js/parse.js classify 를 그대로 옮긴 것입니다 — ⚠ 같이 고치세요. test/sync.test.mjs 가 맞대 봅니다. */
+function 이름갈래_(raw) {
+  const n = String(raw).normalize('NFC').replace(/^TalkFile_+/i, '').replace(/(\.[a-z0-9]{2,5})\1+$/i, '$1').trim();
+  const em = /\.([a-z0-9]{1,6})$/i.exec(n);
+  const ext = em ? em[1].toLowerCase() : '';
+  if (/선하증권|\b(?:SH|H|M)?BL[-_ \t]*[A-Z0-9]{4,}|\bB\s*\/\s*L\b|提单/i.test(n)) return 'bl';
+  if (/영수증|수령증|receipt/i.test(n)) return /잔금|잔액|70\s*%|balance/i.test(n) ? 'balReceipt' : 'piReceipt';
+  if (/(?<![A-Za-z])PI(?![A-Za-z])|proforma|形式发票/i.test(n)) return 'pi';
+  if (/CI\s*[&＆和]\s*PL|CI\s*_?\s*PL\b|packing\s*list|装箱单|出货明细/i.test(n)) return 'cipl';
+  if (/70\s*%/.test(n)) return 'cipl';
+  if (/合同|계약서|주문계약/.test(n)) return 'pi';
+  if (/30\s*%/.test(n)) return 'pi';
+  if (/상차|装[车車]|裝車|loading/i.test(n)) return 'loading';
+  if (/ordersheet|order\s*sheet|(?<![A-Za-z])PO(?![A-Za-z])|purchase\s*order|발주서|주문서/i.test(n)) return 'order';
+  if (/^HPC\s*-\s*\d{2}\s*-\s*\d{1,2}\s*차/i.test(n)) return 'order';
+  if (/\bFTA\b|원산지|C\/O\b|certificate\s*of\s*origin/i.test(n)) return 'fta';
+  if (/견적|报价|報價|quotation|도면|작업지.{0,2}서|지시서|설명서|说明|사양|스펙|spec/i.test(n) || ext === 'dxf') return 'dev';
+  return 'etc';
 }
 
 // 해피코 발주서 이름 꼴 「HPC-26-10차 _20260325.pdf」 — 낱말 없이 이 꼴뿐이라 따로 받습니다(js/parse.js classify 와 같음).
@@ -1124,6 +1213,7 @@ function ciplOf_(fileId, name, 발주) {
     }
 
     const sheets = ss.getSheets();
+    감지재료 = { kind: 'x', sheets: sheets.map(function (x) { return x.getName(); }).slice(0, 12), text: '' };
     let best = null;
     let meta = null;
     let brief = null;
@@ -1142,6 +1232,7 @@ function ciplOf_(fileId, name, 발주) {
     }
     for (let i = 0; i < sheets.length; i++) {
       const rows = sheets[i].getDataRange().getValues();
+      감지재료.text = 감지글_(감지재료.text + ' ' + 앞줄글_(rows));
       // 내용보기 팝업이 원본 양식 그대로 그릴 표 — 품목 표가 있는 시트마다(CI · PL). 팝업에서 시트 칩으로 고릅니다.
       const 표 = 원본표_(rows, sheets[i]);
       if (표) 표들.push(표);
@@ -2085,10 +2176,10 @@ function 서랍적기_(fileId, 곳, 기록) {
     f = fileOf_(meta, 곳.path + '/' + meta.name, 곳.vendor);
     const fields = baseFields_(f);
     const mask = Object.keys(fields);
-    if (서류인가_(f.name)) {
+    if (서류인가_(f.name) || 감지대상_(f)) {
       runStart = new Date();
-      fields.cipl = 서류값_(f);
-      mask.push('cipl');
+      const 칸 = 서류칸_(f) || {};
+      Object.keys(칸).forEach(function (k) { fields[k] = 칸[k]; mask.push(k); });
     }
     writes.push({ update: { name: NAME + '/' + COLLECTION + '/' + docId_(f.path), fields: fields }, updateMask: { fieldPaths: mask } });
   }
@@ -2139,7 +2230,7 @@ function 양식올리기_(req, email) {
   } catch (e) { return { ok: false, why: 'drive' }; }
   const path = vf.getName() + '/' + 양식폴더_ + '/' + file.getName();
   commit_([{ update: { name: NAME + '/' + MOVES + '/' + Utilities.getUuid(), fields: {
-    '일': { stringValue: '양식올림' }, driveId: { stringValue: file.getId() }, name: { stringValue: file.getName() },
+    '일': { stringValue: '양식올림' }, 종류: { stringValue: String(req['종류'] || 'order') }, driveId: { stringValue: file.getId() }, name: { stringValue: file.getName() },
     to: { stringValue: path }, toId: { stringValue: folder.getId() }, at: { stringValue: new Date().toISOString() }, by: { stringValue: email },
   } } }]);
   return { ok: true, driveId: file.getId(), path: path };

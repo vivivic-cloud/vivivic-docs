@@ -392,6 +392,21 @@ export async function 단품연결쓰기(열쇠, vp, email) {
   await ctx.f.setDoc(ctx.f.doc(col(CONFIG), '단품연결'), { 링크: { [열쇠]: 값 } }, { merge: true });
 }
 
+/* ── 대표양식·특이사항 (11-07) ─────────────────────────
+   `docs_config/서류단서` 한 건 — { <거래처>: { pdf만, 메모, 칸: { order|pi|cipl: { file, path, driveId, 낱말: [{ w, 곳, 임시 }] } } } }.
+   ⚠ 듣지 않습니다. 앱을 열 때 한 번 읽습니다(읽기 +1). 서버는 안 읽습니다 — 판정은 앱이 합니다. */
+export async function 서류단서읽기() {
+  try {
+    const s = await ctx.f.getDoc(ctx.f.doc(col(CONFIG), '서류단서'));
+    return { ok: true, 값: s.exists() ? s.data() : {} };
+  } catch (e) {
+    return { ok: false, why: e?.code || e?.message || '못 읽음' };
+  }
+}
+export async function 서류단서쓰기(vendor, 값) {
+  await ctx.f.setDoc(ctx.f.doc(col(CONFIG), '서류단서'), { [vendor]: JSON.parse(JSON.stringify(값)) }, { merge: true });
+}
+
 /* ── 발주서 만들기 (11-06) ─────────────────────────────
    docs_발주양식/{거래처} — 대표양식을 분석한 틀(`글` 에 JSON). docs_발주함/{차수 id} — 발주함·입력값(`글` 에 JSON).
    ⚠ JSON 글 한 칸으로 둡니다 — 칸 이름이 양식마다 달라 필드 이름으로 쓰면 깨지고, 배열 안 배열도 안 됩니다.

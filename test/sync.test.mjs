@@ -571,3 +571,62 @@ test('isOrderSheet_ — 엑셀 발주서만 새로 읽는다', () => {
   assert.equal(gs.서류인가_('HPC-26-10차 _20260325.xlsx'), true);
   assert.equal(gs.서류인가_('제품목록.xlsx'), false);
 });
+
+/* ── 내용 감지 (11-07) ── 이름으로 못 가른 서류만, 파일당 한 번 ── */
+import { classify } from '../js/parse.js';
+
+test('이름갈래_ — parse.js classify 와 같은 답', () => {
+  const 이름들 = ['TalkFile_ZH 26-20 Ordersheet.pdf', 'HPC-26-10차 _20260325.pdf', 'SHBL- SITTAGPT0001.pdf', 'B/L 1.pdf', '提单.pdf', '선하증권.pdf',
+    '계약금 영수증.pdf', '잔금 영수증 70%.pdf', 'receipt.pdf', 'PI 26-12.xlsx', 'F-1形式发票和装箱单.xlsx', 'CI&PL 26-1.xls', 'CI_PL.xls', 'ZH-02-CI,PL.pdf', 'packing list.xls',
+    '第26-27次出货明细.xlsx', '70% 서류.pdf', '订单合同.xlsx', '계약서.pdf', '30% 서류.xlsx', '상차.jpg', 'loading.jpg', 'PO_abc.pdf', '발주서.xlsx', '주문서.pdf', 'FTA.pdf', '원산지.pdf',
+    'C/O 1.pdf', '견적.xlsx', '报价.xlsx', '도면.dxf', 'a.dxf', '작업지시서.xlsx', '사양.pdf', 'spec.pdf', 'FK 20261015正本.pdf', '订单.xlsx', 'abc.pdf', 'poster.pdf', 'piano.pdf', 'x.pdf.pdf'];
+  for (const n of 이름들) {
+    const k = classify(n).key === 'etc' ? 'etc' : classify(n).key;
+    assert.equal(gs.이름갈래_(n), k, n);
+  }
+});
+
+test('감지대상_ — 차수 폴더 안, 이름으로 못 가른 엑셀·PDF 만', () => {
+  const 봄 = (path) => gs.감지대상_({ path, name: path.split('/').pop() });
+  assert.equal(봄('해피코/Hp-26-26/알수없는파일.xlsx'), true);
+  assert.equal(봄('제헤우드/Zh-26-22/FK 20261015正本.pdf'), true);
+  assert.equal(봄('제헤우드/Zh-26-21/박스/x.pdf'), true);
+  assert.equal(봄('제헤우드/Zh-26-22/CI&PL.xls'), false);       // 이름으로 갈림
+  assert.equal(봄('제헤우드/Zh-26-22/사진.jpg'), false);
+  assert.equal(봄('제헤우드/Zh-26-22/검수/x.pdf'), false);      // 폴더가 이김
+  assert.equal(봄('제헤우드/대표양식/x.pdf'), false);           // 차수 폴더 밖
+  assert.equal(봄('베이지아/bj-26-02/x.pdf'), false);           // 범위 밖
+  assert.equal(gs.isCipl_('第26-27次出货明细.xlsx'), true);      // 이름으로 갈린 잔액서류는 표를 뜹니다
+});
+
+test('sync — 이름으로 못 가른 서류는 파일당 한 번만 읽고, 표가 있으면 전체 재읽기 없이 끝난다', () => {
+  const 모름 = { ...파일('FK 1.pdf'), path: '제헤우드/Zh-26-22/FK 1.pdf', vendor: '제헤우드' };
+  const 아는 = { ...파일('CI&PL.xls'), path: '제헤우드/Zh-26-22/CI&PL.xls', vendor: '제헤우드' };
+  const 키 = (f) => vm.runInContext('docId_', gs)(f.path);
+  const 있음 = { [키(모름)]: 있던(모름, false), [키(아는)]: 있던(아는, true) };
+  const 처음 = 가짜sync({ files: [모름, 아는], existing: 있음 });
+  assert.deepEqual(처음.차례.filter((x) => x === 'read'), ['read']);          // 읽어 둔 잔액서류는 안 읽음
+  assert.deepEqual([...처음.쓰기[0][0].updateMask.fieldPaths].sort(), ['cipl', 'sniff']);
+  있음[키(모름)].sniffV = vm.runInContext('감지판_', gs);
+  const 다음 = 가짜sync({ files: [모름, 아는], existing: 있음 });
+  assert.equal(다음.쓰기.length, 0);
+  assert.ok(!다음.차례.includes('read'));
+});
+
+test('서류칸_ — 감지 대상은 cipl·sniff 를 함께, 못 읽으면 표를 안 찍고, 너무 크면 빈 재료로 찍는다', () => {
+  const ctx = vm.createContext({ console: { log() {}, warn() {} } });
+  vm.runInContext(readFileSync(new URL('../appsscript/sync.gs', import.meta.url), 'utf8'), ctx);
+  const f = { path: '제헤우드/Zh-26-22/FK 1.pdf', name: 'FK 1.pdf', driveId: 'd', size: 1000 };
+  ctx.pdfText_ = () => ({ text: '  ORIGINAL   Page 1 ', html: '' });
+  const r = ctx.서류칸_(f);
+  assert.deepEqual(Object.keys(r).sort(), ['cipl', 'sniff']);
+  assert.equal(r.sniff.mapValue.fields.text.stringValue, 'ORIGINAL Page 1');
+  assert.equal(r.sniff.mapValue.fields.v.integerValue, String(vm.runInContext('감지판_', ctx)));
+  ctx.pdfText_ = () => null;
+  assert.equal(ctx.서류칸_(f), null);
+  let 불림 = 0;
+  ctx.pdfText_ = () => { 불림++; return null; };
+  const 큰 = ctx.서류칸_({ ...f, size: 30 * 1024 * 1024 });
+  assert.equal(불림, 0);
+  assert.equal(큰.sniff.mapValue.fields.text.stringValue, '');
+});
