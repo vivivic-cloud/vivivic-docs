@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 이름후보, 정식이름, 찾을이름들, 가격칸, 같은발주인가, 발주판묶기, 양식묶기, 수량판, 차수수량 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 이름후보, 정식이름, 찾을이름들, 가격칸, 같은발주인가, 발주판묶기, 양식묶기, 수량판, 차수수량, 같은잔액인가, 세는잔액 } from '../js/match.js';
 import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
@@ -701,6 +701,68 @@ test('차수수량 — 잔액서류가 있으면 여태처럼 잔액서류를 �
 test('차수수량 — 제헤우드 꼴: 발주서가 한 장이면 예전과 같다', () => {
   const b = 차수([발주('AMT(ZH)26-30 Ordersheet_2026.10.27.pdf', 줄(['BY_N4', 60], ['BY▁N4', 4]))]);
   assert.equal(차수수량(b, 'BY_N4').수량, 64, '밑줄 꼴만 다른 줄은 한 단품');
+});
+
+/* ── 잔액서류 사본은 한 장만 (v0.117.0) ── 이름·코드·수량은 지어낸 것입니다 */
+const 머리 = ['CODE#', 'Product model', 'Qty pcs', 'FOB', 'Total'];
+const CI표 = (...짝) => {
+  const 몸 = 짝.map(([c, q, p = 10]) => [c, 'Model', String(q), String(p), String(q * p)]);
+  return 표([머리, ...몸, ['', '', String(짝.reduce((n, [, q]) => n + q, 0)), '', String(짝.reduce((n, [, q, p = 10]) => n + q * p, 0))]], 1, 몸.length + 1);
+};
+const PL표 = (...짝) => 표([['CODE#', 'Qty pcs', 'Total CBM'], ...짝.map(([c, q]) => [c, String(q), '1.5'])]);
+const CI장 = (name, 짝, 덧 = {}) => ({ name, path: `가/${name}`, stageKey: 'cipl',
+  cipl: { items: 줄(...짝.map(([c, q]) => [c, q])), sheets: [{ ...CI표(...짝), name: 'CI' }, { ...PL표(...짝), name: 'PL' }], ...덧 } });
+const 석장 = [['AA_1', 30], ['BB_1', 15]];
+
+test('차수수량 — 이름·지문이 달라도 내용이 같은 사본은 한 번만 센다', () => {
+  const 사본 = [CI장('CI&PL.xls', 석장), CI장('날짜수정.CI&PL.xls', 석장), CI장('TalkFile_CI&PL.xls.xls', 석장)];
+  assert.equal(세는잔액(사본).length, 1);
+  assert.equal(차수수량(차수([], 사본), 'AA_1').수량, 30);
+  assert.equal(차수수량(차수([], 사본), 'BB_1').수량, 15);
+  assert.equal(차수수량(차수([], 사본), 'AA_1').어디, '상차수량');
+});
+
+test('차수수량 — 내용이 다른 여러 장(분할 선적)은 모두 더한다', () => {
+  const 한쪽 = CI장('CI&PL 1차.xls', [['AA_1', 30], ['BB_1', 15]]);
+  const 다른쪽 = CI장('CI&PL 2차.xls', [['AA_1', 20], ['CC_1', 5]]);
+  assert.equal(세는잔액([한쪽, 다른쪽]).length, 2);
+  assert.equal(차수수량(차수([], [한쪽, 다른쪽]), 'AA_1').수량, 50);
+  assert.equal(차수수량(차수([], [한쪽, 다른쪽]), 'CC_1').수량, 5);
+});
+
+test('차수수량 — 사본 둘 + 다른 선적 하나는 두 장만 더한다', () => {
+  const 쪽 = [CI장('가.xls', 석장), CI장('나.xls', [['AA_1', 7]]), CI장('가 사본.xls', 석장)];
+  assert.deepEqual(세는잔액(쪽).map((d) => d.name), ['가.xls', '나.xls']);
+  assert.equal(차수수량(차수([], 쪽), 'AA_1').수량, 37);
+});
+
+test('같은잔액인가 — 수량만 같고 단가·금액이 다르면 다른 서류', () => {
+  assert.equal(같은잔액인가(CI장('가.xls', [['AA_1', 30, 10]]), CI장('나.xls', [['AA_1', 30, 12]])), false);
+});
+
+test('같은잔액인가 — 표를 못 읽었거나 품목이 없으면 사본으로 안 친다', () => {
+  const [가, 나] = [잔액장('가.xls', 줄(['AA_1', 30])), 잔액장('나.xls', 줄(['AA_1', 30]))];
+  assert.equal(같은잔액인가(가, 나), false, '표 없음');
+  assert.equal(차수수량(차수([], [가, 나]), 'AA_1').수량, 60, '모르면 여태처럼 더합니다');
+  assert.equal(같은잔액인가(잔액장('가.xls', []), 잔액장('나.xls', [])), false, '품목 없음');
+});
+
+test('같은잔액인가 — 주문 번호가 둘 다 적혔는데 다르면 다른 서류, 한쪽만 적혔으면 사본', () => {
+  assert.equal(같은잔액인가(CI장('가.xls', 석장, { orderNo: 'A-1' }), CI장('나.xls', 석장, { orderNo: 'A-2' })), false);
+  assert.equal(같은잔액인가(CI장('가.xls', 석장, { orderNo: 'A-1' }), CI장('나.xls', 석장)), true);
+});
+
+test('같은잔액인가 — 날짜·이름이 달라도 표가 같으면 사본, 시트 수가 다르면 다른 서류', () => {
+  const 한시트장 = CI장('가.xls', 석장);
+  한시트장.cipl = { ...한시트장.cipl, sheets: 한시트장.cipl.sheets.slice(0, 1) };
+  assert.equal(같은잔액인가(CI장('2026.08.15 CI.xls', 석장, { invoiceDate: '2026-08-15' }), CI장('날짜수정 CI.xls', 석장, { invoiceDate: '2026-08-20' })), true);
+  assert.equal(같은잔액인가(CI장('나.xls', 석장), 한시트장), false);
+});
+
+test('같은잔액인가 — 양식만 달라 칸 차례가 바뀌어도 품목이 같으면 사본', () => {
+  const 다른꼴 = CI장('다른 양식.xls', 석장);
+  다른꼴.cipl = { ...다른꼴.cipl, sheets: 다른꼴.cipl.sheets.map((t) => ({ ...t, rows: t.rows.map(({ c: [첫, 둘, ...뒤] }) => ({ c: [둘, 첫, ...뒤] })) })) };
+  assert.equal(같은잔액인가(CI장('가.xls', 석장), 다른꼴), true);
 });
 
 test('차수수량 — 임시통합 차수는 수량이 없다', () => {
