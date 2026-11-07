@@ -628,7 +628,8 @@ test('서류칸_ — 감지 대상은 cipl·sniff 를 함께, 못 읽으면 표�
   ctx.pdfText_ = () => { 불림++; return null; };
   const 큰 = ctx.서류칸_({ ...f, size: 30 * 1024 * 1024 });
   assert.equal(불림, 0);
-  assert.equal(큰.sniff.mapValue.fields.text.stringValue, '');
+  assert.equal(큰.sniff.mapValue.fields.text.stringValue, '');});
+
 test('엑셀숨김표_ — xlsx XML 에서 시트마다 숨긴 칸·줄 (시트 파일 번호와 차례가 달라도)', () => {
   const 표 = gs.엑셀숨김표_({
     'xl/workbook.xml': '<sheets><sheet name="해피코 26-5차 &amp; 발주서" sheetId="3" r:id="rId2"/><sheet name="Sheet2" sheetId="1" r:id="rId1"/></sheets>',
