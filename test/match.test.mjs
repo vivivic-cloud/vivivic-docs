@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 이름후보, 정식이름, 찾을이름들, 가격칸, 같은발주인가, 발주판묶기, 양식묶기 } from '../js/match.js';
+import { 맞춰보기, 맞춤판정, itemRows, 제품차이, 벤더피아사전, 적합성, 맞댈자, 수량출처, 발주대조, 대조숫자, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름같음, 이름후보, 정식이름, 찾을이름들, 가격칸, 같은발주인가, 발주판묶기, 양식묶기, 수량판, 차수수량 } from '../js/match.js';
 import { 코드열쇠 } from '../js/parse.js';
 import { 벤더피아줄벗기기 } from '../js/firebase.js';
 
@@ -635,4 +635,77 @@ test('양식묶기 — 발주서 칸만 접고 b.docs 는 그대로, 혼자면 �
   const 혼자 = { docs: docs.slice(0, 1), stages: [{ key: 'order', docs: docs.slice(0, 1) }] };
   assert.equal(양식묶기(혼자), 혼자);
   assert.equal(양식묶기({ 임시: true, docs: [] }).stages, undefined);
+});
+
+/* ── 한 차수의 수량은 한 판만 (v0.115.0) ── 이름·코드는 지어낸 것입니다 */
+const 줄 = (...짝) => 짝.map(([code, qty]) => ({ code, qty }));
+const 발주 = (name, items, 덧 = {}) => ({ name, path: `가/Hp-26-02/${name}`, stageKey: 'order', cipl: { items, sheets: [] }, ...덧 });
+const 잔액장 = (name, items) => ({ name, path: `가/Hp-26-02/${name}`, stageKey: 'cipl', cipl: { items } });
+const 차수 = (판들, 잔액 = []) => ({ id: '가::26-02', batch: '26-02', vendor: '가',
+  docs: [...판들.flatMap((d) => d.양식들 ?? [d]), ...잔액],
+  stages: [{ key: 'order', docs: 판들 }, { key: 'cipl', docs: 잔액 }] });
+const 원본 = 발주('HPC-26-2차 _20260106.pdf', 줄(['AA_1', 100], ['BB_1', 50]));
+const 수정 = 발주('HPC-26-2차 (수정) _20260223.pdf', 줄(['AA_1', 80], ['BB_1', 50]));
+const 둘째 = 발주('HPC-26-2차 (2차수정) _20260303.pdf', 줄(['AA_1', 70], ['CC_1', 5]));
+
+test('차수수량 — 확정이 없으면 가장 늦은 판 하나만 센다', () => {
+  const b = 차수([수정, 원본, 둘째]);
+  assert.equal(수량판(b).name, 둘째.name);
+  assert.deepEqual(차수수량(b, 'AA_1'), { batch: '26-02', 수량: 70, 어디: '발주수량(입고전)', 잔액있음: false });
+  assert.equal(차수수량(b, 'BB_1'), null, '최신 판에서 빠진 단품은 없음');
+});
+
+test('차수수량 — 확정 발주서가 있으면 더 늦은 판이 있어도 그 판', () => {
+  const b = 차수([원본, 수정, 둘째]);
+  assert.equal(차수수량(b, 'AA_1', 수정.path).수량, 80);
+  assert.equal(차수수량(b, 'CC_1', 수정.path), null);
+});
+
+test('차수수량 — 확정 경로가 그 차수에 없으면 확정이 없는 것으로 본다', () => {
+  assert.equal(차수수량(차수([원본, 둘째]), 'AA_1', '가/딴곳/없는.pdf').수량, 70);
+});
+
+test('차수수량 — 양식만 다른 같은 발주는 한 판', () => {
+  const 판 = { ...둘째, 양식들: [{ ...둘째, 양식: 'PDF' }, { ...둘째, name: '엑셀.xlsx', path: '가/엑셀.xlsx', 양식: '엑셀' }] };
+  assert.equal(차수수량(차수([원본, 판]), 'AA_1').수량, 70);
+  assert.equal(차수수량(차수([원본, 판]), 'AA_1', '가/엑셀.xlsx').수량, 70, '엑셀 양식으로 확정해도 그 판');
+});
+
+test('차수수량 — 수량을 못 읽은 판은 건너뛰되, 확정한 판은 다른 판으로 메우지 않는다', () => {
+  const 못읽음 = 발주('HPC-26-2차 (3차수정) _20260401.pdf', []);
+  assert.equal(차수수량(차수([원본, 못읽음]), 'AA_1').수량, 100);
+  assert.equal(차수수량(차수([원본, 못읽음]), 'AA_1', 못읽음.path), null);
+});
+
+test('차수수량 — items 가 빈 엑셀 발주서는 표에서 읽는다', () => {
+  const 표 = { rows: [{ c: ['code#', 'ORDER QTY'] }, { c: ['AA_1', '60'] }, { c: ['BB_1', '0'] }], h: 1, f: 3 };
+  const 엑셀 = 발주('HPC-26-2차 (3차수정) _20260401.xlsx', [], { cipl: { items: [], sheets: [표] } });
+  assert.equal(차수수량(차수([원본, 엑셀]), 'AA_1').수량, 60);
+  assert.equal(차수수량(차수([원본, 엑셀]), 'BB_1'), null);
+});
+
+test('차수수량 — 이름에 날짜가 없으면 수정 차례, 그것도 같으면 올린 시각', () => {
+  const a = 발주('가 발주서.pdf', 줄(['AA_1', 1]), { ctime: 100 });
+  const b = 발주('나 발주서.pdf', 줄(['AA_1', 2]), { ctime: 200 });
+  const c = 발주('다 발주서 수정.pdf', 줄(['AA_1', 3]), { ctime: 50 });
+  assert.equal(차수수량(차수([a, b]), 'AA_1').수량, 2);
+  assert.equal(차수수량(차수([a, b, c]), 'AA_1').수량, 3);
+});
+
+test('차수수량 — 잔액서류가 있으면 여태처럼 잔액서류를 더하고 발주서는 안 본다', () => {
+  const b = 차수([원본, 둘째], [잔액장('CI 1.xlsx', 줄(['AA_1', 30])), 잔액장('CI 2.xlsx', 줄(['AA_1', 12]))]);
+  assert.deepEqual(차수수량(b, 'AA_1', 둘째.path), { batch: '26-02', 수량: 42, 어디: '상차수량', 잔액있음: true });
+  assert.equal(차수수량(b, 'CC_1'), null);
+});
+
+test('차수수량 — 제헤우드 꼴: 발주서가 한 장이면 예전과 같다', () => {
+  const b = 차수([발주('AMT(ZH)26-30 Ordersheet_2026.10.27.pdf', 줄(['BY_N4', 60], ['BY▁N4', 4]))]);
+  assert.equal(차수수량(b, 'BY_N4').수량, 64, '밑줄 꼴만 다른 줄은 한 단품');
+});
+
+test('차수수량 — 임시통합 차수는 수량이 없다', () => {
+  // 임시통합은 cipl 이 없고 벤더피아로 가는 state.batches 에도 안 들어갑니다.
+  const b = 차수([{ name: 'PO 1', path: '임시:1', stageKey: 'order', 임시: { po: '1' } }]);
+  assert.equal(차수수량(b, 'AA_1'), null);
+  assert.equal(수량판(b), null);
 });

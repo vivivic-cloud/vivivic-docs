@@ -177,8 +177,9 @@ export async function replaceFiles(files, onProgress) {
 export const overlayKey = (batchId) => batchId.replace(/\//g, '~');
 
 export function watchOverlay(cb) {
-  return ctx.f.onSnapshot(col(OVERLAY), (s) =>
-    cb(Object.fromEntries(s.docs.map((d) => [d.data().batchId ?? d.id, d.data()])))
+  // 캐시인지 같이 건넵니다 — 확정 발주서로 벤더피아 수량을 고르니, 서버 값을 본 뒤에만 씁니다.
+  return 듣기(col(OVERLAY), (s, 캐시) =>
+    cb(Object.fromEntries(s.docs.map((d) => [d.data().batchId ?? d.id, d.data()])), 캐시)
   );
 }
 

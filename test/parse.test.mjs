@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds, 올릴이름, 파일째공유되나, PDF로바꿀꼴, 다음차수, 임시발주묶기 } from '../js/parse.js';
+import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds, 올릴이름, 파일째공유되나, PDF로바꿀꼴, 다음차수, 임시발주묶기, 판날짜, 수정차례 } from '../js/parse.js';
 
 /** 실제 드라이브 `중국/제헤우드/` 폴더에서 가져온 파일명입니다. */
 const REAL = [
@@ -1097,4 +1097,25 @@ test('단서합치기 — 사람이 손댄 낱말은 남고 임시는 새로 갈
   const r = 단서합치기([{ w: '직접말', 곳: '직접' }, { w: '옛임시', 곳: '제목', 임시: true }, { w: 'INVOICE', 곳: '제목' }],
     [{ w: 'invoice', 곳: '제목', 임시: true }, { w: '새말', 곳: '제목', 임시: true }]);
   assert.deepEqual(r.map((x) => x.w), ['직접말', 'INVOICE', '새말']);
+});
+
+test('판날짜 — 이름의 날짜 가운데 가장 늦은 것', () => {
+  assert.equal(판날짜('HPC-26-2차 _20260106.pdf'), '2026-01-06');
+  assert.equal(판날짜('HPC-26-24차_1차 수정 2026.09.14.pdf'), '2026-09-14');
+  assert.equal(판날짜('AMT(ZH)26-19 Ordersheet_20260813_1차수정(26.09.02).pdf'), '2026-09-02', '수정 날짜가 뒤에 붙습니다');
+  assert.equal(판날짜('AMT_ZH_26-10_Ordersheet_20260519_수정_2026_05_20_pdf.pdf'), '2026-05-20');
+  assert.equal(판날짜('PO_ABC 26-03_260514.pdf'), '2026-05-14');
+  assert.equal(판날짜('AMT(ZH)26-13 Ordersheet_202600602.pdf'), null, '오타는 날짜가 아닙니다');
+  assert.equal(판날짜('HPC-26-13차 발주.pdf'), null);
+});
+
+test('수정차례 — 차수의 「N차」 를 수정 차례로 읽지 않는다', () => {
+  assert.equal(수정차례('HPC-26-2차 _20260106.pdf'), 0);
+  assert.equal(수정차례('HPC-26-7차(수정) _20260306.pdf'), 1);
+  assert.equal(수정차례('HPC-26-2차  (2차수정) _20260303.pdf'), 2);
+  assert.equal(수정차례('HPC-26-23차_1차 수정_20260814.pdf'), 1);
+  assert.equal(수정차례('HPC-26-23차_2차 수정_20260814.pdf'), 2);
+  assert.equal(수정차례('HPC-26-13차~16차 수정_20260513.pdf'), 1);
+  assert.ok(수정차례('HPC-26-19차(2차 수정_최종)_20260528.pdf') > 2);
+  assert.equal(수정차례('AMT(ZH)26-22 Ordersheet_수정-추가 (2026.10.08).pdf'), 1);
 });

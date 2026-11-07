@@ -13,7 +13,7 @@
 
 /* 코드를 맞대는 셈(`코드열쇠`)은 **js/parse.js 한 자리**에 있습니다. 여기서 또 만들지 마십시오.
    서류끼리 맞댈 때도 벤더피아와 맞댈 때도 같은 것을 불러야 둘이 안 갈라집니다. */
-import { 코드열쇠, 제품줄인가 } from './parse.js';
+import { 코드열쇠, 제품줄인가, 판날짜, 수정차례 } from './parse.js';
 
 /**
  * 두 서류의 품목을 코드로 맞춰 보고, 무엇이 새로 들어오고 빠지고 수량이 바뀌었는지 줄로 만듭니다.
@@ -214,6 +214,63 @@ export function 수량출처(잔액서류수) {
   return 잔액서류수 > 0
     ? { 어디: '상차수량', 잔액있음: true }
     : { 어디: '발주수량(입고전)', 잔액있음: false };
+}
+
+/* ── 한 차수의 수량은 한 판만 셉니다 (v0.115.0, 11-07) ──────────
+ * 사장님 「네, 고쳐」 — 잔액서류가 없는 차수는 발주서 수량을 쓰는데, 수정 판이 여럿이면 다 더해졌습니다.
+ *
+ * ⚠ 기준은 관리 방이 정한 임시 기준입니다. 사장님이 직접 정하신 것이 아닙니다.
+ *   ① 잔액서류가 있으면 여태처럼 잔액서류 — 이 길은 안 바꿉니다.
+ *   ② 확정 발주서가 있으면 그 판만. 그 판을 못 읽었으면 수량 없음(다른 판으로 메우지 않습니다).
+ *   ③ 확정이 없으면 수량을 읽은 판 가운데 가장 늦은 판 — 이름 날짜 → 수정 차례 → 올린 시각.
+ *   ④ 양식만 다른 같은 발주(양식묶기)는 한 판입니다.
+ */
+const 품목줄 = (d) => (d?.cipl?.items ?? []).filter((x) => 제품줄인가(String(x?.code ?? '').trim()));
+
+/* 엑셀 발주서는 서버가 items 를 일부러 비웁니다(sync.gs orderSheetCipl_). 그때는 표에서 읽습니다. */
+const 발주줄 = (d) => {
+  const 줄 = 품목줄(d);
+  return 줄.length ? 줄 : [...(대조품목(표들(d)[0])?.품.values() ?? [])];
+};
+const 판줄 = (판) => (판.양식들 ?? [판]).map(발주줄).find((줄) => 줄.length) ?? [];
+const 올린때 = (d) => d.ctime ?? d.mtime ?? 0;
+
+/** 둘 가운데 늦은 판. 끝까지 같으면 경로로 갈라 — 브라우저마다 같은 값을 올립니다. */
+function 늦은판(a, b) {
+  const [x, y] = [판날짜(a.name), 판날짜(b.name)];
+  if (x && y && x !== y) return x > y ? a : b;
+  const [p, q] = [수정차례(a.name), 수정차례(b.name)];
+  if (p !== q) return p > q ? a : b;
+  if (올린때(a) !== 올린때(b)) return 올린때(a) > 올린때(b) ? a : b;
+  return String(a.path) > String(b.path) ? a : b;
+}
+
+/** 이 차수의 수량을 셀 발주서 한 판. 없으면 null. `확정` 은 overlay 의 confirmedOrder 경로. */
+export function 수량판(b, 확정 = null) {
+  const 판들 = b?.stages?.find((s) => s.key === 'order')?.docs ?? [];
+  const 고른 = 확정 ? 판들.find((d) => d.path === 확정 || d.양식들?.some((x) => x.path === 확정)) : null;
+  if (고른) return 고른;
+  const 읽은 = 판들.filter((d) => 판줄(d).length);
+  return 읽은.length ? 읽은.reduce(늦은판) : null;
+}
+
+/**
+ * 단품 하나의 차수 수량 — { batch, 수량, 어디, 잔액있음 }. 그 단품이 안 들어간 차수는 null(0 과 「없음」 은 다릅니다).
+ * 벤더피아가 읽는 `docs_단품수량` 의 재료입니다. **수량만** 내줍니다.
+ */
+export function 차수수량(b, code, 확정 = null) {
+  const 열쇠 = 코드열쇠(code);
+  const 잔액 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
+  const 쪽 = 수량출처(잔액.length);
+  const 판 = 쪽.잔액있음 ? null : 수량판(b, 확정);
+  const 줄들 = 쪽.잔액있음 ? 잔액.flatMap(품목줄) : 판 ? 판줄(판) : [];
+  let 수량 = null;
+  for (const it of 줄들) {
+    if (코드열쇠(it.code) !== 열쇠) continue;
+    const n = Number(it.qty);
+    if (Number.isFinite(n)) 수량 = (수량 ?? 0) + n;
+  }
+  return 수량 === null ? null : { batch: b.batch ?? '차수 미정', 수량, 어디: 쪽.어디, 잔액있음: 쪽.잔액있음 };
 }
 
 /* ── 발주서 ↔ 잔액서류 대조 ───────────────────────────────

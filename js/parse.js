@@ -991,6 +991,32 @@ export function parseDate(rawName) {
   return null;
 }
 
+/**
+ * 판 날짜 — 이름에 적힌 날짜 가운데 **가장 늦은 것**.
+ * parseDate 는 첫 날짜만 봅니다. 「…_20260813_1차수정(26.09.02).pdf」 는 뒤엣것이 그 판의 날짜입니다.
+ * 달·날이 말이 안 되면(오타 202600602 등) 날짜가 아닙니다.
+ */
+export function 판날짜(rawName) {
+  const n = normalizeName(rawName);
+  const 답 = [];
+  const 더함 = (y, m, d) => { if (+m >= 1 && +m <= 12 && +d >= 1 && +d <= 31) 답.push(`${y}-${String(+m).padStart(2, '0')}-${String(+d).padStart(2, '0')}`); };
+  for (const x of n.matchAll(/(?<!\d)(20\d{2})[.\-_ ]?(\d{2})[.\-_ ]?(\d{2})(?!\d)/g)) 더함(x[1], x[2], x[3]);
+  for (const x of n.matchAll(/(?<![\d.\-])(2[4-9])(\d{2})(\d{2})(?!\d)/g)) 더함(`20${x[1]}`, x[2], x[3]);
+  for (const x of n.matchAll(/(?<![\d.\-])(2[4-9])\.(\d{1,2})\.(\d{1,2})(?!\d)/g)) 더함(`20${x[1]}`, x[2], x[3]);
+  return 답.sort().at(-1) ?? null;
+}
+
+/**
+ * 수정 차례 — 원본 0 · 「수정」 1 · 「2차수정」 2 · 끝에 「최종」 이 있으면 조금 위.
+ * ⚠ 「HPC-26-7차(수정)」 의 7차는 차수입니다. 숫자 앞이 `-` 면 안 봅니다. 「13차~16차 수정」 도 마찬가지.
+ */
+export function 수정차례(rawName) {
+  const n = String(rawName ?? '').normalize('NFC');
+  const m = /(?<![\d\-~])(\d{1,2})\s*차\s*수정/.exec(n);
+  const 차례 = m ? Number(m[1]) : /수정|修改|revis/i.test(n) ? 1 : 0;
+  return 차례 + (/최종|final/i.test(n) ? 0.5 : 0);
+}
+
 /** PI 문서번호 (예: 26-094-AMT-ZH-18 → 26-094) */
 export function parseDocNo(rawName) {
   const m = /(\d{2}-\d{3})-AMT/i.exec(normalizeName(rawName));

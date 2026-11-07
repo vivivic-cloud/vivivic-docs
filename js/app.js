@@ -1,6 +1,6 @@
 import { STAGES, STAGE_BY_KEY, ASIDE, 단서종류, 단서뽑기, 단서합치기, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, PDF로바꿀꼴, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
-import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸, 양식묶기 } from './match.js';
+import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 차수수량, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸, 양식묶기 } from './match.js';
 import { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 줄값, 발주합계, 가격칸키 } from './order.js';
 import { 엑셀표본, 시트표본, 모양읽기, 꼬리값 } from './sheet.js';
 import * as FS from './fsaccess.js';
@@ -27,7 +27,7 @@ const state = {
   unsub: [],
   임시차수: [],         // 임시통합 — 연 구매사명의 차수(벤더피아 구매발주목록). 드라이브 차수와 따로 둡니다
   단서: {},                                         // docs_config/서류단서 — 거래처별 특이사항·대표양식 단서
-  캐시: { files: true, rules: true, kinds: true, 단서: true },   // 아직 서버 값을 못 봤으면 true — 그동안은 안 씁니다
+  캐시: { files: true, rules: true, kinds: true, 단서: true, overlay: true },   // 아직 서버 값을 못 봤으면 true — 그동안은 안 씁니다
 };
 
 const $ = (s) => document.querySelector(s);
@@ -142,7 +142,11 @@ async function enterApp(user) {
 
   state.unsub.push(
     DB.watchFiles((files, 캐시) => { state.files = files; state.캐시.files = 캐시; applyParse(); }),
-    DB.watchOverlay((ov) => { state.overlay = ov; state.batches = 빈차수더하기(state.파일차수 ?? []); render(); window.docsHomeRefresh?.(); }),
+    DB.watchOverlay((ov, 캐시) => {
+      state.overlay = ov; state.캐시.overlay = 캐시;
+      state.batches = 빈차수더하기(state.파일차수 ?? []); render(); window.docsHomeRefresh?.();
+      window.docs수량건네기?.().catch(() => {});   // 확정 발주서가 바뀌면 벤더피아로 가는 수량도 바뀝니다
+    }),
     DB.watchRules((rules, 캐시) => { state.rules = rules; state.캐시.rules = 캐시; applyParse(); }),
     DB.watchBoxes((boxes) => { state.boxes = boxes; window.docsBoxesChanged?.(); }),
     DB.watchKinds((map, 캐시) => { state.kinds = map; state.캐시.kinds = 캐시; window.docsBoxesChanged?.(); saveKindsIfNew(); }),
@@ -3959,28 +3963,11 @@ window.docs단품 = (vendor) => {
    ⚠ 어디서 온 수량인지(`어디`)를 같이 적습니다. 「상차수량」 을 「발주수량」 으로 읽으면 안 됩니다. */
 window.docs단품수량 = (vendor, code) => {
   if (!vendor || !code) return { code: code ?? null, 차수들: [] };
-  const 열쇠 = 코드열쇠(code);
-  const 차수들 = [];
-  for (const b of state.batches) {
-    if ((b.vendor || '(루트)') !== vendor) continue;
-    const 잔액 = (b.docs ?? []).filter((d) => d.stageKey === 'cipl');
-    const 발주 = (b.docs ?? []).filter((d) => d.stageKey === 'order');
-    // 잔액서류가 왔으면 그것이 참말입니다 — 실제로 실린 수량입니다.
-    // 어느 서류를 보고 무엇이라 부를지는 js/match.js 의 수량출처 한 자리가 정합니다.
-    const 쪽 = 수량출처(잔액.length);
-    const 고름 = { 서류: 쪽.잔액있음 ? 잔액 : 발주, ...쪽 };
-    let 수량 = null;
-    for (const d of 고름.서류) {
-      for (const it of 제품줄만(d.cipl?.items)) {
-        if (코드열쇠(it.code) !== 열쇠) continue;
-        const n = Number(it.qty);
-        if (Number.isFinite(n)) 수량 = (수량 ?? 0) + n;
-      }
-    }
-    // 그 단품이 안 들어간 차수는 아예 안 내보냅니다 — 0 과 「없음」 은 다릅니다.
-    if (수량 === null) continue;
-    차수들.push({ batch: b.batch ?? '차수 미정', 수량, 어디: 고름.어디, 잔액있음: 고름.잔액있음 });
-  }
+  // 어느 서류를 몇 판 세는지는 js/match.js 의 차수수량 한 자리가 정합니다 — 잔액서류, 없으면 발주서 한 판.
+  const 차수들 = state.batches
+    .filter((b) => (b.vendor || '(루트)') === vendor)
+    .map((b) => 차수수량(b, code, state.overlay?.[b.id]?.confirmedOrder ?? null))
+    .filter(Boolean);
   차수들.sort((a, z) => String(z.batch).localeCompare(String(a.batch)));
   return { code, 차수들 };
 };
@@ -4028,7 +4015,7 @@ function 수량줄(vendor) {
  */
 window.docs수량건네기 = async (vendor) => {
   if (state.demo || !state.user) return null;
-  if (state.캐시.files || state.캐시.rules || state.캐시.단서) return null;   // 서버 값을 보기 전엔 안 올립니다 — 곧 다시 불립니다
+  if (state.캐시.files || state.캐시.rules || state.캐시.단서 || state.캐시.overlay) return null;   // 서버 값을 보기 전엔 안 올립니다 — 곧 다시 불립니다
   if (수량도는중) { 수량또 = true; return 수량도는중; }   // 파일·규칙이 따로 와서 겹쳐 불립니다
   수량도는중 = 수량한번(vendor);
   try { return await 수량도는중; }
