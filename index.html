@@ -100,7 +100,7 @@
   .dpr-pop .dan-opt{ display:flex; align-items:center; gap:8px; }
   .dpr-pop .dan-opt .chip{ flex:none; min-height:40px; }
   .dpr-pop .dan-opt input{ flex:1; min-width:0; }
-  .dpr-pop .dan-opt input, .dpr-pop .dan-add input{ min-height:40px; border:1px solid #ededeb; border-radius:10px; padding:0 12px; font-size:14px; background:#fff; color:var(--vg-ink); }
+  .dpr-pop .dan-opt input{ min-height:40px; border:1px solid #ededeb; border-radius:10px; padding:0 12px; font-size:14px; background:#fff; color:var(--vg-ink); }
   .dpr-pop .dan-box{ border:1px solid #ededeb; border-radius:16px; padding:14px; margin:0 0 10px; background:#fff; }
   .dpr-pop .dan-top{ display:flex; align-items:center; gap:8px; }
   .dpr-pop .dan-top b{ flex:none; font-size:14px; font-weight:800; color:var(--vg-ink); }
@@ -108,17 +108,23 @@
   .dpr-pop .dan-up{ flex:none; min-height:40px; }
   .dpr-pop .dan-up:disabled{ opacity:.5; }
   .dpr-pop .dan-note{ font-size:11px; font-weight:700; color:var(--vg-muted); margin:6px 0 0; }
-  .dpr-pop .dan-words{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; }
-  .dpr-pop .dan-words:empty{ display:none; }
-  .dpr-pop .dan-w{ display:inline-flex; align-items:center; max-width:100%; border-radius:10px; background:#f1f1ef; font-size:12.5px; font-weight:600; color:var(--vg-ink); }
-  .dpr-pop .dan-w.dan-tmp{ background:#fff; box-shadow:inset 0 0 0 1px #dcdcd8; color:var(--vg-body); }
-  .dpr-pop .dan-w > button:first-child{ min-height:36px; min-width:0; padding:0 2px 0 10px; text-align:left; overflow-wrap:anywhere; }
-  .dpr-pop .dan-w i{ font-style:normal; font-size:10px; font-weight:700; color:var(--vg-muted); margin-left:5px; }
-  .dpr-pop .dan-w em{ font-style:normal; font-size:10px; font-weight:800; color:#a15c00; margin-left:5px; }
-  .dpr-pop .dan-x{ flex:none; width:32px; min-height:36px; color:var(--vg-muted); font-size:15px; }
-  .dpr-pop .dan-add{ display:flex; gap:6px; margin:10px 0 0; }
-  .dpr-pop .dan-add input{ flex:1; min-width:0; }
-  .dpr-pop .dan-add .chip{ flex:none; min-height:40px; }
+  .dpr-pop .dan-box .vv-blur{ filter:blur(5px); user-select:none; -webkit-user-select:none; color:var(--vg-muted); }
+  .dpr-pop .dan-box .vv-xw, .dpr-pop .dan-box .vv-x{ margin-top:8px; }
+  .dpr-pop .dan-box .dpr-sn{ margin:14px 0 2px; }
+  .dpr-pop .dan-tabs{ flex-wrap:wrap; margin:10px 0 0; }
+  .dpr-pop .dan-tabs .chip{ min-height:40px; }
+  .dpr-pop .dan-sum{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; }
+  .dpr-pop .dan-tag{ font-size:11px; font-weight:700; padding:3px 8px; border-radius:8px; background:#f1f1ef; color:var(--vg-body); }
+  .dpr-pop .dan-tag.dan-bad{ background:#fdecea; color:#b3261e; }
+  .dpr-pop .dan-warn{ margin:10px 0 0; padding:10px 12px; border-radius:12px; background:#fff4e5; color:#8a4b00; font-size:12.5px; }
+  .dpr-pop .dan-warn b{ font-weight:800; margin-right:8px; }
+  .dpr-pop .dan-warn span{ font-size:11.5px; }
+  .dpr-pop .dan-go{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 0; }
+  .dpr-pop .dan-go .chip{ min-height:40px; }
+  .dpr-pop .dan-pick{ min-height:36px; max-width:120px; border:1px solid #ededeb; border-radius:8px; background:#fff; color:var(--vg-ink); font-size:12.5px; padding:0 4px; }
+  .dpr-pop .dan-src{ font-size:10px; font-weight:700; color:var(--vg-muted); margin-left:5px; }
+  .dpr-pop .dan-none{ color:var(--vg-muted); font-style:normal; }
+  .dpr-pop .dan-rows{ font-size:12px; color:var(--vg-body); line-height:1.5; overflow-wrap:anywhere; }
   /* 발주서 만들기 (11-06) — #diffView 팝업. 표는 .dpr-t, 칸마다 입력칸. 떠 있는 뒤로 단추가 표를 가려 팝업 동안 숨깁니다. */
   html[data-docsdiff] #docs-back{ display:none; }
   .dpr-pop .bo-t td{ padding:6px 8px; }
@@ -416,7 +422,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.119.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.120.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -457,7 +463,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.119.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.120.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">

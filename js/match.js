@@ -322,6 +322,8 @@ export function 대조품목(t) {
       if (!k) return;
       for (const [key, res] of 대조칸) if (cols[key] === undefined && res.some((re) => re.test(k))) cols[key] = c;
     });
+  // 대표양식 구성으로 칸을 안 표(js/form.js) — 낱말보다 먼저입니다.
+  for (const k of ['code', 'name', 'qty', 'price', 'amount', 'color']) if (t.뜻?.[k] !== undefined) cols[k] = t.뜻[k];
   if (cols.qty === undefined) return null;
   const 몸 = rows.slice(h, f).filter((r) => !r.some((v) => 합계말.test(String(v ?? ''))));
 
@@ -550,6 +552,8 @@ export function 벤더피아맞대기(t, 사전, 연결) {
       else if (품번 === undefined && 품번머리.some((re) => re.test(k))) 품번 = c;
       else if (이름칸말.test(k) && !names.includes(c)) names.push(c);
     });
+  if (t?.뜻?.code !== undefined) code = t.뜻.code;
+  if (t?.뜻?.name !== undefined && !names.includes(t.뜻.name)) names.push(t.뜻.name);
   if (code === undefined && 품번 !== undefined
     && 품번칸되나(rows.slice(h, f).filter((r) => !r.some((v) => 합계말.test(String(v ?? '')))).map((r) => r[품번]))) code = 품번;
   if (code === undefined) return { 못댐: '코드 칸 없음' };
@@ -601,6 +605,7 @@ export function 가격칸(t) {
     if (가격말.test(m) || 합계칸말.test(k)) 칸.add(c);
     else if (비가격말.test(k)) 비가격.add(c);
   });
+  for (const k of ['price', 'amount', 'money']) if (t?.뜻?.[k] !== undefined) 칸.add(t.뜻[k]);
   const 가릴 = (v, c, i) => {
     const s = String(v ?? '').trim();
     if (i < h || !s) return false;

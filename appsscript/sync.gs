@@ -1687,6 +1687,10 @@ function 원본표_(rows, sh, 숨) {
     shown = shown.filter(function (r, i) { return !숨.줄[i]; }).map(숨긴칸);
   }
   const 빈줄 = function (r) { return !(r || []).some(function (v) { return 글(v); }); };
+  // 표 위 글 — 앱이 대표양식 구성으로 번호·날짜를 읽습니다(js/form.js 구성머리값, 11-07). 새로 읽는 서류부터 담깁니다.
+  const 위 = shown.slice(0, head).filter(function (r) { return !빈줄(r); }).slice(0, 14).map(function (r) {
+    return (r || []).slice(0, 30).map(글);
+  });
 
   // 은행·서명 글귀가 나오면 표가 끝난 것입니다. 빈 줄이 셋 이어져도 끝입니다.
   let end = head + 1;
@@ -1727,6 +1731,7 @@ function 원본표_(rows, sh, 숨) {
     if (r.some(function (v) { return TOTAL_ROW_.test(글(v)); }) || (비었나(코드칸) && 비었나(cols.name))) { f = i; break; }
   }
   const 표 = { name: String(sh.getName()).slice(0, 40), rows: out, h: h, f: f };
+  if (위.length) 표.위 = 위;
   if (숨) 표.머리글 = 머리글;
   return 표;
 }
@@ -1925,14 +1930,19 @@ function pdfTable_(html) {
 
 function sheetValue_(t) {
   if (!t) return { nullValue: null };
-  return { mapValue: { fields: {
+  const 줄들 = function (rows) {
+    return { arrayValue: { values: rows.map(function (r) {
+      return { mapValue: { fields: { c: { arrayValue: { values: r.map(function (v) { return { stringValue: v }; }) } } } } };
+    }) } };
+  };
+  const fields = {
     name: { stringValue: t.name },
     h: { integerValue: String(t.h) },
     f: { integerValue: String(t.f) },
-    rows: { arrayValue: { values: t.rows.map(function (r) {
-      return { mapValue: { fields: { c: { arrayValue: { values: r.map(function (v) { return { stringValue: v }; }) } } } } };
-    }) } },
-  } } };
+    rows: 줄들(t.rows),
+  };
+  if (t.위 && t.위.length) fields.위 = 줄들(t.위);
+  return { mapValue: { fields: fields } };
 }
 
 /* ── 견적서 불러오기 (제품관리 → 견적서 관리) ──

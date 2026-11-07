@@ -254,7 +254,8 @@ export function classify(rawName) {
 /* ── 내용 감지 — 이름으로 못 가른 서류를 안의 글로 가릅니다 (사장님 11-07) ──────
    sniff = 서버가 파일마다 한 번 떠 둔 재료 { kind:'x'|'p', sheets:[시트 이름], text:'앞부분 글자' } — docs_files 의 칸.
    판정을 앱에서 하므로 낱말을 고쳐도 드라이브·UrlFetch 를 안 부릅니다(서버는 sync.gs 감지대상_ 만 압니다).
-   차례: 공통 선하증권·원산지 → 거래처 단서 → 공통 PI·잔액서류·발주서. 글이 없으면(스캔 PDF) 안 가릅니다.
+   차례: 공통 선하증권·원산지 → 거래처 대표양식 구성(js/form.js 구성맞대기) → 공통 PI·잔액서류·발주서. 글이 없으면(스캔 PDF) 안 가릅니다.
+   예전 낱말 단서(v0.114.0)는 구성이 아직 없는 거래처의 자리이음으로만 남습니다(사장님 11-07 「저런 낱말 더하기가 아니라」).
    11-07 실물 572개로 잰 값·문턱은 CLAUDE.md. */
 
 /** 거래처별 대표양식을 받는 칸. 선하증권은 없습니다 — 업체가 달라도 공통 낱말로 잡힙니다. */
@@ -321,60 +322,22 @@ function 단서로(나, 시트들, 글, pdf) {
 
 /**
  * 안의 글로 서류 종류를 가립니다. 못 가르면 null — 그대로 미분류입니다.
- * 나 = 그 거래처 단서 { pdf만, 칸: { order: { 낱말: [{ w, 곳, 임시 }] }, … } }
+ * 나 = 그 거래처 단서 { pdf만, 칸: { order: { 낱말: [{ w, 곳, 임시 }] }, … } } — 구성이 없을 때만 씁니다.
+ * 구성으로 = 그 거래처에 구성이 있을 때 (sniff) => { key, 말 } | null. parse.js 는 form.js 를 모릅니다(앱이 건넵니다).
  */
-export function 내용판별(sniff, 나) {
+export function 내용판별(sniff, 나, 구성으로 = null) {
   if (!sniff) return null;
   const 시트들 = (sniff.sheets ?? []).map(고른글).filter(Boolean);
   const 글 = 고른글(sniff.text);
   if (글.length < 20 && !시트들.length) return null;   // 글자 없는 스캔은 무리하지 않습니다
   const 다 = `${시트들.join(' | ')} ${글}`;
-  return 공통첫째(다) ?? 단서로(나, 시트들, 다, sniff.kind === 'p') ?? 공통둘째(시트들, 다);
-}
-
-const 시트이름값없음 = /^(sheet|시트|sheet\s*\d+|시트\s*\d+|\d+|wps\S*|工作表\d*)$/i;
-const 문서말 = /commercial invoice|proforma invoice|packing list|invoice|purchase order|order ?sheet|sales contract|contract|po no|order date|delivery date|mfg no|形式发票|商业发票|发票|装箱单|出货明细|销售合同|合同|订单|발주서|주문서|계약서|인보이스|패킹리스트/gi;
-const 편지머리 = /co\.?,?\s*ltd|有限公司|주식회사|\(주\)|tel\b|fax\b|e-?mail|https?:|www\.|@|road|street|province|地址|电话|传真|전화|주소/i;
-const 머리말들 = /code|model|item|description|goods|품명|상품|제품|코드|품번|qty|quantity|수량|price|단가|amount|금액|size|규격|cbm|ctn|carton|名称|数量|单价|金额/i;
-
-/**
- * 대표양식에서 단서 낱말을 뽑습니다. 사람이 보고 고치니 뽑은 것은 모두 임시입니다.
- * 재료 = { 꼴: 'x'|'p', 시트: [이름], 판: [[[칸 글…]…]…] } — 시트마다 줄들. PDF 는 판 하나에 줄마다 한 칸으로 넘깁니다.
- */
-export function 단서뽑기(재료) {
-  const 판들 = (재료?.판 ?? []).map((줄들) => 줄들.map((r) => r.map((v) => String(v ?? '').trim()).filter(Boolean)).filter((r) => r.length));
-  const 낱말 = [];
-  const 본 = new Set();
-  const 담기 = (w, 곳) => {
-    const 글 = 낱글(String(w ?? '')).slice(0, 40);
-    const 키 = 고른글(글);
-    if (키.length < 2 || 본.has(키)) return;
-    본.add(키);
-    낱말.push({ w: 글, 곳, 임시: true });
-  };
-  for (const s of 재료?.시트 ?? []) if (!시트이름값없음.test(String(s).trim())) 담기(s, '시트');
-  for (const 줄들 of 판들) {
-    for (const m of 줄들.slice(0, 30).flat().join('\n').matchAll(문서말)) 담기(m[0], '제목');
-    // 맨 위 짧은 큰 글 — 회사 이름·주소·날짜·값이 붙은 칸이 아닌 것만
-    for (const r of 줄들.slice(0, 12)) {
-      if (r.length !== 1) continue;
-      const 글 = r[0];
-      if (글.length < 4 || 글.length > 36 || 편지머리.test(글) || /[:：]/.test(글) || (글.match(/\d/g) ?? []).length > 3) continue;
-      if (/[A-Z]{3}/.test(글) ? 글 === 글.toUpperCase() : /[\u3131-\u318e\uac00-\ud7a3\u4e00-\u9fff]/.test(글)) 담기(글, '제목');
-    }
+  const 공통 = 공통첫째(다);
+  if (공통) return 공통;
+  if (구성으로) {
+    const r = 구성으로(sniff);
+    return r ? 감지값(r.key, r.말) : 공통둘째(시트들, 다);
   }
-  if (재료?.꼴 !== 'p') {
-    const 머리 = 판들.flatMap((줄들) => 줄들.slice(0, 40)).find((r) => r.length >= 3 && r.filter((c) => c.length <= 24 && 머리말들.test(c)).length >= 3);
-    for (const c of (머리 ?? []).slice(0, 12)) if (c.length <= 24 && 머리말들.test(c)) 담기(c, '머리');
-  }
-  return 낱말.slice(0, 16);
-}
-
-/** 사람이 손댄 낱말은 남기고, 새로 뽑은 것을 더합니다. */
-export function 단서합치기(예전, 새것) {
-  const 남김 = (예전 ?? []).filter((x) => !x.임시);
-  const 본 = new Set(남김.map((x) => 고른글(x.w)));
-  return [...남김, ...(새것 ?? []).filter((x) => !본.has(고른글(x.w)))];
+  return 단서로(나, 시트들, 다, sniff.kind === 'p') ?? 공통둘째(시트들, 다);
 }
 
 /* ── 중국어 파일명 뜻풀이 ─────────────────────────────── */
@@ -1197,7 +1160,7 @@ const dayGap = (a, b) => Math.abs(new Date(a) - new Date(b)) / 86400000;
  * 파일 목록 → 차수별로 묶인 구조.
  * files: [{ name, path, size, mtime, vendor }]
  */
-export function buildBatches(files, rules = [], 단서 = {}) {
+export function buildBatches(files, rules = [], 단서 = {}, 구성일 = {}) {
   // 이번 스캔에서 본 거래처 이름들 — 파일명에서 거래처를 읽을 때 대조표로 씁니다.
   const vendors = [...new Set(files.map((f) => f.vendor).filter(Boolean))];
 
@@ -1214,7 +1177,7 @@ export function buildBatches(files, rules = [], 단서 = {}) {
     if (fromPath && cls.key === 'etc' && IMAGE_EXT.has(extOf(f.name)))
       cls = { key: 'loading', stage: STAGE_BY_KEY.loading.id, why: '차수 폴더에 올린 사진' };
     // 이름으로 못 가른 서류만 안의 글로 봅니다. 서버가 파일마다 한 번 떠 둔 sniff 를 씁니다 — 드라이브를 다시 안 부릅니다.
-    if (cls.key === 'etc' && f.sniff) cls = 내용판별(f.sniff, 단서?.[f.vendor]) ?? cls;
+    if (cls.key === 'etc' && f.sniff) cls = 내용판별(f.sniff, 단서?.[f.vendor], 구성일.감지?.(f) ?? null) ?? cls;
     // 검수·샘플 폴더에 든 것은 이름이 무엇이든 그 칸입니다. 사진이 상차로 새지 않습니다.
     const sub = subdirOf(f.path);
     if (sub) cls = { key: sub.key, stage: null, why: `${sub.label} 폴더` };
@@ -1237,6 +1200,8 @@ export function buildBatches(files, rules = [], 단서 = {}) {
       batchBy: fromName ? 'name' : fromPath ? 'folder' : null,
     };
     doc = applyRules(doc, rules);
+    // 대표양식 구성으로 품목·번호를 채웁니다 — 판정이 끝난 뒤라야 어느 서류의 구성인지 압니다(앱이 건넵니다).
+    doc = 구성일.보강?.(doc) ?? doc;
     if (doc.excluded) {
       excluded.push(doc);
       continue;

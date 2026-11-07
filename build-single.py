@@ -33,7 +33,7 @@ def strip_imports(src):
 
 
 # 로컬 모듈 이름 — mods 를 적는 순서가 곧 이 상수들이 서는 순서입니다.
-LOCAL_NS = {'./parse.js': 'PARSE', './progress.js': 'PROGRESS', './match.js': 'MATCH', './order.js': 'ORDER', './sheet.js': 'SHEET'}
+LOCAL_NS = {'./parse.js': 'PARSE', './progress.js': 'PROGRESS', './match.js': 'MATCH', './order.js': 'ORDER', './sheet.js': 'SHEET', './form.js': 'FORM'}
 
 
 def local_binds(src):
@@ -85,7 +85,7 @@ demo = json.loads((ROOT / 'data' / 'demo.json').read_text(encoding='utf-8'))
 
 # 순서가 중요합니다: hoisted 를 채운 뒤에 이어붙입니다.
 mods = (module('js/parse.js', 'PARSE') + module('js/progress.js', 'PROGRESS')
-        + module('js/match.js', 'MATCH') + module('js/order.js', 'ORDER') + module('js/sheet.js', 'SHEET')
+        + module('js/match.js', 'MATCH') + module('js/order.js', 'ORDER') + module('js/sheet.js', 'SHEET') + module('js/form.js', 'FORM')
         + module('js/fsaccess.js', 'FS') + module('js/firebase.js', 'DB'))
 
 app = (ROOT / 'js' / 'app.js').read_text(encoding='utf-8')

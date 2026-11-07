@@ -93,7 +93,7 @@ const 제목말 = /^(purchaseorder|ordersheet|order|contract|proformainvoice|발
 const 차수글 = /(?<![\d-])(\d{2})\s*-\s*(\d{1,2})(?![\d-])/;
 const 날말 = /date|日期|일$|납기/, 번호말 = /no$|number|번호/;
 
-function 머리칸읽기(rows, 숨은줄, 숨은칸, 끝줄, 끝칸) {
+export function 머리칸읽기(rows, 숨은줄, 숨은칸, 끝줄, 끝칸) {
   const 머리칸 = [], 고정 = [];
   let 제목 = '';
   const 키들 = new Set();
@@ -136,11 +136,13 @@ function 머리칸읽기(rows, 숨은줄, 숨은칸, 끝줄, 끝칸) {
   return { 제목, 머리칸, 고정 };
 }
 
-function 분석시트(시트) {
-  const { rows, 식 = {}, 합침 = [] } = 시트;
+/* 시트 하나 분석. 시트.힌트 = { r, 역할: { 칸: 역할 } } — 낱말로 못 찾은 표를 값으로 찾았을 때(js/form.js)만 넘어옵니다. */
+export function 분석시트(시트) {
+  const { rows, 식 = {}, 합침 = [], 힌트 } = 시트;
   const 숨은줄 = new Set(시트.숨긴줄 ?? []), 숨은칸 = new Set(시트.숨긴칸 ?? []);
-  const 머리 = rows.findIndex((r, i) => !숨은줄.has(i) && 머리줄인가(r));
+  const 머리 = 힌트 ? 힌트.r : rows.findIndex((r, i) => !숨은줄.has(i) && 머리줄인가(r));
   if (머리 < 0) return null;
+  const 역할글 = (라벨, c) => 힌트?.역할?.[c] ?? 칸역할(라벨);
 
   // 합친 칸은 위 왼쪽 글을 따릅니다 — 박스사이즈(K:M) 처럼 옆으로 합친 머리.
   const 머리글 = (r, c) => {
@@ -149,13 +151,15 @@ function 분석시트(시트) {
   };
   const 너비 = Math.max(...rows.slice(머리, 머리 + 2).map((r) => r.length));
   const 윗줄 = Array.from({ length: 너비 }, (_, c) => 머리글(머리, c));
-  const 역할 = 윗줄.map(칸역할);
+  const 역할 = 윗줄.map(역할글);
   const 코드칸 = 역할.indexOf('code'), 이름칸 = 역할.indexOf('name');
   const 볼칸 = 코드칸 >= 0 ? 코드칸 : 이름칸;
   // 머리가 두 줄인가 — 세로로 합친 칸이 있거나, 밑줄의 코드·이름 칸이 비고 다른 칸에 글이 있으면.
   const 세로합침 = 합침.some((x) => x.s.r === 머리 && x.e.r > 머리);
   const 밑줄 = rows[머리 + 1] ?? [];
-  const 두줄 = 세로합침 || (!String(밑줄[볼칸] ?? '').trim() && 밑줄.some((v) => v && 대조숫자(v) === null));
+  const 수량머리 = 역할.indexOf('qty');
+  const 두줄 = 세로합침 || (!String(밑줄[볼칸] ?? '').trim() && 밑줄.some((v) => v && 대조숫자(v) === null))
+    || (수량머리 >= 0 && !!String(밑줄[수량머리] ?? '').trim() && 대조숫자(밑줄[수량머리]) === null);   // 수량 칸이 「(PCS)」 면 머리 둘째 줄
   const 시작 = 머리 + (두줄 ? 2 : 1);
 
   const 칸들 = [];
@@ -170,10 +174,10 @@ function 분석시트(시트) {
     let 키 = 글칸(라벨) || `칸${c}`;
     for (let n = 2; 키들.has(키); n++) 키 = `${글칸(라벨) || `칸${c}`}~${n}`;
     키들.add(키);
-    칸들.push({ 키, 라벨: 라벨.replace(/\s*\n\s*/g, ' ').trim(), 역할: 칸역할(라벨) || '', c, 숨김: 숨은칸.has(c) || undefined });
+    칸들.push({ 키, 라벨: 라벨.replace(/\s*\n\s*/g, ' ').trim(), 역할: 역할글(라벨, c) || '', c, 숨김: 숨은칸.has(c) || undefined });
   }
   if (!칸들.some((k) => k.역할 === 'qty')) return null;
-  const 오른쪽끝 = Math.max(...칸들.filter((k) => k.라벨).map((k) => k.c));
+  const 오른쪽끝 = Math.max(...칸들.filter((k) => k.라벨 || (힌트 && !k.숨김)).map((k) => k.c));
   // 표 밖 메모 칸(이름 없이 오른쪽에 적어 둔 것)은 뺍니다. 숨긴 칸은 식 재료라 둡니다.
   for (let i = 칸들.length - 1; i >= 0; i--) if (!칸들[i].라벨 && !칸들[i].숨김 && 칸들[i].c > 오른쪽끝) 칸들.splice(i, 1);
 

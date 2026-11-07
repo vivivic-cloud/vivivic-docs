@@ -1001,7 +1001,7 @@ test('PDF로바꿀꼴 — 엑셀·워드·피피티만. 도면·zip·PDF 는 아
 });
 
 /* ── 내용 감지 (11-07) ── 이름으로 못 가른 서류만 sniff 로 ── 이름·낱말은 가짜 ── */
-import { 내용판별, 단서뽑기, 단서합치기 } from '../js/parse.js';
+import { 내용판별 } from '../js/parse.js';
 
 const 엑셀재료 = (sheets, text = '') => ({ kind: 'x', sheets, text });
 const PDF재료 = (text) => ({ kind: 'p', sheets: [], text });
@@ -1087,28 +1087,6 @@ test('buildBatches — 미분류만 감지하고 표식을 남긴다 · 검수 �
   assert.deepEqual(칸, { 'a.pdf': ['cipl', true], 'b.pdf': ['inspect', false], 'c.pdf': ['etc', false] });
 });
 
-test('단서뽑기 — 시트 이름·문서 제목·머리글을 임시로, 회사 이름·주소는 빼고', () => {
-  const 낱말 = 단서뽑기({ 꼴: 'x', 시트: ['INVOICE', 'PACKING LIST', 'Sheet3'], 판: [[
-    ['Sample Trading Co.,Ltd'], ['12 Some Road, Somewhere'], ['Tel:+86-532-0000'], ['COMMERCIAL INVOICE'], ['NO', 'CODE#', 'Product model', 'Qty pcs', 'Amount'],
-  ]] });
-  assert.ok(낱말.every((x) => x.임시));
-  const 곳 = (q) => 낱말.filter((x) => x.곳 === q).map((x) => x.w);
-  assert.deepEqual(곳('시트'), ['INVOICE', 'PACKING LIST']);
-  assert.ok(곳('제목').includes('COMMERCIAL INVOICE'));
-  assert.ok(!낱말.some((x) => /Sample|Road|Tel/.test(x.w)));
-  assert.deepEqual(곳('머리'), ['CODE#', 'Product model', 'Qty pcs', 'Amount']);
-});
-
-test('단서뽑기 — PDF 는 줄 글에서 문서 제목만', () => {
-  const 낱말 = 단서뽑기({ 꼴: 'p', 시트: [], 판: [[['PACKING LIST'], ['DATE 2026.10.01'], ['Buyer ABC']]] });
-  assert.deepEqual(낱말.map((x) => [x.w, x.곳]), [['PACKING LIST', '제목']]);
-});
-
-test('단서합치기 — 사람이 손댄 낱말은 남고 임시는 새로 갈린다', () => {
-  const r = 단서합치기([{ w: '직접말', 곳: '직접' }, { w: '옛임시', 곳: '제목', 임시: true }, { w: 'INVOICE', 곳: '제목' }],
-    [{ w: 'invoice', 곳: '제목', 임시: true }, { w: '새말', 곳: '제목', 임시: true }]);
-  assert.deepEqual(r.map((x) => x.w), ['직접말', 'INVOICE', '새말']);
-});
 
 test('판날짜 — 이름의 날짜 가운데 가장 늦은 것', () => {
   assert.equal(판날짜('HPC-26-2차 _20260106.pdf'), '2026-01-06');
