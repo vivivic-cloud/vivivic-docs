@@ -694,6 +694,7 @@ function commit_(writes) {
    ⚠ 「중국」 폴더 아래 파일만 내줍니다. 안 그러면 id 만 알면 아무 파일이나 빼갑니다. */
 
 const SHARE_MAX = 10 * 1024 * 1024;   // base64 는 1/3 커집니다. 여기서 끊습니다.
+const PDF_SRC_MAX = 30 * 1024 * 1024; // PDF 로 바꿀 원본 크기. 사진 든 엑셀이 커도 나온 PDF 는 작습니다 — PDF 는 SHARE_MAX 로 끊습니다.
 
 /**
  * 폰이 파일을 달라고 두드리는 자리.
@@ -732,8 +733,8 @@ function 파일내주기_(req) {
 
   const file = DriveApp.getFileById(id);            // 읽기만
   if (!중국아래인가_(file)) return { ok: false, why: 'out' };
-  if (file.getSize() > SHARE_MAX) return { ok: false, why: 'big' };
   if (req.pdf) return PDF내주기_(file);
+  if (file.getSize() > SHARE_MAX) return { ok: false, why: 'big' };
 
   const blob = file.getBlob();
   return {
@@ -753,8 +754,33 @@ function PDF꼴_(이름) {
   return '';
 }
 
-/** 시트 PDF 방향 — 첫 보이는 시트가 옆으로 길면 가로로. 못 재면 세로. */
-function PDF가로인가_(copyId) {
+/** 시트 xml 들 가운데 인쇄 방향이 적힌 첫 시트의 방향. 없으면 null. */
+function 적힌방향_(xml들) {
+  for (let i = 0; i < xml들.length; i++) {
+    const m = /<pageSetup\b[^>]*\borientation="(\w+)"/.exec(String(xml들[i] || ''));
+    if (m) return m[1] === 'landscape';
+  }
+  return null;
+}
+
+/** xlsx 원본에 적힌 인쇄 방향. 실물 제헤우드는 폭이 비슷해도 가로·세로가 섞여 모양으로는 못 맞힙니다. 못 읽으면 null. */
+function 원본방향_(file) {
+  if (!/\.xls[xm]$/i.test(file.getName())) return null;   // .xls 는 알맹이가 zip 이 아닙니다
+  try {
+    const 번호 = function (b) { return Number(/(\d+)\.xml$/.exec(b.getName())[1]); };
+    const 시트 = Utilities.unzip(file.getBlob().setContentType('application/zip'))
+      .filter(function (b) { return /^xl\/worksheets\/sheet\d+\.xml$/.test(b.getName()); })
+      .sort(function (a, b) { return 번호(a) - 번호(b); });
+    return 적힌방향_(시트.map(function (b) { return b.getDataAsString('UTF-8'); }));
+  } catch (err) {
+    return null;
+  }
+}
+
+/** 시트 PDF 방향 — 원본에 적힌 방향, 없으면 첫 보이는 시트가 옆으로 길면 가로로. 못 재면 세로. */
+function PDF가로인가_(copyId, file) {
+  const 적힌것 = file ? 원본방향_(file) : null;
+  if (적힌것 !== null) return 적힌것;
   try {
     const sh = SpreadsheetApp.openById(copyId).getSheets().filter(function (s) { return !s.isSheetHidden(); })[0];
     if (!sh) return false;
@@ -768,18 +794,19 @@ function PDF가로인가_(copyId) {
 }
 
 /** PDF 를 받을 주소. 시트는 한 쪽 폭에 맞춰 뽑습니다 — 드라이브 내보내기는 넓은 표를 여러 쪽으로 쪼갭니다. */
-function PDF주소_(copyId, 꼴) {
+function PDF주소_(copyId, 꼴, file) {
   if (꼴 !== 'application/vnd.google-apps.spreadsheet')
     return 'https://www.googleapis.com/drive/v3/files/' + copyId + '/export?mimeType=application%2Fpdf';
   return 'https://docs.google.com/spreadsheets/d/' + copyId + '/export?format=pdf&size=A4&fitw=true' +
-    '&portrait=' + (PDF가로인가_(copyId) ? 'false' : 'true') +
+    '&portrait=' + (PDF가로인가_(copyId, file) ? 'false' : 'true') +
     '&gridlines=false&sheetnames=false&printtitle=false&pagenumbers=false&fzr=false';
 }
 
-/** 임시 사본을 PDF 로 뽑아 내줍니다. 원본은 안 건드립니다. UrlFetch: 사본 1 · 내보내기 1 · 지우기 1. */
+/** 임시 사본을 PDF 로 뽑아 내줍니다. 원본은 안 건드립니다. UrlFetch: 사본 1 · 내보내기 1(실패하면 +1) · 지우기 1. */
 function PDF내주기_(file) {
   const 꼴 = PDF꼴_(file.getName());
   if (!꼴) return { ok: false, why: 'kind' };
+  if (file.getSize() > PDF_SRC_MAX) return { ok: false, why: 'big' };
   let copyId = '';
   try {
     const res = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + file.getId() + '/copy', {
@@ -792,12 +819,19 @@ function PDF내주기_(file) {
     if (res.getResponseCode() !== 200) return { ok: false, why: 'read' };
     copyId = JSON.parse(res.getContentText()).id;
 
-    const out = UrlFetchApp.fetch(PDF주소_(copyId, 꼴), {
-      headers: { Authorization: 'Bearer ' + token_() },
-      muteHttpExceptions: true,
-    });
+    const 주소 = PDF주소_(copyId, 꼴, file);
+    const 받기 = { headers: { Authorization: 'Bearer ' + token_() }, muteHttpExceptions: true };
+    let out = UrlFetchApp.fetch(주소, 받기);
+    if (out.getResponseCode() !== 200) {     // 막 만든 사본은 한 번 어긋나곤 합니다 — 한 번만 더
+      Utilities.sleep(1500);
+      out = UrlFetchApp.fetch(주소, 받기);
+    }
     if (out.getResponseCode() !== 200) return { ok: false, why: 'read' };
     const 바이트 = out.getContent();
+    // 로그인 쪽으로 튕기면 200 + html 이 옵니다 — PDF 머리표(%PDF)로 봅니다.
+    if (바이트.length < 4 || 바이트[0] !== 0x25 || 바이트[1] !== 0x50 || 바이트[2] !== 0x44 || 바이트[3] !== 0x46) {
+      return { ok: false, why: 'read' };
+    }
     if (바이트.length > SHARE_MAX) return { ok: false, why: 'big' };
     return {
       ok: true,

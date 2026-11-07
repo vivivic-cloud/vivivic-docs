@@ -438,24 +438,24 @@ test('PDF내주기_ — 사본으로 PDF 를 뽑아 이름만 바꿔 주고, 사
     부름.push([o.method ?? 'get', u]);
     if (u.endsWith('/copy')) return 응답(200, JSON.stringify({ id: 'COPY' }));
     if (o.method === 'delete') return 응답(204, '');
-    return 응답(200, '', [1, 2, 3]);
+    return 응답(200, '', [0x25, 0x50, 0x44, 0x46]);
   } };
   gs.ScriptApp = { getOAuthToken: () => 't' };
-  gs.Utilities = { base64Encode: (b) => `b64:${b.length}` };
+  gs.Utilities = { sleep() {}, base64Encode: (b) => `b64:${b.length}` };
   gs.SpreadsheetApp = { openById: () => { throw new Error('없음'); } };
-  const file = { getId: () => 'ORIG', getName: () => 'AMT합同.8.03.xlsx' };
+  const file = { getId: () => 'ORIG', getName: () => 'AMT합同.8.03.xlsx', getSize: () => 1000 };
   const r = gs.PDF내주기_(file);
   assert.equal(r.ok, true);
   assert.equal(r.name, 'AMT합同.8.03.pdf');
   assert.equal(r.mime, 'application/pdf');
-  assert.equal(r.b64, 'b64:3');
+  assert.equal(r.b64, 'b64:4');
   assert.deepEqual(부름.map(([m]) => m), ['post', 'get', 'delete']);
   assert.match(부름[0][1], /files\/ORIG\/copy$/);
   assert.match(부름[1][1], /spreadsheets\/d\/COPY\/export\?format=pdf.*fitw=true.*portrait=true/);
   assert.match(부름[2][1], /files\/COPY$/);       // 지운 것은 사본
 
   부름.length = 0;
-  assert.equal(gs.PDF내주기_({ getId: () => 'X', getName: () => '도면.dwg' }).why, 'kind');
+  assert.equal(gs.PDF내주기_({ getId: () => 'X', getName: () => '도면.dwg', getSize: () => 1 }).why, 'kind');
   assert.equal(부름.length, 0);
 
   // 내보내기가 실패해도 사본은 지운다
@@ -471,4 +471,62 @@ test('PDF꼴_ 과 parse.js PDF로바꿀꼴 이 같은 꼴을 본다', async () =
   const { PDF로바꿀꼴 } = await import('../js/parse.js');
   for (const n of ['a.xlsx', 'a.xlsm', 'a.XLS', 'a.docx', 'a.doc', 'a.pptx', 'a.ppt', 'a.pdf', 'a.dwg', 'a.zip', 'a.csv'])
     assert.equal(!!gs.PDF꼴_(n), PDF로바꿀꼴(n), n);
+});
+
+/* 드라이브·UrlFetch 를 가짜로 — 큰 원본 · 원본 인쇄 방향 · 한 번 더 · html 응답 (v0.111.0) */
+function PDF틀(이름, { 내보내기 = [{ code: 200, bytes: [0x25, 0x50, 0x44, 0x46, 0x2d] }], 크기 = 1000, xml = null } = {}) {
+  const 부름 = [];
+  const g = vm.createContext({ console: { warn() {}, log() {} } });
+  vm.runInContext(readFileSync(new URL('../appsscript/sync.gs', import.meta.url), 'utf8'), g);
+  g.ScriptApp = { getOAuthToken: () => 't' };
+  g.SpreadsheetApp = { openById() { throw new Error('시트 안 엶'); } };
+  g.Utilities = {
+    sleep() {},
+    base64Encode: (b) => `b64:${b.length}`,
+    unzip: () => (xml ?? []).map((x, i) => ({ getName: () => `xl/worksheets/sheet${i + 1}.xml`, getDataAsString: () => x })),
+  };
+  g.UrlFetchApp = {
+    fetch(url, opt = {}) {
+      부름.push({ url, method: opt.method ?? 'get' });
+      if (opt.method === 'post') return { getResponseCode: () => 200, getContentText: () => '{"id":"COPY1"}' };
+      if (opt.method === 'delete') return { getResponseCode: () => 204 };
+      const r = 내보내기.shift() ?? { code: 500, bytes: [] };
+      return { getResponseCode: () => r.code, getContent: () => r.bytes };
+    },
+  };
+  const file = { getName: () => 이름, getId: () => 'SRC1', getSize: () => 크기, getBlob: () => ({ setContentType() { return this; } }) };
+  return { g, 부름, file };
+}
+
+test('PDF내주기_ — xlsx 에 적힌 인쇄 방향을 따른다', () => {
+  const 가로 = PDF틀('a.xlsx', { xml: ['<worksheet/>', '<pageSetup paperSize="9" orientation="landscape"/>'] });
+  가로.g.PDF내주기_(가로.file);
+  assert.match(가로.부름[1].url, /portrait=false/);
+  const 세로 = PDF틀('a.xlsx', { xml: ['<pageSetup orientation="portrait"/>', '<pageSetup orientation="landscape"/>'] });
+  세로.g.PDF내주기_(세로.file);
+  assert.match(세로.부름[1].url, /portrait=true/);
+});
+
+test('PDF내주기_ — 10MB 넘는 엑셀도 바꾸고, 30MB 넘으면 사본도 안 만든다', () => {
+  const 큰 = PDF틀('a.xlsx', { 크기: 20 * 1024 * 1024 });
+  assert.equal(큰.g.PDF내주기_(큰.file).ok, true);
+  const 너무 = PDF틀('a.xlsx', { 크기: 31 * 1024 * 1024 });
+  assert.equal(너무.g.PDF내주기_(너무.file).why, 'big');
+  assert.equal(너무.부름.length, 0);
+});
+
+test('PDF내주기_ — 내보내기 실패는 한 번 더, 그래도 안 되거나 html 이 오면 read, 사본은 늘 지운다', () => {
+  const 두번 = PDF틀('a.xlsx', { 내보내기: [{ code: 500, bytes: [] }, { code: 200, bytes: [0x25, 0x50, 0x44, 0x46] }] });
+  assert.equal(두번.g.PDF내주기_(두번.file).ok, true);
+  assert.equal(두번.부름.filter((x) => x.method === 'get').length, 2);
+  const 글 = PDF틀('a.xlsx', { 내보내기: [{ code: 200, bytes: [0x3c, 0x21, 0x64, 0x6f] }] });
+  assert.equal(글.g.PDF내주기_(글.file).why, 'read');
+  assert.equal(글.부름.at(-1).method, 'delete');
+  assert.match(글.부름.at(-1).url, /files\/COPY1$/);
+});
+
+test('파일내주기_ — pdf 부탁도 같은 자물쇠: shareAllow 가 비면 off', () => {
+  const { g } = PDF틀('a.xlsx');
+  g.PropertiesService = { getScriptProperties: () => ({ getProperty: () => '' }) };
+  assert.equal(g.파일내주기_({ pdf: true, driveId: 'abcdefghijklmn', idToken: 'x' }).why, 'off');
 });
