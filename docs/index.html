@@ -129,6 +129,7 @@
   .dpr-pop .bo-in{ width:100%; min-width:84px; font:inherit; font-size:13px; color:var(--vg-ink); background:transparent;
     border:1px solid var(--vg-edge); border-radius:6px; padding:7px 8px; }
   .dpr-pop .bo-in:focus{ outline:none; border-color:var(--vg-ink); }
+  .dpr-pop .bo-add{ margin-top:10px; } .dpr-pop .bo-add .chip{ min-height:44px; }
   .dpr-pop .bo-name{ min-width:200px; } .dpr-pop .bo-remark{ min-width:150px; } .dpr-pop .bo-no{ min-width:44px; }
   .dpr-pop .bo-qty{ min-width:64px; text-align:center; } .dpr-pop .bo-price{ min-width:96px; text-align:center; }
   .dpr-pop .bo-code{ min-width:112px; font-weight:700; }
@@ -417,7 +418,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.117.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.118.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -458,7 +459,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.117.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.118.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -3954,6 +3955,21 @@ function 담을줄(제품) {
   return { 열쇠, code, name, color, size, price, 칸: 칸 ?? {}, 옛수량: qty ?? null, qty: 0, 고침: {} };
 }
 
+/** 직접 추가한 줄(11-07 사장님) — 처음 발주하는 품목. 담을줄과 같은 꼴이고 코드·이름만 사람이 적습니다. 나머지는 빈칸. */
+const 직접줄 = () => ({ ...담을줄({ 열쇠: '', code: '', name: '' }), 직접: true });
+
+/** 직접 줄의 코드·이름을 고칩니다. 줄 값이 한 곳에만 있게 발주서 칸의 고친 값은 걷습니다. */
+function 직접줄쓰기(줄, 갈래, 글, 틀) {
+  줄[갈래] = 글;
+  if (갈래 === 'code') 줄.열쇠 = 코드열쇠(글);
+  const 칸 = 틀 && 주칸(틀, 갈래);
+  if (칸) delete 줄.고침[칸.키];
+}
+
+/** 코드·이름·수량·고친 값이 다 빈 직접 줄 — 눌러만 둔 줄은 발주서로 안 넘깁니다. */
+const 빈직접줄 = (줄) => !!줄.직접 && !String(줄.code ?? '').trim() && !String(줄.name ?? '').trim()
+  && !Number(줄.qty) && !Object.values(줄.고침 ?? {}).some((v) => String(v ?? '').trim());
+
 const 자리수 = (s) => (/\.(\d+)/.exec(String(s ?? '').replace(/,/g, ''))?.[1].length ?? 0);
 const 앞표 = (s) => /^[^\d-]*/.exec(String(s ?? '').trim())?.[0] ?? '';
 const 숫자글 = (n, 자리) => n.toLocaleString('en-US', { minimumFractionDigits: 자리, maximumFractionDigits: 자리 });
@@ -4043,7 +4059,7 @@ function 발주서값(틀, 판) {
   };
 }
 
-return { 가격칸키, 계산칸인가, 글칸, 담을줄, 머리기본값, 발주서값, 발주이력, 발주합계, 양식분석, 워크북읽기, 줄값, 최근발주표, 칸역할, 표로양식 };
+return { 가격칸키, 계산칸인가, 글칸, 담을줄, 머리기본값, 발주서값, 발주이력, 발주합계, 빈직접줄, 양식분석, 워크북읽기, 줄값, 직접줄, 직접줄쓰기, 최근발주표, 칸역할, 표로양식 };
 })();
 const SHEET = (() => {
 const { 코드열쇠 } = PARSE;
@@ -5233,7 +5249,7 @@ return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, authMessage, fileKey, id
 const { STAGES, STAGE_BY_KEY, ASIDE, 단서종류, 단서뽑기, 단서합치기, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, PDF로바꿀꼴, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } = PARSE;
 const { progressWord } = PROGRESS;
 const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 차수수량, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸, 양식묶기 } = MATCH;
-const { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 줄값, 발주합계, 가격칸키 } = ORDER;
+const { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 직접줄, 직접줄쓰기, 빈직접줄, 줄값, 발주합계, 가격칸키 } = ORDER;
 const { 엑셀표본, 시트표본, 모양읽기, 꼬리값 } = SHEET;
 
 
@@ -8402,6 +8418,7 @@ async function 발주서열기(b) {
       양식들.set(나.vendor, 나.양식);
     } else if (양식 && !양식.ok) 나.왜 = `양식 못 읽음 · ${양식.why}`;
   }
+  나.판.줄 = 나.판.줄.filter((x) => !빈직접줄(x));
   나.탭 = !나.판.줄.length ? '제품' : 나.양식 ? '발주서' : '발주함';
   다시그림();
 }
@@ -8438,22 +8455,24 @@ function 제품탭() {
 
 function 발주함탭() {
   const 줄들 = 발주.판.줄;
-  if (!줄들.length) return '<div class="dpr-none">담은 제품 없음</div>';
+  const 추가 = '<div class="bo-add"><button type="button" id="boNew" class="chip chip-off">＋ 품목 추가</button></div>';
+  if (!줄들.length) return `<div class="dpr-none">담은 제품 없음</div>${추가}`;
+  const 직접칸 = (i, 갈래, 글, 말) => `<input class="bo-in bo-${갈래 === 'code' ? 'code' : 'name'}" data-bodirect="${i}:${갈래}" value="${esc(글 ?? '')}" placeholder="${말}" aria-label="${말}" />`;
   return `
     <div class="dpr-scroll vv-x"><table class="dpr-t">
       <thead><tr><th class="dpr-k">CODE#</th><th class="num">수량</th><th>이름</th><th class="num bo-nw">지난 수량</th><th></th></tr></thead>
       <tbody>${줄들.map((x, i) => `<tr>
-        <td class="dpr-k">${보임(x.code)}</td>
+        <td class="dpr-k">${x.직접 ? 직접칸(i, 'code', x.code, '코드') : 보임(x.code)}</td>
         <td class="num"><span class="bo-step">
           <button type="button" data-bostep="${i}:-1" aria-label="빼기">−</button>
           <input type="text" inputmode="numeric" data-boqty="${i}" value="${x.qty || ''}" aria-label="수량" />
           <button type="button" data-bostep="${i}:1" aria-label="더하기">＋</button>
         </span></td>
-        <td class="dpr-m">${보임(x.name)}</td>
+        <td class="dpr-m">${x.직접 ? 직접칸(i, 'name', x.name, '이름') : 보임(x.name)}</td>
         <td class="num">${x.옛수량 ?? ''}</td>
         <td><button type="button" class="chip chip-off" data-bodel="${i}">지우기</button></td>
       </tr>`).join('')}</tbody>
-    </table></div>`;
+    </table></div>${추가}`;
 }
 
 function 발주표() {
@@ -8676,6 +8695,19 @@ function 발주다시셈() {
     const k = 틀.칸.find((x) => x.키 === 키);
     if (k && 줄들[i]) el.textContent = 밑줄보기(줄값(k, 줄들[i], i, 틀).값);
   }
+  // 단가를 넣으면 재료를 몰라 비어 있던 금액 칸이 계산 칸이 됩니다(직접 추가한 줄)
+  for (const el of 몸.querySelectorAll('[data-bocell]')) {
+    const 자리 = el.dataset.bocell.indexOf(':');
+    const i = Number(el.dataset.bocell.slice(0, 자리)), 키 = el.dataset.bocell.slice(자리 + 1);
+    const k = 틀.칸.find((x) => x.키 === 키);
+    const v = k && 줄들[i] && 줄값(k, 줄들[i], i, 틀);
+    if (!v?.계산 || el === document.activeElement) continue;
+    const 칸 = el.closest('td');
+    칸.dataset.calc = el.dataset.bocell;
+    칸.classList.remove('sf-e');
+    칸.classList.toggle('num', !칸.className.includes('sf-'));
+    칸.textContent = 밑줄보기(v.값);
+  }
   const 합 = 발주합계(틀, 줄들);
   for (const el of 몸.querySelectorAll('[data-total]')) el.textContent = 합.칸[el.dataset.total] ?? '';
   if (발주.양식.모양) {
@@ -8711,18 +8743,33 @@ async function 발주저장(나) {
   }
 }
 
+/* 눌러만 두고 안 적은 직접 줄을 걷습니다 — 발주서로 넘어가기 전·닫을 때. */
+function 빈줄걷기(나) {
+  const 남길 = 나.판.줄.filter((x) => !빈직접줄(x));
+  if (남길.length === 나.판.줄.length) return;
+  나.판.줄 = 남길;
+  나.바뀜 = true;
+}
+
 function 발주잇기() {
   const 몸 = $('#diffBody');
   const 줄들 = 발주.판.줄;
   $('#diffClose').onclick = () => {
     const 나 = 발주;
+    빈줄걷기(나);
     $('#diffView').hidden = true;
     $('#diffBody').style.maxWidth = '';
     document.documentElement.removeAttribute('data-docsdiff');
     발주 = null;
     발주저장(나).then(() => { if (나.저장수 > 1) 기록('발주함 저장', 나.id, { 줄: 나.판.줄.length }); });
   };
-  for (const btn of 몸.querySelectorAll('[data-botab]')) btn.onclick = () => { 발주.탭 = btn.dataset.botab; 발주그리기(); $('#diffView').scrollTop = 0; };
+  for (const btn of 몸.querySelectorAll('[data-botab]')) btn.onclick = () => {
+    빈줄걷기(발주);
+    if (발주.바뀜) 발주바뀜();
+    발주.탭 = btn.dataset.botab;
+    발주그리기();
+    $('#diffView').scrollTop = 0;
+  };
   for (const btn of 몸.querySelectorAll('[data-vpk]')) btn.onclick = () => 단품창(btn.dataset.vpk);
   for (const btn of 몸.querySelectorAll('[data-boadd]')) btn.onclick = () => {
     const 열쇠 = btn.dataset.boadd;
@@ -8744,6 +8791,18 @@ function 발주잇기() {
   };
   const 수량글 = (v) => Math.max(0, Math.floor(Number(String(v).replace(/[^\d.]/g, '')) || 0));
   for (const el of 몸.querySelectorAll('[data-boqty]')) el.oninput = () => { 줄들[Number(el.dataset.boqty)].qty = 수량글(el.value); 발주바뀜(); };
+  const 새줄 = $('#boNew');
+  if (새줄) 새줄.onclick = () => {
+    줄들.push(직접줄());
+    발주바뀜();
+    발주그리기();
+    몸.querySelector(`[data-bodirect="${줄들.length - 1}:code"]`)?.focus();
+  };
+  for (const el of 몸.querySelectorAll('[data-bodirect]')) el.oninput = () => {
+    const [i, 갈래] = el.dataset.bodirect.split(':');
+    직접줄쓰기(줄들[Number(i)], 갈래, el.value, 발주.양식?.틀);
+    발주바뀜();
+  };
   for (const btn of 몸.querySelectorAll('[data-bodel]')) btn.onclick = () => { 줄들.splice(Number(btn.dataset.bodel), 1); 발주바뀜(); 발주그리기(); };
   const 입력글 = (el) => el.value ?? el.textContent;
   for (const el of 몸.querySelectorAll('[data-bohead]')) el.oninput = () => { 발주.판.머리[el.dataset.bohead] = 입력글(el); 발주바뀜(); };
@@ -8754,7 +8813,9 @@ function 발주잇기() {
     const 자리 = el.dataset.bocell.indexOf(':');
     const i = Number(el.dataset.bocell.slice(0, 자리)), 키 = el.dataset.bocell.slice(자리 + 1);
     const 주수량 = 발주.양식.틀.칸.find((k) => k.역할 === 'qty');
+    const 직접갈래 = 줄들[i].직접 && ['code', 'name'].find((r) => 발주.양식.틀.칸.find((k) => k.역할 === r)?.키 === 키);
     if (키 === 주수량?.키) 줄들[i].qty = 수량글(입력글(el));
+    else if (직접갈래) 직접줄쓰기(줄들[i], 직접갈래, 입력글(el), 발주.양식.틀);
     else 줄들[i].고침[키] = 입력글(el);
     발주다시셈();
     발주바뀜();

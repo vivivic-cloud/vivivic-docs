@@ -315,6 +315,21 @@ export function 담을줄(제품) {
   return { 열쇠, code, name, color, size, price, 칸: 칸 ?? {}, 옛수량: qty ?? null, qty: 0, 고침: {} };
 }
 
+/** 직접 추가한 줄(11-07 사장님) — 처음 발주하는 품목. 담을줄과 같은 꼴이고 코드·이름만 사람이 적습니다. 나머지는 빈칸. */
+export const 직접줄 = () => ({ ...담을줄({ 열쇠: '', code: '', name: '' }), 직접: true });
+
+/** 직접 줄의 코드·이름을 고칩니다. 줄 값이 한 곳에만 있게 발주서 칸의 고친 값은 걷습니다. */
+export function 직접줄쓰기(줄, 갈래, 글, 틀) {
+  줄[갈래] = 글;
+  if (갈래 === 'code') 줄.열쇠 = 코드열쇠(글);
+  const 칸 = 틀 && 주칸(틀, 갈래);
+  if (칸) delete 줄.고침[칸.키];
+}
+
+/** 코드·이름·수량·고친 값이 다 빈 직접 줄 — 눌러만 둔 줄은 발주서로 안 넘깁니다. */
+export const 빈직접줄 = (줄) => !!줄.직접 && !String(줄.code ?? '').trim() && !String(줄.name ?? '').trim()
+  && !Number(줄.qty) && !Object.values(줄.고침 ?? {}).some((v) => String(v ?? '').trim());
+
 const 자리수 = (s) => (/\.(\d+)/.exec(String(s ?? '').replace(/,/g, ''))?.[1].length ?? 0);
 const 앞표 = (s) => /^[^\d-]*/.exec(String(s ?? '').trim())?.[0] ?? '';
 const 숫자글 = (n, 자리) => n.toLocaleString('en-US', { minimumFractionDigits: 자리, maximumFractionDigits: 자리 });

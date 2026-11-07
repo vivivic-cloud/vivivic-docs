@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 칸역할, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 줄값, 발주합계, 가격칸키, 발주서값 } from '../js/order.js';
+import { 칸역할, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 직접줄, 직접줄쓰기, 빈직접줄, 줄값, 발주합계, 가격칸키, 발주서값 } from '../js/order.js';
 
 /* 가짜 양식 — 실물(해피코 발주서·제헤우드 合同)의 꼴만 본떴습니다. 이름·값은 지어낸 것입니다. */
 const 빈 = (n) => Array(n).fill('');
@@ -192,4 +192,48 @@ test('발주서값 — 내보낼 값이 자리(r·c)와 함께', () => {
   assert.deepEqual(값.머리[0], { r: 4, c: 2, 값: 'X' });
   assert.equal(값.시작, 9);
   assert.equal(값.줄[0].find((x) => x.c === 9).값, '￥20.0');
+});
+
+test('직접 추가한 줄 — 담은 줄과 같은 꼴로 저장·양식 칸·합계를 그대로 탑니다', () => {
+  const 틀 = { 칸: [
+    { c: 0, 키: 'code#', 라벨: 'CODE#', 역할: 'code' }, { c: 1, 키: 'name', 라벨: 'NAME', 역할: 'name' },
+    { c: 2, 키: 'color', 라벨: 'COLOR', 역할: 'color' }, { c: 3, 키: 'qty', 라벨: 'QTY', 역할: 'qty' },
+    { c: 4, 키: 'price', 라벨: 'PRICE', 역할: 'price' }, { c: 5, 키: 'amount', 라벨: 'AMOUNT', 역할: 'amount' },
+  ], 머리칸: [], 아래: [], 합계: [] };
+  const 칸 = Object.fromEntries(틀.칸.map((k) => [k.키, k]));
+  const x = 직접줄();
+  assert.deepEqual(Object.keys(x).sort(), [...Object.keys(담을줄({ 열쇠: 'a', code: 'A' })), '직접'].sort());
+  직접줄쓰기(x, 'code', 'NEW▁01', 틀);
+  직접줄쓰기(x, 'name', '새 의자', 틀);
+  x.qty = 2;
+  assert.equal(x.열쇠, 'NEW_01');
+  const 살아난 = JSON.parse(JSON.stringify(x));     // docs_발주함 은 JSON 글입니다
+  assert.equal(살아난.직접, true);
+  assert.equal(줄값(칸['code#'], 살아난, 0, 틀).값, 'NEW▁01');
+  assert.equal(줄값(칸.name, 살아난, 0, 틀).값, '새 의자');
+  assert.equal(줄값(칸.color, 살아난, 0, 틀).값, '');
+  assert.equal(줄값(칸.amount, 살아난, 0, 틀).값, '');          // 단가를 모르면 사람이 넣습니다
+  살아난.고침.price = '￥10.0';
+  assert.deepEqual(줄값(칸.amount, 살아난, 0, 틀), { 값: '￥20.0', 계산: true });
+  assert.equal(발주합계(틀, [살아난]).칸.amount, '￥20.0');
+  assert.equal(발주서값(틀, { 줄: [살아난] }).줄[0][0].값, 'NEW▁01');
+});
+
+test('직접줄쓰기 — 발주서 칸에서 고친 값이 남아 코드·이름을 가리지 않습니다', () => {
+  const 틀 = { 칸: [{ c: 0, 키: 'code#', 라벨: 'CODE#', 역할: 'code' }] };
+  const x = 직접줄();
+  x.고침['code#'] = '옛값';
+  직접줄쓰기(x, 'code', 'B', 틀);
+  assert.equal(줄값(틀.칸[0], x, 0, 틀).값, 'B');
+  직접줄쓰기(x, 'name', '양식 없어도 됨');
+  assert.equal(x.name, '양식 없어도 됨');
+});
+
+test('빈직접줄 — 눌러만 둔 줄만 걷고 담은 줄·적은 줄은 둡니다', () => {
+  assert.equal(빈직접줄(직접줄()), true);
+  assert.equal(빈직접줄({ ...직접줄(), code: ' ' }), true);
+  assert.equal(빈직접줄({ ...직접줄(), name: '이름만' }), false);
+  assert.equal(빈직접줄({ ...직접줄(), qty: 3 }), false);
+  assert.equal(빈직접줄({ ...직접줄(), 고침: { price: '1' } }), false);
+  assert.equal(빈직접줄(담을줄({ 열쇠: '', code: '', name: '' })), false);
 });
