@@ -49,6 +49,11 @@ export function 파일째공유되나(이름, 크롬계열) {
   return !크롬계열 || 크롬공유꼴.test(String(이름 ?? '').trim());
 }
 
+/** 서버가 PDF 로 바꿔 내줄 수 있는 꼴 — sync.gs PDF꼴_ 과 같습니다. 같이 고치세요. */
+export function PDF로바꿀꼴(이름) {
+  return /\.(xlsx|xlsm|xls|docx|doc|pptx|ppt)$/i.test(String(이름 ?? '').trim());
+}
+
 export function extOf(name) {
   const m = /\.([a-z0-9]{1,6})$/i.exec(name);
   return m ? m[1].toLowerCase() : '';

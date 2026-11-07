@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
+import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, PDF로바꿀꼴, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸 } from './match.js';
 import { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 줄값, 발주합계, 가격칸키 } from './order.js';
@@ -718,10 +718,15 @@ const 못그리는형식 = (doc) =>
    ⚠ 크롬 계열은 파일째 나가는 꼴이 정해져 있습니다(PDF·사진 등 — parse.js 파일째공유되나).
      엑셀은 canShare 가 참이라 해 놓고 share 에서 거절합니다(크롬 156 으로 재 봤습니다).
      거절당하면 탭의 힘이 이미 써 버려져 다음 share 도 막혀, 예전엔 메일 창으로 떨어졌습니다.
-     그래서 안 나갈 꼴은 파일을 시도하지 않고 곧장 공유판(링크)으로 갑니다 — 카톡·위챗이 뜹니다.
+     그래서 안 나갈 꼴은 파일을 시도하지 않습니다.
+       엑셀·워드·피피티 — 첫 탭에 서버가 PDF 로 바꿔 받아 둡니다(「변환 중」 → 「PDF ✓」), 둘째 탭에 파일째.
+         링크가 먼저 나가지 않게 공유판을 띄우지 않습니다. 중국에서 드라이브 링크는 안 열립니다.
+       도면·zip, 또는 PDF 를 못 받으면 — 곧장 공유판(링크, 카톡·위챗이 뜹니다). 단추 「링크만」.
    ⚠ 웹앱에 그 자리가 아직 없으면(배포 전) 조용히 옛 길(링크)로 갑니다. 안 깨집니다. */
 const 받아둔파일 = new Map();      // 경로 → File. 서랍을 닫으면 비웁니다.
 const 파일막힘 = new Set();        // 파일째 보내다 거절당한 경로. 다음 탭부터 공유판(링크)으로 갑니다.
+const PDF받는중 = new Set();       // 지금 변환 받는 경로
+let PDF길없음 = false;             // 서버가 PDF 를 못 줍니다(자물쇠·옛 판 등). 한 번 겪으면 이 창에서는 곧장 링크로.
 const 크롬계열 = !!navigator.userAgentData;   // 크롬·엣지·삼성. 사파리·아이폰 크롬은 없습니다.
 const 파일째될이름 = (이름) => 파일째공유되나(이름, 크롬계열);
 const 파일째되나 = (file) => 파일째될이름(file.name) && !!navigator.canShare?.({ files: [file] });
@@ -767,6 +772,27 @@ function 받아두기(doc) {
     .catch(() => {});                      // 삼킵니다
 }
 
+/** 첫 탭 — PDF 로 받아 둡니다. 다 받으면 둘째 탭이 파일째 나갑니다. 못 받으면 둘째 탭이 링크로 갑니다. */
+function PDF받아두기(doc) {
+  if (PDF받는중.has(doc.path)) return toast('변환 중');
+  PDF받는중.add(doc.path);
+  단추글(doc.path, '변환 중');
+  toast('변환 중');
+  웹앱에서받기(doc, true)
+    .then((받은것) => {
+      if (받은것 instanceof File && 파일째되나(받은것)) {
+        받아둔파일.set(doc.path, 받은것);
+        단추글(doc.path, 'PDF ✓');
+      } else {
+        파일막힘.add(doc.path);
+        if (받은것 !== 'big') PDF길없음 = true;
+        단추글(doc.path, '링크만');
+      }
+      toast('한 번 더');
+    })
+    .finally(() => PDF받는중.delete(doc.path));
+}
+
 async function 서류보내기(doc) {
   const 이름 = doc?.display ?? doc?.name ?? '서류';
   const 링크 = doc?.driveId ? driveOpen(doc.driveId) : null;
@@ -785,6 +811,13 @@ async function 서류보내기(doc) {
       if (await 파일공유(doc, file, 이름)) toast('보냄');
       return;
     }
+  }
+
+  // 크롬에서 엑셀·워드·피피티 — PDF 로 바꿔 받습니다. 링크는 안 띄웁니다.
+  if (doc?.driveId && navigator.canShare && !PDF길없음 && !파일막힘.has(doc.path)
+      && PDF로바꿀꼴(doc.name ?? doc.display) && !파일째될이름(doc.name ?? doc.display)) {
+    PDF받아두기(doc);
+    return;
   }
 
   // ③ 공유판을 먼저 띄웁니다 — 카톡·위챗·메일·문자가 한 판에 뜹니다.
@@ -815,16 +848,16 @@ async function 서류보내기(doc) {
    ⚠ Content-Type 은 text/plain 이어야 합니다. application/json 이면 브라우저가 먼저
      OPTIONS 를 묻는데, Apps Script 는 그 물음에 답을 못 해 통째로 막힙니다.
    돌려주는 것 — File(성공) · 'big'(너무 큼) · null(그 밖에 전부. 조용히 옛 길로). */
-async function 웹앱에서받기(doc) {
+async function 웹앱에서받기(doc, pdf = false) {
   const 그만 = new AbortController();
-  const 시계 = setTimeout(() => 그만.abort(), 20_000);
+  const 시계 = setTimeout(() => 그만.abort(), pdf ? 60_000 : 20_000);   // 변환은 사본·내보내기로 더 걸립니다
   try {
     const [url, idToken] = await Promise.all([DB.syncUrl(), DB.idToken()]);
     if (!url || !idToken) return null;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ idToken, driveId: doc.driveId }),
+      body: JSON.stringify({ idToken, driveId: doc.driveId, ...(pdf ? { pdf: true } : {}) }),
       signal: 그만.signal,
     });
     if (!res.ok) return null;

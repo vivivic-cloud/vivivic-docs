@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds, 올릴이름, 파일째공유되나, 다음차수, 임시발주묶기 } from '../js/parse.js';
+import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds, 올릴이름, 파일째공유되나, PDF로바꿀꼴, 다음차수, 임시발주묶기 } from '../js/parse.js';
 
 /** 실제 드라이브 `중국/제헤우드/` 폴더에서 가져온 파일명입니다. */
 const REAL = [
@@ -982,4 +982,9 @@ test('파일째공유되나 — 크롬은 PDF·사진만, 엑셀은 링크로. �
   for (const n of ['AMT2026-18订单合同8.03.xlsx', 'CI&PL.xls', '제안.pptx', '도면.dwg', '묶음.zip', '이름없음', '', null])
     assert.equal(파일째공유되나(n, true), false, String(n));
   assert.equal(파일째공유되나('CI&PL.xls', false), true);
+});
+
+test('PDF로바꿀꼴 — 엑셀·워드·피피티만. 도면·zip·PDF 는 아님', () => {
+  for (const n of ['a.xlsx', 'CI&PL.XLS', 'a.docx', 'a.ppt ']) assert.equal(PDF로바꿀꼴(n), true, n);
+  for (const n of ['a.pdf', 'a.dwg', 'a.zip', '', null]) assert.equal(PDF로바꿀꼴(n), false, String(n));
 });

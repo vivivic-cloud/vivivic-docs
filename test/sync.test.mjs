@@ -430,3 +430,45 @@ test('양식올리기 — 자물쇠, 거래처/대표양식 에 저장(같은 �
   assert.equal(쓰기.at(-1).update.fields['일'].stringValue, '양식올림');
   assert.equal(ctx.차수폴더인가_('대표양식'), false);
 });
+
+test('PDF내주기_ — 사본으로 PDF 를 뽑아 이름만 바꿔 주고, 사본을 지운다. 원본은 안 건드림', () => {
+  const 부름 = [];
+  const 응답 = (code, body, bytes) => ({ getResponseCode: () => code, getContentText: () => body, getContent: () => bytes });
+  gs.UrlFetchApp = { fetch: (u, o = {}) => {
+    부름.push([o.method ?? 'get', u]);
+    if (u.endsWith('/copy')) return 응답(200, JSON.stringify({ id: 'COPY' }));
+    if (o.method === 'delete') return 응답(204, '');
+    return 응답(200, '', [1, 2, 3]);
+  } };
+  gs.ScriptApp = { getOAuthToken: () => 't' };
+  gs.Utilities = { base64Encode: (b) => `b64:${b.length}` };
+  gs.SpreadsheetApp = { openById: () => { throw new Error('없음'); } };
+  const file = { getId: () => 'ORIG', getName: () => 'AMT합同.8.03.xlsx' };
+  const r = gs.PDF내주기_(file);
+  assert.equal(r.ok, true);
+  assert.equal(r.name, 'AMT합同.8.03.pdf');
+  assert.equal(r.mime, 'application/pdf');
+  assert.equal(r.b64, 'b64:3');
+  assert.deepEqual(부름.map(([m]) => m), ['post', 'get', 'delete']);
+  assert.match(부름[0][1], /files\/ORIG\/copy$/);
+  assert.match(부름[1][1], /spreadsheets\/d\/COPY\/export\?format=pdf.*fitw=true.*portrait=true/);
+  assert.match(부름[2][1], /files\/COPY$/);       // 지운 것은 사본
+
+  부름.length = 0;
+  assert.equal(gs.PDF내주기_({ getId: () => 'X', getName: () => '도면.dwg' }).why, 'kind');
+  assert.equal(부름.length, 0);
+
+  // 내보내기가 실패해도 사본은 지운다
+  gs.UrlFetchApp = { fetch: (u, o = {}) => {
+    부름.push([o.method ?? 'get', u]);
+    return u.endsWith('/copy') ? 응답(200, JSON.stringify({ id: 'COPY' })) : 응답(500, '');
+  } };
+  assert.equal(gs.PDF내주기_(file).why, 'read');
+  assert.equal(부름.at(-1)[0], 'delete');
+});
+
+test('PDF꼴_ 과 parse.js PDF로바꿀꼴 이 같은 꼴을 본다', async () => {
+  const { PDF로바꿀꼴 } = await import('../js/parse.js');
+  for (const n of ['a.xlsx', 'a.xlsm', 'a.XLS', 'a.docx', 'a.doc', 'a.pptx', 'a.ppt', 'a.pdf', 'a.dwg', 'a.zip', 'a.csv'])
+    assert.equal(!!gs.PDF꼴_(n), PDF로바꿀꼴(n), n);
+});

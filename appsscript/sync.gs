@@ -688,7 +688,9 @@ function commit_(writes) {
      스크립트 속성이 하나라도 비어 있으면 **아무에게도 안 줍니다**(닫힌 채로 둡니다).
        shareAllow — 허락할 이메일. 쉼표나 빈칸으로 여럿.
        fbKey      — 파이어베이스 웹 열쇠. 저장소에 안 박으려고 여기서 읽습니다.
-   ⚠ 읽기만 합니다. 옮기거나 지우거나 이름을 바꾸는 코드는 한 줄도 없습니다.
+   ⚠ 원본은 읽기만 합니다. 옮기거나 지우거나 이름을 바꾸는 코드는 한 줄도 없습니다.
+     단 pdf 부탁(req.pdf)은 내 드라이브에 임시 사본을 만들어 PDF 로 뽑고 그 사본만 지웁니다 —
+     크롬이 엑셀을 파일째 공유 못 해서입니다(11-07 사장님 「PDF로 보내기」).
    ⚠ 「중국」 폴더 아래 파일만 내줍니다. 안 그러면 id 만 알면 아무 파일이나 빼갑니다. */
 
 const SHARE_MAX = 10 * 1024 * 1024;   // base64 는 1/3 커집니다. 여기서 끊습니다.
@@ -731,6 +733,7 @@ function 파일내주기_(req) {
   const file = DriveApp.getFileById(id);            // 읽기만
   if (!중국아래인가_(file)) return { ok: false, why: 'out' };
   if (file.getSize() > SHARE_MAX) return { ok: false, why: 'big' };
+  if (req.pdf) return PDF내주기_(file);
 
   const blob = file.getBlob();
   return {
@@ -739,6 +742,80 @@ function 파일내주기_(req) {
     mime: blob.getContentType() || 'application/octet-stream',
     b64: Utilities.base64Encode(blob.getBytes()),
   };
+}
+
+/** 구글 문서 꼴로 바꿀 수 있는 파일 — parse.js PDF로바꿀꼴 과 같은 꼴입니다. 같이 고치세요. */
+function PDF꼴_(이름) {
+  const n = String(이름 || '').trim();
+  if (/\.(xlsx|xlsm|xls)$/i.test(n)) return 'application/vnd.google-apps.spreadsheet';
+  if (/\.(docx|doc)$/i.test(n)) return 'application/vnd.google-apps.document';
+  if (/\.(pptx|ppt)$/i.test(n)) return 'application/vnd.google-apps.presentation';
+  return '';
+}
+
+/** 시트 PDF 방향 — 첫 보이는 시트가 옆으로 길면 가로로. 못 재면 세로. */
+function PDF가로인가_(copyId) {
+  try {
+    const sh = SpreadsheetApp.openById(copyId).getSheets().filter(function (s) { return !s.isSheetHidden(); })[0];
+    if (!sh) return false;
+    const 칸수 = Math.min(sh.getLastColumn(), 40);
+    let 폭 = 0;
+    for (let c = 1; c <= 칸수; c++) if (!sh.isColumnHiddenByUser(c)) 폭 += sh.getColumnWidth(c);
+    return 폭 > sh.getLastRow() * 21;
+  } catch (err) {
+    return false;
+  }
+}
+
+/** PDF 를 받을 주소. 시트는 한 쪽 폭에 맞춰 뽑습니다 — 드라이브 내보내기는 넓은 표를 여러 쪽으로 쪼갭니다. */
+function PDF주소_(copyId, 꼴) {
+  if (꼴 !== 'application/vnd.google-apps.spreadsheet')
+    return 'https://www.googleapis.com/drive/v3/files/' + copyId + '/export?mimeType=application%2Fpdf';
+  return 'https://docs.google.com/spreadsheets/d/' + copyId + '/export?format=pdf&size=A4&fitw=true' +
+    '&portrait=' + (PDF가로인가_(copyId) ? 'false' : 'true') +
+    '&gridlines=false&sheetnames=false&printtitle=false&pagenumbers=false&fzr=false';
+}
+
+/** 임시 사본을 PDF 로 뽑아 내줍니다. 원본은 안 건드립니다. UrlFetch: 사본 1 · 내보내기 1 · 지우기 1. */
+function PDF내주기_(file) {
+  const 꼴 = PDF꼴_(file.getName());
+  if (!꼴) return { ok: false, why: 'kind' };
+  let copyId = '';
+  try {
+    const res = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + file.getId() + '/copy', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token_() },
+      payload: JSON.stringify({ name: TEMP_PREFIX + 'pdf', mimeType: 꼴, parents: ['root'] }),
+      muteHttpExceptions: true,
+    });
+    if (res.getResponseCode() !== 200) return { ok: false, why: 'read' };
+    copyId = JSON.parse(res.getContentText()).id;
+
+    const out = UrlFetchApp.fetch(PDF주소_(copyId, 꼴), {
+      headers: { Authorization: 'Bearer ' + token_() },
+      muteHttpExceptions: true,
+    });
+    if (out.getResponseCode() !== 200) return { ok: false, why: 'read' };
+    const 바이트 = out.getContent();
+    if (바이트.length > SHARE_MAX) return { ok: false, why: 'big' };
+    return {
+      ok: true,
+      name: file.getName().replace(/\.[^.]+$/, '') + '.pdf',
+      mime: 'application/pdf',
+      b64: Utilities.base64Encode(바이트),
+    };
+  } finally {
+    if (copyId) {
+      try {
+        UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + copyId, {
+          method: 'delete',
+          headers: { Authorization: 'Bearer ' + token_() },
+          muteHttpExceptions: true,
+        });
+      } catch (err) { /* 임시 파일은 휴지통에 남아도 큰일은 아닙니다 */ }
+    }
+  }
 }
 
 /** 로그인 표가 진짜인지 구글에 물어봅니다. 맞으면 그 사람 이메일, 아니면 빈 글자. */
