@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds, 올릴이름, 다음차수, 임시발주묶기 } from '../js/parse.js';
+import { parseBatch, classify, parseDate, parseDocNo, buildBatches, parseVendor, glossCJK, readCipl, batchFromPath, subdirOf, readBrief, readItems, readPdfItems, 코드열쇠, 밑줄보기, 제품줄인가, orderIds, 올릴이름, 파일째공유되나, 다음차수, 임시발주묶기 } from '../js/parse.js';
 
 /** 실제 드라이브 `중국/제헤우드/` 폴더에서 가져온 파일명입니다. */
 const REAL = [
@@ -974,4 +974,12 @@ test('임시발주묶기 — 발주명 없으면 「PO n」, PO번호 없는 줄
   const 줄 = (po, 이름) => [po, 이름, '내자', '', '2026-05-01', '', 'X1', 'x', '1', '1', '0', '0', 'Y'];
   const bs = 임시발주묶기('나공장', [줄('7', ''), 줄('', '떠돌이')]);
   assert.deepEqual(bs.map((b) => b.제목), ['PO 7']);
+});
+
+test('파일째공유되나 — 크롬은 PDF·사진만, 엑셀은 링크로. 크롬 밖은 막지 않는다', () => {
+  for (const n of ['영수증.pdf.pdf', 'A.PDF', '상차.jpg', '상차.jpeg', 'a.png', 'a.csv'])
+    assert.equal(파일째공유되나(n, true), true, n);
+  for (const n of ['AMT2026-18订单合同8.03.xlsx', 'CI&PL.xls', '제안.pptx', '도면.dwg', '묶음.zip', '이름없음', '', null])
+    assert.equal(파일째공유되나(n, true), false, String(n));
+  assert.equal(파일째공유되나('CI&PL.xls', false), true);
 });

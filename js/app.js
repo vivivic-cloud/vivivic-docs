@@ -1,4 +1,4 @@
-import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
+import { STAGES, ASIDE, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 수량출처, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸 } from './match.js';
 import { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 줄값, 발주합계, 가격칸키 } from './order.js';
@@ -714,8 +714,31 @@ const 못그리는형식 = (doc) =>
      받아오는 동안 기다리면 아이폰이 막습니다.
        첫 탭 — 받아 둡니다(단추가 '보내기 ✓' 로 바뀝니다).
        둘째 탭 — 기다림 없이 바로 보냅니다.
+   ⚠ 크롬 계열은 파일째 나가는 꼴이 정해져 있습니다(PDF·사진 등 — parse.js 파일째공유되나).
+     엑셀은 canShare 가 참이라 해 놓고 share 에서 거절합니다(크롬 156 으로 재 봤습니다).
+     거절당하면 탭의 힘이 이미 써 버려져 다음 share 도 막혀, 예전엔 메일 창으로 떨어졌습니다.
+     그래서 안 나갈 꼴은 파일을 시도하지 않고 곧장 공유판(링크)으로 갑니다 — 카톡·위챗이 뜹니다.
    ⚠ 웹앱에 그 자리가 아직 없으면(배포 전) 조용히 옛 길(링크)로 갑니다. 안 깨집니다. */
 const 받아둔파일 = new Map();      // 경로 → File. 서랍을 닫으면 비웁니다.
+const 파일막힘 = new Set();        // 파일째 보내다 거절당한 경로. 다음 탭부터 공유판(링크)으로 갑니다.
+const 크롬계열 = !!navigator.userAgentData;   // 크롬·엣지·삼성. 사파리·아이폰 크롬은 없습니다.
+const 파일째될이름 = (이름) => 파일째공유되나(이름, 크롬계열);
+const 파일째되나 = (file) => 파일째될이름(file.name) && !!navigator.canShare?.({ files: [file] });
+
+/** 파일째 공유. 거절당하면 탭의 힘이 없어 뒤따르는 공유판도 안 뜹니다 — 다음 탭을 받습니다. */
+async function 파일공유(doc, file, 이름) {
+  try {
+    await navigator.share({ files: [file], title: 이름 });
+    return true;
+  } catch (e) {
+    if (e?.name === 'AbortError') return false;    // 사장님이 그만두신 것입니다
+    파일막힘.add(doc.path);
+    받아둔파일.delete(doc.path);
+    단추글(doc.path, '링크만');
+    toast('한 번 더');
+    return false;
+  }
+}
 
 /**
  * 파일을 뒤에서 조용히 받아 둡니다. 공유판은 이미 떠 있으니 여기서 무슨 일이 나도
@@ -725,12 +748,14 @@ const 받아둔파일 = new Map();      // 경로 → File. 서랍을 닫으면 
  */
 function 받아두기(doc) {
   if (!doc?.driveId || 받아둔파일.has(doc.path) || !navigator.canShare) return;
+  // 받아 봐야 못 보내는 꼴입니다 — 받지 않고 딱지만 답니다.
+  if (파일막힘.has(doc.path) || !파일째될이름(doc.name ?? doc.display)) return 단추글(doc.path, '링크만');
   웹앱에서받기(doc)
     .then((받은것) => {
       if (받은것 instanceof File) {
         // 파일째 못 보내는 기계에서는 ✓ 를 붙이지 않습니다 — 둘째 탭도 링크로 갑니다.
         // 붙여 두면 거짓말이 됩니다.
-        if (!navigator.canShare?.({ files: [받은것] })) return;
+        if (!파일째되나(받은것)) return;
         받아둔파일.set(doc.path, 받은것);
         단추글(doc.path, '보내기 ✓');
         toast('받음');
@@ -747,25 +772,17 @@ async function 서류보내기(doc) {
 
   // ① 이미 받아 둔 파일이 있으면 기다림 없이 바로 보냅니다 (둘째 탭).
   const 든것 = 받아둔파일.get(doc?.path);
-  if (든것 && navigator.canShare?.({ files: [든것] })) {
-    try {
-      await navigator.share({ files: [든것], title: 이름 });
-      return;
-    } catch (e) {
-      if (e?.name === 'AbortError') return;
-    }
+  if (든것 && !파일막힘.has(doc.path) && 파일째되나(든것)) {
+    await 파일공유(doc, 든것, 이름);
+    return;
   }
 
   // ② 이 기기 폴더가 붙어 있으면 파일째 보냅니다 (맥·PC 크롬. 아이폰에는 이 길이 없습니다).
-  if (state.root && navigator.canShare) {
-    try {
-      const file = await FS.getFileByPath(state.root, doc.path);
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 이름 });
-        return toast('보냄');
-      }
-    } catch (e) {
-      if (e?.name === 'AbortError') return;        // 사장님이 그만두신 것입니다
+  if (state.root && navigator.canShare && !파일막힘.has(doc?.path) && 파일째될이름(doc?.name ?? doc?.display)) {
+    const file = await FS.getFileByPath(state.root, doc.path).catch(() => null);
+    if (file && 파일째되나(file)) {
+      if (await 파일공유(doc, file, 이름)) toast('보냄');
+      return;
     }
   }
 
@@ -2048,7 +2065,7 @@ function renderDrawer(id) {
            알약은 작아도 -my 로 당겨 손가락 닿는 자리는 44px 로 둡니다. -->
       <div class="flex items-center gap-2">
         <span class="dmt min-w-0 flex-1">${esc(파일메타(d))}</span>
-        <button type="button" data-send="${esc(d.path)}" title="카톡·메일로 보내기"
+        <button type="button" data-send="${esc(d.path)}" title="카톡·위챗으로 보내기"
                 class="min-h-[44px] min-w-[44px] -my-3 px-1 shrink-0 flex items-center justify-center">
           <span class="text-[11px] font-bold px-2 py-1 rounded-md border bg-white text-faint border-line">보내기</span>
         </button>

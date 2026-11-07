@@ -40,6 +40,15 @@ export function normalizeName(name) {
   return n.trim();
 }
 
+/* 크롬 계열이 파일째 공유를 받는 꼴 — MDN Navigator.share 「Shareable file types」 그대로.
+   엑셀·워드·피피티·zip·도면은 없습니다. canShare 는 참을 돌려주고 share 가 거절합니다. */
+const 크롬공유꼴 = /\.(pdf|flac|m4a|mp3|oga|ogg|opus|wav|weba|avif|bmp|gif|ico|jfif|jpe?g|pjp|pjpeg|png|svgz?|tiff?|webp|xbm|css|csv|ehtml|html?|shtml?|shtm|text|txt|m4v|mp4|mpeg|mpg|ogm|ogv|webm)$/i;
+
+/** 이 이름의 파일을 공유판에 파일째 넘길 수 있나. 크롬 계열 밖(사파리 등)은 막지 않습니다. */
+export function 파일째공유되나(이름, 크롬계열) {
+  return !크롬계열 || 크롬공유꼴.test(String(이름 ?? '').trim());
+}
+
 export function extOf(name) {
   const m = /\.([a-z0-9]{1,6})$/i.exec(name);
   return m ? m[1].toLowerCase() : '';
