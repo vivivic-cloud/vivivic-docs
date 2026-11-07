@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { 칸역할, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 직접줄, 직접줄쓰기, 빈직접줄, 줄값, 발주합계, 가격칸키, 발주서값 } from '../js/order.js';
+import { 칸역할, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 직접줄, 직접줄쓰기, 빈직접줄, 줄값, 발주합계, 가격칸키, 발주서값, 칸이름 } from '../js/order.js';
 
 /* 가짜 양식 — 실물(해피코 발주서·제헤우드 合同)의 꼴만 본떴습니다. 이름·값은 지어낸 것입니다. */
 const 빈 = (n) => Array(n).fill('');
@@ -236,4 +236,56 @@ test('빈직접줄 — 눌러만 둔 줄만 걷고 담은 줄·적은 줄은 둡
   assert.equal(빈직접줄({ ...직접줄(), qty: 3 }), false);
   assert.equal(빈직접줄({ ...직접줄(), 고침: { price: '1' } }), false);
   assert.equal(빈직접줄(담을줄({ 열쇠: '', code: '', name: '' })), false);
+});
+
+/* 제목 없는 칸 — 해피코 INVOICE 꼴. 값은 지어낸 것입니다. */
+const 가짜INVOICE = (값들 = ['2米书柜-AA', '1米桌子', '书柜1200-BB'], 덧 = {}) => ({
+  name: 'INVOICE',
+  rows: [
+    ['Description of goods', 'ITEM NO', '', 'QUANTITY', 'PRICE', 'AMOUNT', 'Remark'],
+    ...값들.map((v, i) => [`Gana ${i}`, `AA_0${i}`, v, '10', '¥5.00', '¥50.00', '']),
+    ['TOTAL', '', '', '30', '', '¥150.00', ''],
+  ],
+  식: { '1,5': 'D2*E2' },
+  ...덧,
+});
+const 빈칸 = (틀) => 틀.칸.find((k) => k.c === 2);
+
+test('칸이름 — ITEM NO 옆 중국어 칸에 제목, 키·라벨은 그대로', () => {
+  const 틀 = 양식분석([가짜INVOICE()]);
+  const k = 빈칸(틀);
+  assert.equal(k.키, '칸2');
+  assert.equal(k.라벨, '');
+  assert.equal(칸이름(k, 틀), '중국어 품명');
+  assert.equal(칸이름(틀.칸[1], 틀), 'ITEM NO');
+  assert.ok(!가격칸키(틀).has('칸2'));
+});
+
+test('칸이름 — 저장된 옛 틀은 값이 없어도 자리로 붙고, 적어 둔 값이 남는다', () => {
+  // 값 기록이 없던 때의 틀 그대로 — JSON 왕복
+  const 옛 = JSON.parse(JSON.stringify(양식분석([가짜INVOICE()])));
+  옛.칸.forEach((k) => delete k.한자);
+  assert.equal(칸이름(빈칸(옛), 옛), '중국어 품명');
+  const 줄하나 = { code: 'AA_00', qty: 10, 칸: {}, 고침: { 칸2: '적어 둔 품명' } };
+  assert.equal(줄값(빈칸(옛), 줄하나, 0, 옛).값, '적어 둔 품명');
+});
+
+test('칸이름 — 다른 빈 칸에는 안 붙인다', () => {
+  // 값이 영어·한글·숫자
+  for (const 값 of [['Gana', 'Dana', 'Rana'], ['가나 책장', '다나 책상', '라나 의자'], ['1', '2', '3']]) {
+    const 틀 = 양식분석([가짜INVOICE(값)]);
+    assert.equal(칸이름(빈칸(틀), 틀), '', 값[0]);
+  }
+  // 숨긴 칸
+  const 숨 = 양식분석([가짜INVOICE(undefined, { 숨긴칸: [2] })]);
+  assert.equal(칸이름(빈칸(숨), 숨), '');
+  // 계산 재료 — 금액이 이 칸을 곱합니다
+  const 재료 = 양식분석([가짜INVOICE(undefined, { 식: { '1,5': 'C2*D2' } })]);
+  assert.equal(칸이름(빈칸(재료), 재료), '');
+  // 옆이 ITEM NO 가 아닌 코드 칸, ITEM NO 와 떨어진 칸
+  const 틀 = 양식분석([가짜INVOICE()]);
+  const 옛꼴 = (왼, c = 2) => ({ 칸: [{ 키: 'a', 라벨: 왼, 역할: 'code', c: 1 }, { 키: `칸${c}`, 라벨: '', 역할: '', c }] });
+  assert.equal(칸이름({ 라벨: '', 역할: '', c: 2 }, 옛꼴('code#')), '');
+  assert.equal(칸이름({ 라벨: '', 역할: '', c: 3 }, 옛꼴('ITEM NO', 3)), '');
+  assert.equal(칸이름({ 라벨: '', 역할: '', c: 3 }, 틀), '');
 });

@@ -418,7 +418,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.118.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.119.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -459,7 +459,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.118.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.119.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -3672,6 +3672,23 @@ function 칸역할(라벨) {
   return (k && 역할표.find(([, re]) => re.test(k))?.[0]) || '';
 }
 
+/* 제목 없는 칸의 화면 이름 (사장님 11-07) — 해피코 INVOICE 는 ITEM NO 옆 칸이 머리 글 없이 중국어 품명입니다.
+   라벨·키는 안 건드립니다: 입력값은 고침[키] 에 있고, 라벨은 가격칸·표 끝 셈이 씁니다. 화면에 찍을 때만 이 이름을 씁니다.
+   k.한자 — 새로 올린 틀은 true/false. 옛 틀은 값이 안 남아 undefined 라 자리만 봅니다. */
+const 한자칸인가 = (값들) => {
+  const 찬 = 값들.map((v) => String(v ?? '').trim()).filter(Boolean);
+  return !찬.some((v) => /[\uac00-\ud7a3]/.test(v)) && 찬.filter((v) => /[\u4e00-\u9fff]/.test(v)).length * 2 > 찬.length;
+};
+
+/** 칸의 화면 이름. 제목이 있으면 그것, 없으면 ITEM NO 바로 오른쪽 입력 칸만 「중국어 품명」. */
+function 칸이름(칸, 틀) {
+  if (칸.라벨) return 칸.라벨;
+  if (칸.숨김 || 칸.역할 || 칸.식 || 칸.한자 === false) return '';
+  const 왼 = 틀.칸.find((k) => k.c === 칸.c - 1);
+  if (!왼 || 왼.숨김 || 왼.역할 !== 'code' || 글칸(왼.라벨) !== 'itemno') return '';
+  return 틀.칸.some((k) => k.식?.includes(칸.c)) ? '' : '중국어 품명';
+}
+
 /** 품목표 머리인가 — 수량 칸 + 코드나 이름 칸, 그리고 칸이 셋 이상. */
 function 머리줄인가(칸들) {
   const 역할들 = 칸들.map(칸역할);
@@ -3809,6 +3826,9 @@ function 분석시트(시트) {
   };
   let 끝 = 시작;
   while (끝 < rows.length && (품목줄인가(끝) || (품목줄인가(끝 + 1) && !(rows[끝] ?? []).some(Boolean)))) 끝++;
+
+  // 제목 없는 칸은 값이 한자인지 적어 둡니다 — 칸이름 이 씁니다. 틀에 값이 안 남아 여기서만 압니다.
+  for (const k of 칸들) if (!k.라벨) k.한자 = 한자칸인가(rows.slice(시작, 끝).map((r) => r[k.c]));
 
   // 칸 식은 품목 줄 가운데 처음 나온 것
   for (const k of 칸들) {
@@ -4059,7 +4079,7 @@ function 발주서값(틀, 판) {
   };
 }
 
-return { 가격칸키, 계산칸인가, 글칸, 담을줄, 머리기본값, 발주서값, 발주이력, 발주합계, 빈직접줄, 양식분석, 워크북읽기, 줄값, 직접줄, 직접줄쓰기, 최근발주표, 칸역할, 표로양식 };
+return { 가격칸키, 계산칸인가, 글칸, 담을줄, 머리기본값, 발주서값, 발주이력, 발주합계, 빈직접줄, 양식분석, 워크북읽기, 줄값, 직접줄, 직접줄쓰기, 최근발주표, 칸역할, 칸이름, 표로양식 };
 })();
 const SHEET = (() => {
 const { 코드열쇠 } = PARSE;
@@ -5249,7 +5269,7 @@ return { APP_ID, CONFIG, FILES, OVERLAY, QUOTES, RULES, authMessage, fileKey, id
 const { STAGES, STAGE_BY_KEY, ASIDE, 단서종류, 단서뽑기, 단서합치기, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, PDF로바꿀꼴, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } = PARSE;
 const { progressWord } = PROGRESS;
 const { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 차수수량, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸, 양식묶기 } = MATCH;
-const { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 직접줄, 직접줄쓰기, 빈직접줄, 줄값, 발주합계, 가격칸키 } = ORDER;
+const { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 직접줄, 직접줄쓰기, 빈직접줄, 줄값, 발주합계, 가격칸키, 칸이름 } = ORDER;
 const { 엑셀표본, 시트표본, 모양읽기, 꼬리값 } = SHEET;
 
 
@@ -8486,14 +8506,14 @@ function 발주표() {
     if (가림(k)) return v.값 ? 흐림칸 : '<td></td>';
     if (v.계산) return `<td class="num" data-calc="${i}:${esc(k.키)}">${보임(v.값)}</td>`;
     const 수량 = k.역할 === 'qty';
-    return `<td${k.역할 === 'code' ? ' class="dpr-k"' : ''}><input class="bo-in bo-${k.역할 || 'etc'}" ${수량 ? 'inputmode="numeric" ' : ''}data-bocell="${i}:${esc(k.키)}" value="${esc(밑줄보기(v.값))}" aria-label="${esc(k.라벨)}" /></td>`;
+    return `<td${k.역할 === 'code' ? ' class="dpr-k"' : ''}><input class="bo-in bo-${k.역할 || 'etc'}" ${수량 ? 'inputmode="numeric" ' : ''}data-bocell="${i}:${esc(k.키)}" value="${esc(밑줄보기(v.값))}" aria-label="${esc(칸이름(k, 틀))}" /></td>`;
   };
   const 합 = 발주합계(틀, 줄들);
   const 합칸 = (k, c) => (c === 0 && !합.칸[k.키] ? '<td>TOTAL</td>'
     : 가림(k) && 합.칸[k.키] ? 흐림칸 : `<td class="num" data-total="${esc(k.키)}">${esc(합.칸[k.키] ?? '')}</td>`);
   return `
     <div class="dpr-scroll vv-x"><table class="dpr-t bo-t">
-      <thead><tr>${칸들.map((k) => `<th${k.역할 === 'code' ? ' class="dpr-k"' : ''}>${esc(k.라벨)}</th>`).join('')}</tr></thead>
+      <thead><tr>${칸들.map((k) => `<th${k.역할 === 'code' ? ' class="dpr-k"' : ''}>${esc(칸이름(k, 틀))}</th>`).join('')}</tr></thead>
       <tbody>${줄들.map((x, i) => `<tr>${칸들.map((k) => 몸칸(k, x, i)).join('')}</tr>`).join('')}
         ${줄들.length ? `<tr class="dpr-f">${칸들.map(합칸).join('')}</tr>` : ''}
         ${합.비율줄.map((x) => `<tr class="dpr-f"><td colspan="${Math.max(1, 칸들.length - 1)}">${esc(x.라벨)}</td>${가격허락 === true ? `<td class="num">${esc(x.값)}</td>` : 흐림칸}</tr>`).join('')}
@@ -8549,7 +8569,7 @@ function 양식격자() {
     if (가격허락 !== true && 가격.has(k.키)) return v.값 ? 흐림(칸.s) : 빈;
     if (v.계산) return `<td class="sf-${칸.s}"${넓이(칸)} data-calc="${i}:${esc(k.키)}">${보임(v.값)}</td>`;
     const 수량 = k.역할 === 'qty' ? ' inputmode="numeric"' : '';
-    return `<td class="sf-${칸.s} sf-e"${넓이(칸)}>${입력칸(밑줄보기(v.값), `data-bocell="${i}:${esc(k.키)}"${수량} aria-label="${esc(k.라벨)}"`, 서식글)}</td>`;
+    return `<td class="sf-${칸.s} sf-e"${넓이(칸)}>${입력칸(밑줄보기(v.값), `data-bocell="${i}:${esc(k.키)}"${수량} aria-label="${esc(칸이름(k, 틀))}"`, 서식글)}</td>`;
   };
   const 꼬리 = 꼬리값(모양, 틀, 줄들);
   const 아래값 = (줄, 칸) => {
@@ -8577,6 +8597,7 @@ function 양식격자() {
       return 틀td(입력칸(값, `data-botail="줄${줄.r}:${칸.c}" aria-label="아래 글"`, 서식글));
     }
     if (가격허락 !== true && 돈글꼴.test(칸.t ?? '')) return 흐림(칸.s);
+    if (!칸.t && 줄.r === 틀.머리줄 && 칸표.has(칸.c)) return 틀td(넘침글(보임(칸이름(칸표.get(칸.c), 틀)), 서식글));
     return 틀td(칸.t ? 넘침글(격자칸글(칸, 서식글, 칸.t), 서식글) : '');
   };
   const 고정줄 = (줄) => `<tr style="height:${줄.h}px">${줄.칸.map((칸) => 고정칸(줄, 칸)).join('')}</tr>`;

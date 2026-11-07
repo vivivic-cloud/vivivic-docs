@@ -1,7 +1,7 @@
 import { STAGES, STAGE_BY_KEY, ASIDE, 단서종류, 단서뽑기, 단서합치기, buildBatches, extOf, glossCJK, readCipl, parseBatch, KINDS, kindOf, 제품줄인가, 글귀_, 코드열쇠, 밑줄보기, 올릴이름, 파일째공유되나, PDF로바꿀꼴, SUBDIRS, summarize, 다음차수, batchFromPath, 임시발주묶기 } from './parse.js';
 import { progressWord } from './progress.js';
 import { itemRows, 맞춰보기, 맞춤판정, 제품차이, 적합성, 차수수량, 발주대조, 벤더피아단품사전, 벤더피아상품연결, 벤더피아맞대기, 이름후보, 찾을이름들, 가격칸, 양식묶기 } from './match.js';
-import { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 직접줄, 직접줄쓰기, 빈직접줄, 줄값, 발주합계, 가격칸키 } from './order.js';
+import { 워크북읽기, 양식분석, 표로양식, 머리기본값, 발주이력, 최근발주표, 담을줄, 직접줄, 직접줄쓰기, 빈직접줄, 줄값, 발주합계, 가격칸키, 칸이름 } from './order.js';
 import { 엑셀표본, 시트표본, 모양읽기, 꼬리값 } from './sheet.js';
 import * as FS from './fsaccess.js';
 import * as DB from './firebase.js';
@@ -3234,14 +3234,14 @@ function 발주표() {
     if (가림(k)) return v.값 ? 흐림칸 : '<td></td>';
     if (v.계산) return `<td class="num" data-calc="${i}:${esc(k.키)}">${보임(v.값)}</td>`;
     const 수량 = k.역할 === 'qty';
-    return `<td${k.역할 === 'code' ? ' class="dpr-k"' : ''}><input class="bo-in bo-${k.역할 || 'etc'}" ${수량 ? 'inputmode="numeric" ' : ''}data-bocell="${i}:${esc(k.키)}" value="${esc(밑줄보기(v.값))}" aria-label="${esc(k.라벨)}" /></td>`;
+    return `<td${k.역할 === 'code' ? ' class="dpr-k"' : ''}><input class="bo-in bo-${k.역할 || 'etc'}" ${수량 ? 'inputmode="numeric" ' : ''}data-bocell="${i}:${esc(k.키)}" value="${esc(밑줄보기(v.값))}" aria-label="${esc(칸이름(k, 틀))}" /></td>`;
   };
   const 합 = 발주합계(틀, 줄들);
   const 합칸 = (k, c) => (c === 0 && !합.칸[k.키] ? '<td>TOTAL</td>'
     : 가림(k) && 합.칸[k.키] ? 흐림칸 : `<td class="num" data-total="${esc(k.키)}">${esc(합.칸[k.키] ?? '')}</td>`);
   return `
     <div class="dpr-scroll vv-x"><table class="dpr-t bo-t">
-      <thead><tr>${칸들.map((k) => `<th${k.역할 === 'code' ? ' class="dpr-k"' : ''}>${esc(k.라벨)}</th>`).join('')}</tr></thead>
+      <thead><tr>${칸들.map((k) => `<th${k.역할 === 'code' ? ' class="dpr-k"' : ''}>${esc(칸이름(k, 틀))}</th>`).join('')}</tr></thead>
       <tbody>${줄들.map((x, i) => `<tr>${칸들.map((k) => 몸칸(k, x, i)).join('')}</tr>`).join('')}
         ${줄들.length ? `<tr class="dpr-f">${칸들.map(합칸).join('')}</tr>` : ''}
         ${합.비율줄.map((x) => `<tr class="dpr-f"><td colspan="${Math.max(1, 칸들.length - 1)}">${esc(x.라벨)}</td>${가격허락 === true ? `<td class="num">${esc(x.값)}</td>` : 흐림칸}</tr>`).join('')}
@@ -3297,7 +3297,7 @@ function 양식격자() {
     if (가격허락 !== true && 가격.has(k.키)) return v.값 ? 흐림(칸.s) : 빈;
     if (v.계산) return `<td class="sf-${칸.s}"${넓이(칸)} data-calc="${i}:${esc(k.키)}">${보임(v.값)}</td>`;
     const 수량 = k.역할 === 'qty' ? ' inputmode="numeric"' : '';
-    return `<td class="sf-${칸.s} sf-e"${넓이(칸)}>${입력칸(밑줄보기(v.값), `data-bocell="${i}:${esc(k.키)}"${수량} aria-label="${esc(k.라벨)}"`, 서식글)}</td>`;
+    return `<td class="sf-${칸.s} sf-e"${넓이(칸)}>${입력칸(밑줄보기(v.값), `data-bocell="${i}:${esc(k.키)}"${수량} aria-label="${esc(칸이름(k, 틀))}"`, 서식글)}</td>`;
   };
   const 꼬리 = 꼬리값(모양, 틀, 줄들);
   const 아래값 = (줄, 칸) => {
@@ -3325,6 +3325,7 @@ function 양식격자() {
       return 틀td(입력칸(값, `data-botail="줄${줄.r}:${칸.c}" aria-label="아래 글"`, 서식글));
     }
     if (가격허락 !== true && 돈글꼴.test(칸.t ?? '')) return 흐림(칸.s);
+    if (!칸.t && 줄.r === 틀.머리줄 && 칸표.has(칸.c)) return 틀td(넘침글(보임(칸이름(칸표.get(칸.c), 틀)), 서식글));
     return 틀td(칸.t ? 넘침글(격자칸글(칸, 서식글, 칸.t), 서식글) : '');
   };
   const 고정줄 = (줄) => `<tr style="height:${줄.h}px">${줄.칸.map((칸) => 고정칸(줄, 칸)).join('')}</tr>`;

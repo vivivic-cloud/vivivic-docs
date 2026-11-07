@@ -32,6 +32,23 @@ export function 칸역할(라벨) {
   return (k && 역할표.find(([, re]) => re.test(k))?.[0]) || '';
 }
 
+/* 제목 없는 칸의 화면 이름 (사장님 11-07) — 해피코 INVOICE 는 ITEM NO 옆 칸이 머리 글 없이 중국어 품명입니다.
+   라벨·키는 안 건드립니다: 입력값은 고침[키] 에 있고, 라벨은 가격칸·표 끝 셈이 씁니다. 화면에 찍을 때만 이 이름을 씁니다.
+   k.한자 — 새로 올린 틀은 true/false. 옛 틀은 값이 안 남아 undefined 라 자리만 봅니다. */
+const 한자칸인가 = (값들) => {
+  const 찬 = 값들.map((v) => String(v ?? '').trim()).filter(Boolean);
+  return !찬.some((v) => /[\uac00-\ud7a3]/.test(v)) && 찬.filter((v) => /[\u4e00-\u9fff]/.test(v)).length * 2 > 찬.length;
+};
+
+/** 칸의 화면 이름. 제목이 있으면 그것, 없으면 ITEM NO 바로 오른쪽 입력 칸만 「중국어 품명」. */
+export function 칸이름(칸, 틀) {
+  if (칸.라벨) return 칸.라벨;
+  if (칸.숨김 || 칸.역할 || 칸.식 || 칸.한자 === false) return '';
+  const 왼 = 틀.칸.find((k) => k.c === 칸.c - 1);
+  if (!왼 || 왼.숨김 || 왼.역할 !== 'code' || 글칸(왼.라벨) !== 'itemno') return '';
+  return 틀.칸.some((k) => k.식?.includes(칸.c)) ? '' : '중국어 품명';
+}
+
 /** 품목표 머리인가 — 수량 칸 + 코드나 이름 칸, 그리고 칸이 셋 이상. */
 function 머리줄인가(칸들) {
   const 역할들 = 칸들.map(칸역할);
@@ -169,6 +186,9 @@ function 분석시트(시트) {
   };
   let 끝 = 시작;
   while (끝 < rows.length && (품목줄인가(끝) || (품목줄인가(끝 + 1) && !(rows[끝] ?? []).some(Boolean)))) 끝++;
+
+  // 제목 없는 칸은 값이 한자인지 적어 둡니다 — 칸이름 이 씁니다. 틀에 값이 안 남아 여기서만 압니다.
+  for (const k of 칸들) if (!k.라벨) k.한자 = 한자칸인가(rows.slice(시작, 끝).map((r) => r[k.c]));
 
   // 칸 식은 품목 줄 가운데 처음 나온 것
   for (const k of 칸들) {
