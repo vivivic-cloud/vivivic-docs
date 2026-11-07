@@ -709,3 +709,53 @@ test('차수수량 — 임시통합 차수는 수량이 없다', () => {
   assert.equal(차수수량(b, 'AA_1'), null);
   assert.equal(수량판(b), null);
 });
+
+/* ── ITEM NO 코드 칸 (해피코 잔액서류, 사장님 11-07) ── 값은 지어낸 것입니다. */
+const 품번표 = (머리, 줄, f) => ({ rows: [머리, ...줄].map((c) => ({ c })), h: 1, f: f ?? 줄.length + 1 });
+const 사전하나 = 벤더피아단품사전([{ id: '단품_1', 줄: ['AB-01\t가나 책장\t판매중\t7'] }]);
+
+test('ITEM NO — 벤더피아 맞대기·발주서 대조의 코드 칸이 된다', () => {
+  for (const 머리칸 of ['ITEM NO', 'Item No.', 'Item No', 'Item\n no.']) {
+    const t = 품번표(['Description of goods', 머리칸, '', 'QUANTITY', 'PRICE', 'AMOUNT'], [
+      ['Gana shelf 가나 책장', 'AB-01', '书架', '10', '￥5.00', '￥50.00'],
+      ['Dara desk 다라 책상', 'cd_02', '书桌', '3', '￥4.00', '￥12.00'],
+      ['TOTAL', '', '', '13', '', '￥62.00'],
+    ], 3);
+    const m = 벤더피아맞대기(t, 사전하나);
+    assert.equal(m.칸.code, 1, 머리칸);
+    assert.deepEqual(m.칸.names, [0]);
+    assert.equal(m.줄.get(1).kind, '맞음');
+    assert.equal(m.줄.get(1).vp.양품, 7);
+    assert.equal(m.줄.get(1).칸, 0);
+    assert.equal(m.줄.get(2).kind, '없음');
+    assert.equal(m.줄.has(3), false, '합계줄은 안 칠함');
+  }
+  const 발주 = { rows: [['code#', 'ITEM NAME', 'ORDER QTY', 'PRICE', 'AMOUNT'], ['AB-01', '가나', '10', '5', '50'], ['TOTAL', '', '10', '', '50']].map((c) => ({ c })), h: 1, f: 2 };
+  const 잔액 = 품번표(['Description of goods', 'ITEM NO', 'QUANTITY', 'PRICE', 'AMOUNT'], [['Gana', 'AB-01', '12', '5', '60'], ['Dara', 'cd_02', '3', '4', '12']]);
+  const r = 발주대조(발주, 잔액);
+  assert.equal(r.못댐, null);
+  assert.ok(r.줄.some((x) => x.kind === '잔액서류만' && x.name === 'cd_02'));
+  assert.ok(r.줄.some((x) => x.kind === '수량' && x.from === 10 && x.to === 12));
+});
+
+test('ITEM NO — 값이 숫자뿐이면 줄 번호라 코드가 아니다', () => {
+  const t = 품번표(['Item No.', 'Description of goods', 'QUANTITY'], [['1', 'AMT-S03-01', '5'], ['2', 'AMT-S03-02', '6'], ['TOTAL', '', '11']], 3);
+  assert.deepEqual(벤더피아맞대기(t, 사전하나), { 못댐: '코드 칸 없음' });
+  // 베이지아 꼴 — 설명 칸을 코드로 쓰는 길은 그대로입니다. 자기와 맞대 차이 없음.
+  assert.equal(발주대조(t, t).못댐, null);
+  assert.equal(발주대조(t, t).코드없는줄.발주, 0);
+});
+
+test('ITEM NO — CODE# 이 있으면 CODE# 이 이긴다, 칸 차례와 상관없이', () => {
+  const t = 품번표(['Item No.', 'CODE#', 'Product model', 'Qty pcs'], [['ZH-31', 'AB-01', '가나 책장', '5']]);
+  const m = 벤더피아맞대기(t, 사전하나);
+  assert.equal(m.칸.code, 1);
+  assert.equal(m.줄.get(1).kind, '맞음');
+});
+
+test('ITEM NO — 값이 붙은 글귀·다른 칸 이름은 코드 칸이 아니다', () => {
+  for (const 머리칸 of ['ITEM no : ZH-31/32/33', 'ITEM NAME', 'Item', 'No.', 'Item Notes']) {
+    const t = 품번표([머리칸, 'QUANTITY'], [['AB-01', '5']]);
+    assert.deepEqual(벤더피아맞대기(t, 사전하나), { 못댐: '코드 칸 없음' }, 머리칸);
+  }
+});

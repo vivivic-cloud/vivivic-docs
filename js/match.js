@@ -13,7 +13,7 @@
 
 /* 코드를 맞대는 셈(`코드열쇠`)은 **js/parse.js 한 자리**에 있습니다. 여기서 또 만들지 마십시오.
    서류끼리 맞댈 때도 벤더피아와 맞댈 때도 같은 것을 불러야 둘이 안 갈라집니다. */
-import { 코드열쇠, 제품줄인가, 판날짜, 수정차례 } from './parse.js';
+import { 코드열쇠, 제품줄인가, 판날짜, 수정차례, 코드머리, 품번머리, 품번칸되나 } from './parse.js';
 
 /**
  * 두 서류의 품목을 코드로 맞춰 보고, 무엇이 새로 들어오고 빠지고 수량이 바뀌었는지 줄로 만듭니다.
@@ -289,7 +289,8 @@ export function 차수수량(b, code, 확정 = null) {
 // 칸 이름 — js/parse.js 의 ITEM_COLS 와 같은 낱말에, 표에서 실제로 본 꼴을 더했습니다.
 //   발주서 「PRICE (FOB Qingdao)」 · 제헤우드 CI 금액 칸 「Total」 · 베이지아 발주서 「FABRIC / COLOR」.
 const 대조칸 = [
-  ['code', [/^code#?$/, /^품번$/, /^코드$/]],
+  ['code', 코드머리],
+  ['itemno', 품번머리],
   ['name', [/^productmodel$/, /^itemname$/, /^품명$/, /^descriptionofgoods$/]],
   ['qty', [/^quantity/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
   ['price', [/^unitprice/, /^price/, /^fob/, /^단가/, /^u\/price/]],
@@ -326,6 +327,7 @@ export function 대조품목(t) {
   /* 코드 칸이 없는 양식 — 베이지아 CI 는 「Description of Goods」 칸에 코드(AMT-S03-01)를 적습니다.
      그 칸 글이 **하나도 빠짐없이 코드 꼴**(숫자가 든 짧은 번호표)일 때만 코드로 씁니다. */
   let 코드칸 = cols.code, 이름칸 = cols.name;
+  if (코드칸 === undefined && cols.itemno !== undefined && 품번칸되나(몸.map((r) => r[cols.itemno]))) 코드칸 = cols.itemno;
   if (코드칸 === undefined && 이름칸 !== undefined) {
     const 글들 = 몸.map((r) => String(r[이름칸] ?? '').trim()).filter(Boolean);
     if (글들.length && 글들.every((x) => 제품줄인가(x) && /\d/.test(x))) { 코드칸 = 이름칸; 이름칸 = undefined; }
@@ -522,7 +524,7 @@ export function 이름후보(이름글들, 사전, 최대 = 6) {
 
 // 상품명으로 볼 칸 — 해피코 「ITEM NAME/COLOR (KRO)」·「ITEM NAME (ENG)」, 제헤우드 「Product model」 …
 const 이름칸말 = /productmodel|itemname|품명|상품명|단품명|제품명|descriptionofgoods|^description$|^model$/;
-const 코드칸말 = [/^code#?$/, /^품번$/, /^코드$/, /^단품코드$/];
+const 코드칸말 = [...코드머리, /^단품코드$/];
 
 /**
  * 내용보기 표 한 장의 몸줄을 벤더피아 단품과 맞댑니다.
@@ -537,15 +539,18 @@ const 코드칸말 = [/^code#?$/, /^품번$/, /^코드$/, /^단품코드$/];
 export function 벤더피아맞대기(t, 사전, 연결) {
   const rows = (t?.rows ?? []).map((r) => (Array.isArray(r) ? r : r?.c ?? []));
   const h = Math.max(1, t?.h ?? 1), f = Math.min(t?.f ?? rows.length, rows.length);
-  let code;
+  let code, 품번;
   const names = [];
   for (const r of rows.slice(0, h))
     r.forEach((v, c) => {
       const k = 칸글(v);
       if (!k) return;
       if (code === undefined && 코드칸말.some((re) => re.test(k))) code = c;
+      else if (품번 === undefined && 품번머리.some((re) => re.test(k))) 품번 = c;
       else if (이름칸말.test(k) && !names.includes(c)) names.push(c);
     });
+  if (code === undefined && 품번 !== undefined
+    && 품번칸되나(rows.slice(h, f).filter((r) => !r.some((v) => 합계말.test(String(v ?? '')))).map((r) => r[품번]))) code = 품번;
   if (code === undefined) return { 못댐: '코드 칸 없음' };
   const 줄 = new Map();
   for (let i = h; i < f; i++) {

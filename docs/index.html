@@ -417,7 +417,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.115.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.116.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -458,7 +458,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.115.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.116.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">
@@ -1959,8 +1959,19 @@ const 코드열쇠 = (v) => String(v ?? '').replace(밑줄꼴_, '_');
      data-* 처럼 다시 읽어 맞대는 자리에는 쓰지 마십시오(그 값은 날것과 맞대야 합니다). */
 const 밑줄보기 = (v) => String(v ?? '').replace(밑줄꼴_, '_');
 
+/* 코드 칸 머리 — 품목 읽기(readItems)·발주서 대조·벤더피아 맞대기가 같이 씁니다. 한 곳만 고치면 어긋납니다.
+   「ITEM NO」(해피코 잔액서류 — 값은 LS-liok · 18_ru12C 꼴)는 CODE# 이 없는 표에서만 코드로 봅니다.
+   ⚠ 값이 전부 숫자면 코드가 아니라 줄 번호입니다(품번칸되나).
+   ⚠ 「ITEM NO : ZH-31」 처럼 값이 붙은 글(견적서 글귀)은 머리가 아닙니다 — `^…$` 로 꼭 맞춥니다.
+   ⚠ 서버 sync.gs ITEM_COLS_ 에는 아직 없습니다 — 그래서 ITEM NO 서류는 cipl.items 가 빕니다. 표(cipl.sheets)는 뜹니다. */
+const 코드머리 = [/^code#?$/, /^품번$/, /^코드$/];
+const 품번머리 = [/^itemno#?$/];
+/** ITEM NO 칸 값들 → 코드로 써도 되나. 숫자뿐이거나 비었으면 안 됩니다. */
+const 품번칸되나 = (값들) => 값들.map((v) => String(v ?? '').trim()).some((v) => v && !/^\d+$/.test(v));
+
 const ITEM_COLS = [
-  ['code', [/^code#?$/, /^품번$/, /^코드$/]],
+  ['code', 코드머리],
+  ['itemno', 품번머리],
   ['alt', [/^zh#?$/, /^no#?$/]],
   ['name', [/^productmodel$/, /^itemname$/, /^품명$/, /^descriptionofgoods$/]],
   ['qty', [/^quantity$/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
@@ -2050,7 +2061,7 @@ function readItems(rows) {
       for (const [key, res] of ITEM_COLS)
         if (found[key] === undefined && res.some((re) => re.test(t))) found[key] = c;
     });
-    if (found.qty !== undefined && (found.code !== undefined || found.alt !== undefined)) {
+    if (found.qty !== undefined && (found.code !== undefined || found.itemno !== undefined || found.alt !== undefined)) {
       head = i;
       cols = found;
       break;
@@ -2058,7 +2069,13 @@ function readItems(rows) {
   }
   if (head < 0) return null;
 
-  const codeCol = cols.code ?? cols.alt;
+  let 품번칸;
+  if (cols.itemno !== undefined) {
+    const 끝 = rows.findIndex((r, i) => i > head && (r ?? []).some((v) => TOTAL_ROW.test(String(v ?? ''))));
+    if (품번칸되나(rows.slice(head + 1, 끝 < 0 ? rows.length : 끝).map((r) => r?.[cols.itemno]))) 품번칸 = cols.itemno;
+  }
+  const codeCol = cols.code ?? 품번칸 ?? cols.alt;
+  if (codeCol === undefined) return null;
   const out = new Map();                  // 열쇠 → 품목
   const 꼴수 = new Map();                 // 열쇠 → (날것 코드 → 몇 번 쓰였나)
   for (let i = head + 1; i < rows.length; i++) {
@@ -2839,7 +2856,7 @@ function 임시표(pos) {
   return { name: '발주', rows, h: 1, f };
 }
 
-return { ASIDE, CJK_GLOSS, KINDS, PDF로바꿀꼴, STAGES, STAGE_BY_KEY, SUBDIRS, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, kindOf, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, subdirOf, suggestKeyword, summarize, 글귀_, 내용판별, 다음차수, 단서뽑기, 단서종류, 단서합치기, 밑줄보기, 수정차례, 올릴이름, 임시발주묶기, 임시칸, 제품줄인가, 칸낱말, 코드열쇠, 파일째공유되나, 판날짜 };
+return { ASIDE, CJK_GLOSS, KINDS, PDF로바꿀꼴, STAGES, STAGE_BY_KEY, SUBDIRS, SUPPLIER_ALIAS, VENDOR_ALIAS, applyRules, batchFromPath, buildBatches, classify, collapse, dupKey, extOf, findDuplicates, findIssues, glossCJK, kindOf, normalizeName, orderIds, parseBatch, parseDate, parseDocNo, parseVendor, readBrief, readCipl, readItems, readPdfItems, ruleMatches, shipDate, subdirOf, suggestKeyword, summarize, 글귀_, 내용판별, 다음차수, 단서뽑기, 단서종류, 단서합치기, 밑줄보기, 수정차례, 올릴이름, 임시발주묶기, 임시칸, 제품줄인가, 칸낱말, 코드머리, 코드열쇠, 파일째공유되나, 판날짜, 품번머리, 품번칸되나 };
 })();
 const PROGRESS = (() => {
 /**
@@ -2879,7 +2896,7 @@ function progressWord(b) {
 return { PROGRESS_WORDS, progressWord };
 })();
 const MATCH = (() => {
-const { 코드열쇠, 제품줄인가, 판날짜, 수정차례 } = PARSE;
+const { 코드열쇠, 제품줄인가, 판날짜, 수정차례, 코드머리, 품번머리, 품번칸되나 } = PARSE;
 /**
  * 잔액서류(CI&PL)와 발주서를 숫자로 맞춰 봅니다.
  *
@@ -3170,7 +3187,8 @@ function 차수수량(b, code, 확정 = null) {
 // 칸 이름 — js/parse.js 의 ITEM_COLS 와 같은 낱말에, 표에서 실제로 본 꼴을 더했습니다.
 //   발주서 「PRICE (FOB Qingdao)」 · 제헤우드 CI 금액 칸 「Total」 · 베이지아 발주서 「FABRIC / COLOR」.
 const 대조칸 = [
-  ['code', [/^code#?$/, /^품번$/, /^코드$/]],
+  ['code', 코드머리],
+  ['itemno', 품번머리],
   ['name', [/^productmodel$/, /^itemname$/, /^품명$/, /^descriptionofgoods$/]],
   ['qty', [/^quantity/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
   ['price', [/^unitprice/, /^price/, /^fob/, /^단가/, /^u\/price/]],
@@ -3207,6 +3225,7 @@ function 대조품목(t) {
   /* 코드 칸이 없는 양식 — 베이지아 CI 는 「Description of Goods」 칸에 코드(AMT-S03-01)를 적습니다.
      그 칸 글이 **하나도 빠짐없이 코드 꼴**(숫자가 든 짧은 번호표)일 때만 코드로 씁니다. */
   let 코드칸 = cols.code, 이름칸 = cols.name;
+  if (코드칸 === undefined && cols.itemno !== undefined && 품번칸되나(몸.map((r) => r[cols.itemno]))) 코드칸 = cols.itemno;
   if (코드칸 === undefined && 이름칸 !== undefined) {
     const 글들 = 몸.map((r) => String(r[이름칸] ?? '').trim()).filter(Boolean);
     if (글들.length && 글들.every((x) => 제품줄인가(x) && /\d/.test(x))) { 코드칸 = 이름칸; 이름칸 = undefined; }
@@ -3403,7 +3422,7 @@ function 이름후보(이름글들, 사전, 최대 = 6) {
 
 // 상품명으로 볼 칸 — 해피코 「ITEM NAME/COLOR (KRO)」·「ITEM NAME (ENG)」, 제헤우드 「Product model」 …
 const 이름칸말 = /productmodel|itemname|품명|상품명|단품명|제품명|descriptionofgoods|^description$|^model$/;
-const 코드칸말 = [/^code#?$/, /^품번$/, /^코드$/, /^단품코드$/];
+const 코드칸말 = [...코드머리, /^단품코드$/];
 
 /**
  * 내용보기 표 한 장의 몸줄을 벤더피아 단품과 맞댑니다.
@@ -3418,15 +3437,18 @@ const 코드칸말 = [/^code#?$/, /^품번$/, /^코드$/, /^단품코드$/];
 function 벤더피아맞대기(t, 사전, 연결) {
   const rows = (t?.rows ?? []).map((r) => (Array.isArray(r) ? r : r?.c ?? []));
   const h = Math.max(1, t?.h ?? 1), f = Math.min(t?.f ?? rows.length, rows.length);
-  let code;
+  let code, 품번;
   const names = [];
   for (const r of rows.slice(0, h))
     r.forEach((v, c) => {
       const k = 칸글(v);
       if (!k) return;
       if (code === undefined && 코드칸말.some((re) => re.test(k))) code = c;
+      else if (품번 === undefined && 품번머리.some((re) => re.test(k))) 품번 = c;
       else if (이름칸말.test(k) && !names.includes(c)) names.push(c);
     });
+  if (code === undefined && 품번 !== undefined
+    && 품번칸되나(rows.slice(h, f).filter((r) => !r.some((v) => 합계말.test(String(v ?? '')))).map((r) => r[품번]))) code = 품번;
   if (code === undefined) return { 못댐: '코드 칸 없음' };
   const 줄 = new Map();
   for (let i = h; i < f; i++) {

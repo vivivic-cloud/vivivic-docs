@@ -297,6 +297,17 @@ test('readBrief — 계약서 한 장을 한 줄로 간추린다', () => {
   assert.equal(b.balance, 75670);
 });
 
+test('readItems — ITEM NO 칸도 코드로 읽되 CODE# 이 먼저, 숫자뿐이면 줄 번호', () => {
+  const 줄 = (머리, ...몸) => [머리, ...몸, ['TOTAL', '', '', '']];
+  const 해피코 = readItems(줄(['Description of goods', 'ITEM NO', 'QUANTITY', 'PRICE'], ['가나', 'AB-01', '5', '10'], ['다라', 'cd_02', '3', '4']));
+  assert.deepEqual(해피코.map((x) => [x.code, x.qty]), [['AB-01', 5], ['cd_02', 3]]);
+  const 둘다 = readItems(줄(['Item No.', 'CODE#', 'Description of goods', 'Qty'], ['ZH-31', 'AB-01', '가나', '5']));
+  assert.equal(둘다[0].code, 'AB-01');
+  const 번호 = readItems(줄(['NO.', 'Item No.', 'Description of goods', 'Qty'], ['7', '1', '가나', '5'], ['7', '2', '다라', '3']));
+  assert.ok(번호 === null || 번호.every((x) => x.code === '7'), '줄 번호 칸은 ITEM NO 로 안 씀');
+  assert.equal(readItems(줄(['Item No.', 'Description of goods', 'Qty'], ['1', '가나', '5'])), null);
+});
+
 test('readItems — 품목과 수량을 뽑고 같은 코드는 합친다', () => {
   const rows = [
     ['NO.', 'ZH#', 'CODE#', 'Product model', 'SIZE', 'COLOR', 'Quantity', 'Amount'],

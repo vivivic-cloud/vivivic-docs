@@ -662,8 +662,19 @@ export const 코드열쇠 = (v) => String(v ?? '').replace(밑줄꼴_, '_');
      data-* 처럼 다시 읽어 맞대는 자리에는 쓰지 마십시오(그 값은 날것과 맞대야 합니다). */
 export const 밑줄보기 = (v) => String(v ?? '').replace(밑줄꼴_, '_');
 
+/* 코드 칸 머리 — 품목 읽기(readItems)·발주서 대조·벤더피아 맞대기가 같이 씁니다. 한 곳만 고치면 어긋납니다.
+   「ITEM NO」(해피코 잔액서류 — 값은 LS-liok · 18_ru12C 꼴)는 CODE# 이 없는 표에서만 코드로 봅니다.
+   ⚠ 값이 전부 숫자면 코드가 아니라 줄 번호입니다(품번칸되나).
+   ⚠ 「ITEM NO : ZH-31」 처럼 값이 붙은 글(견적서 글귀)은 머리가 아닙니다 — `^…$` 로 꼭 맞춥니다.
+   ⚠ 서버 sync.gs ITEM_COLS_ 에는 아직 없습니다 — 그래서 ITEM NO 서류는 cipl.items 가 빕니다. 표(cipl.sheets)는 뜹니다. */
+export const 코드머리 = [/^code#?$/, /^품번$/, /^코드$/];
+export const 품번머리 = [/^itemno#?$/];
+/** ITEM NO 칸 값들 → 코드로 써도 되나. 숫자뿐이거나 비었으면 안 됩니다. */
+export const 품번칸되나 = (값들) => 값들.map((v) => String(v ?? '').trim()).some((v) => v && !/^\d+$/.test(v));
+
 const ITEM_COLS = [
-  ['code', [/^code#?$/, /^품번$/, /^코드$/]],
+  ['code', 코드머리],
+  ['itemno', 품번머리],
   ['alt', [/^zh#?$/, /^no#?$/]],
   ['name', [/^productmodel$/, /^itemname$/, /^품명$/, /^descriptionofgoods$/]],
   ['qty', [/^quantity$/, /^orderqty$/, /^qtypcs$/, /^qty$/, /^수량$/]],
@@ -753,7 +764,7 @@ export function readItems(rows) {
       for (const [key, res] of ITEM_COLS)
         if (found[key] === undefined && res.some((re) => re.test(t))) found[key] = c;
     });
-    if (found.qty !== undefined && (found.code !== undefined || found.alt !== undefined)) {
+    if (found.qty !== undefined && (found.code !== undefined || found.itemno !== undefined || found.alt !== undefined)) {
       head = i;
       cols = found;
       break;
@@ -761,7 +772,13 @@ export function readItems(rows) {
   }
   if (head < 0) return null;
 
-  const codeCol = cols.code ?? cols.alt;
+  let 품번칸;
+  if (cols.itemno !== undefined) {
+    const 끝 = rows.findIndex((r, i) => i > head && (r ?? []).some((v) => TOTAL_ROW.test(String(v ?? ''))));
+    if (품번칸되나(rows.slice(head + 1, 끝 < 0 ? rows.length : 끝).map((r) => r?.[cols.itemno]))) 품번칸 = cols.itemno;
+  }
+  const codeCol = cols.code ?? 품번칸 ?? cols.alt;
+  if (codeCol === undefined) return null;
   const out = new Map();                  // 열쇠 → 품목
   const 꼴수 = new Map();                 // 열쇠 → (날것 코드 → 몇 번 쓰였나)
   for (let i = head + 1; i < rows.length; i++) {
