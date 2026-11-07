@@ -22,6 +22,9 @@
   .btn-primary:disabled { opacity:.45; cursor:default; }
   .btn-ghost { background:#f1f1ef; color:#37352f; }
   .btn-ghost:hover { background:#ededeb; }
+  .dstep { width:32px; height:32px; padding:0; }
+  .dstep:disabled { opacity:.35; cursor:default; background:#f1f1ef; }
+  @media (max-width:479px){ .dhead-imsi{ display:none; } }   /* 임시통합은 발주명이 길어 폰에서 제목에 자리를 줍니다 */
   .chip { border-radius:999px; font-size:12px; font-weight:600; padding:5px 12px; transition:all .12s; }
   .chip-off { background:#fff; border:1px solid #ededeb; color:#787774; }
   .chip-off:hover { background:#f7f7f5; }
@@ -385,7 +388,7 @@
   <form id="loginForm" class="w-full max-w-[340px] p-8 bg-white border border-line rounded-2xl shadow-sm">
     <div class="flex items-center gap-2 mb-1">
       <span class="font-bold tracking-[.18em] text-[16px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.111.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.112.0</span>
     </div>
     <h1 class="text-[15px] font-bold mb-1">서류관리</h1>
     <p class="text-[12px] text-muted mb-6">에이엠티 앱과 같은 계정</p>
@@ -426,7 +429,7 @@
   <div id="topbar" class="max-w-[1400px] mx-auto px-6 h-[65px] flex items-center gap-6">
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-bold tracking-[.18em] text-[17px]">VIVIVIC</span>
-      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.111.0</span>
+      <span class="text-[10px] font-bold text-faint bg-chip rounded px-1.5 py-0.5 tracking-wider">v0.112.0</span>
     </div>
 
     <nav class="flex items-center gap-1 text-[13px] font-bold">

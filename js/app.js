@@ -1414,6 +1414,20 @@ function openDrawer(id) {
   requestAnimationFrame(() => $('#drawer').classList.remove('translate-x-full'));
 }
 
+/* 서랍 머리 ← → — 목록(#grid)에 보이는 차례 그대로, 같은 거래처 안에서만 넘깁니다.
+   visible() 을 그대로 쓰니 찾는 글자로 걸러 둔 목록이면 걸러진 차수끼리 넘어갑니다. 새로 읽는 것 없음. */
+function 앞뒤차수(b) {
+  const 줄 = visible().filter((x) => x.vendor === b.vendor);
+  const i = 줄.findIndex((x) => x.id === b.id);
+  return i < 0 ? {} : { 앞: 줄[i - 1], 뒤: 줄[i + 1] };
+}
+
+function 차수넘기기(id) {
+  받아둔파일.clear();
+  openDrawer(id);
+  $('#drawer').scrollTop = 0;
+}
+
 function closeDrawer() {
   받아둔파일.clear();      // 들고 있던 파일은 메모리라 여기서 놓습니다
   state.openId = null;
@@ -2143,16 +2157,20 @@ function renderDrawer(id) {
       ${확정줄(d)}
     </li>`;
 
+  const 이웃 = b.새 ? null : 앞뒤차수(b);
+  const 넘김단추 = (이곳, 말, 글) => `<button type="button" class="btn btn-ghost dstep" aria-label="${말}"
+    ${이곳 ? `data-step="${esc(이곳.id)}" title="${esc(차수이름(이곳))}"` : 'disabled'}>${글}</button>`;
   $('#drawerBody').innerHTML = `
     <div class="sticky top-0 bg-white border-b border-line px-6 h-[65px] flex items-center gap-3 z-10">
+      ${이웃 ? `<div class="flex items-center gap-1 shrink-0">${넘김단추(이웃.앞, '앞 차수', '←')}${넘김단추(이웃.뒤, '뒤 차수', '→')}</div>` : ''}
       <div class="min-w-0">
-        <div class="text-[11px] font-bold text-faint tracking-wide">${esc(b.vendor)}${b.임시 ? ` · PO ${esc(b.batch)}` : ''}</div>
-        <div class="text-[17px] font-bold leading-tight" data-btitle>${esc(차수이름(b))}</div>
+        <div class="text-[11px] font-bold text-faint tracking-wide truncate">${esc(b.vendor)}${b.임시 ? ` · PO ${esc(b.batch)}` : ''}</div>
+        <div class="text-[17px] font-bold leading-tight truncate" data-btitle${b.임시 ? ` title="${esc(차수이름(b))}"` : ''}>${esc(차수이름(b))}</div>
         <div class="flex items-center gap-[3px] mt-1">${stageDots(b)}</div>
       </div>
-      <div class="ml-auto flex items-center gap-2">
-        ${진행알약(b)}
-        <span class="text-[13px] font-bold">${b.done}<span class="text-faint">/7</span></span>
+      <div class="ml-auto flex items-center gap-2 shrink-0">
+        ${b.임시 ? `<span class="dhead-imsi">${진행알약(b)}</span>` : 진행알약(b)}
+        <span class="text-[13px] font-bold whitespace-nowrap">${b.done}<span class="text-faint">/7</span></span>
         <button id="drawerClose" class="btn btn-ghost">닫기</button>
       </div>
     </div>
@@ -2263,6 +2281,7 @@ function renderDrawer(id) {
     </div>`;
 
   $('#drawerClose').onclick = closeDrawer;
+  for (const el of $('#drawerBody').querySelectorAll('[data-step]')) el.onclick = () => 차수넘기기(el.dataset.step);
   if (b.새) 새차수잇기();
   const ovSave = $('#ovSave');
   if (ovSave) ovSave.onclick = () => saveOverlay(id);
